@@ -2,9 +2,9 @@
 
 A production-minded foundation for community: public submissions, moderated publishing, themed message cards, reporting, and lightweight analytics.
 
-## Phase 1 status
+## Phase 2 status
 
-This repository currently contains the stable foundation only. The public experience, admin workflows, card studio, safety controls, and analytics are intentionally staged for later phases as specified in the product brief.
+The public confession experience is implemented. Students can submit anonymous, categorized, themed confessions; submissions enter `PENDING` and remain private until a later moderation phase publishes them. The admin workflows, card studio, safety controls, and analytics remain intentionally deferred.
 
 ## Architecture
 
@@ -24,7 +24,21 @@ This repository currently contains the stable foundation only. The public experi
 3. Run `pnpm install`.
 4. Start PostgreSQL with `docker compose up -d postgres`.
 5. Generate Prisma client with `pnpm db:generate`.
-6. Run the apps with `pnpm dev`.
+6. Apply the schema with `pnpm db:push` and seed the eight shared themes with `pnpm db:seed`.
+7. Run the apps with `pnpm dev`.
+
+The public web app uses `NEXT_PUBLIC_API_URL` (default `http://localhost:4000`) to reach the NestJS API.
+
+## Public routes
+
+| Route                     | Purpose                                |
+| ------------------------- | -------------------------------------- |
+| `/`                       | Landing page and community explanation |
+| `/send`                   | Anonymous confession submission        |
+| `/confessions`            | Published confession feed              |
+| `/confessions/[publicId]` | Published confession detail            |
+
+Only `PUBLISHED` records are returned by public API routes. Pending, rejected, archived, and otherwise unpublished content is never exposed.
 
 ## Commands
 
