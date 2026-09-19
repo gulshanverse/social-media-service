@@ -10,6 +10,7 @@
     "test": "tsx src/confessions/confessions.test.ts"
   },
   "dependencies": {
+    "@ggv/config": "workspace:*",
     "@ggv/themes": "workspace:*",
     "@ggv/types": "workspace:*",
     "@prisma/client": "^6.2.1",

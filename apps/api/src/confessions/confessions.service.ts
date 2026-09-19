@@ -6,14 +6,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaClient, ConfessionStatus } from '@prisma/client';
+import { appConfig } from '@ggv/config';
 import { themes } from '@ggv/themes';
 import type { PublicConfession, PublicConfessionPage, SubmissionResult } from '@ggv/types';
 import { CreateConfessionDto, ListConfessionsQueryDto } from './dto';
 import { SubmissionRateLimiter } from './rate-limit';
-
-const prisma = new PrismaClient();
-const rateLimiter = new SubmissionRateLimiter();
-const maxContentLength = 1000;
 
 type ThemeRecord = {
   slug: string;
@@ -32,6 +29,45 @@ type ConfessionRecord = {
   publishedAt: Date | null;
   theme: ThemeRecord | null;
 };
+
+export type ConfessionsPrisma = {
+  theme: {
+    findUnique(args: { where: { slug: string } }): Promise<ThemeRecord | null>;
+  };
+  confession: {
+    create(args: {
+      data: {
+        publicId: string;
+        content: string;
+        originalContent: string;
+        category?: string;
+        status: ConfessionStatus;
+        themeId: string;
+      };
+    }): Promise<unknown>;
+    findMany(args: {
+      where: { status: ConfessionStatus };
+      orderBy: { publishedAt: 'desc' };
+      skip: number;
+      take: number;
+      select: Record<string, unknown>;
+    }): Promise<ConfessionRecord[]>;
+    count(args: { where: { status: ConfessionStatus } }): Promise<number>;
+    findFirst(args: {
+      where: { publicId: string; status: ConfessionStatus };
+      select: Record<string, unknown>;
+    }): Promise<ConfessionRecord | null>;
+    update(args: {
+      where: { publicId: string };
+      data: { viewCount: { increment: number } };
+    }): Promise<unknown>;
+  };
+};
+
+type RateLimiter = Pick<SubmissionRateLimiter, 'check'>;
+
+const prisma = new PrismaClient() as unknown as ConfessionsPrisma;
+const rateLimiter = new SubmissionRateLimiter();
 
 function toPublicTheme(theme: ThemeRecord) {
   const shared = themes.find((item) => item.id === theme.slug);
@@ -59,12 +95,19 @@ function toPublicConfession(confession: ConfessionRecord): PublicConfession {
 
 @Injectable()
 export class ConfessionsService {
+  constructor(
+    private readonly database: ConfessionsPrisma = prisma,
+    private readonly submissions: RateLimiter = rateLimiter,
+  ) {}
+
   async create(dto: CreateConfessionDto, clientKey: string): Promise<SubmissionResult> {
     const content = dto.content?.trim();
     if (!content) throw new BadRequestException('Confession content is required.');
-    if (content.length > maxContentLength)
-      throw new BadRequestException(`Confession must be ${maxContentLength} characters or fewer.`);
-    const rate = rateLimiter.check(
+    if (content.length > appConfig.maxConfessionLength)
+      throw new BadRequestException(
+        `Confession must be ${appConfig.maxConfessionLength} characters or fewer.`,
+      );
+    const rate = this.submissions.check(
       clientKey,
       Number(process.env.SUBMISSION_RATE_LIMIT ?? 5),
       Number(process.env.SUBMISSION_RATE_WINDOW_SECONDS ?? 3600),
@@ -78,18 +121,18 @@ export class ConfessionsService {
         HttpStatus.TOO_MANY_REQUESTS,
       );
     const themeId = dto.themeId ?? 'midnight';
-    const theme = await prisma.theme.findUnique({ where: { slug: themeId } });
+    const theme = await this.database.theme.findUnique({ where: { slug: themeId } });
     if (!theme || !themes.some((item) => item.id === themeId))
       throw new BadRequestException('Please choose a valid theme.');
     const publicId = `${Date.now().toString(36)}-${crypto.randomUUID().slice(0, 8)}`;
-    await prisma.confession.create({
+    await this.database.confession.create({
       data: {
         publicId,
         content,
         originalContent: content,
         category: dto.category,
         status: ConfessionStatus.PENDING,
-        themeId: theme.id,
+        themeId: theme.slug,
       },
     });
     return {
@@ -104,7 +147,7 @@ export class ConfessionsService {
     const limit = query.limit ?? 12;
     const where = { status: ConfessionStatus.PUBLISHED };
     const [items, total] = await Promise.all([
-      prisma.confession.findMany({
+      this.database.confession.findMany({
         where,
         orderBy: { publishedAt: 'desc' },
         skip: (page - 1) * limit,
@@ -128,7 +171,7 @@ export class ConfessionsService {
           },
         },
       }),
-      prisma.confession.count({ where }),
+      this.database.confession.count({ where }),
     ]);
     return {
       items: items.map(toPublicConfession),
@@ -140,7 +183,7 @@ export class ConfessionsService {
   }
 
   async findPublished(publicId: string): Promise<PublicConfession> {
-    const confession = await prisma.confession.findFirst({
+    const confession = await this.database.confession.findFirst({
       where: { publicId, status: ConfessionStatus.PUBLISHED },
       select: {
         publicId: true,
@@ -162,7 +205,10 @@ export class ConfessionsService {
       },
     });
     if (!confession) throw new NotFoundException('Confession not found.');
-    await prisma.confession.update({ where: { publicId }, data: { viewCount: { increment: 1 } } });
+    await this.database.confession.update({
+      where: { publicId },
+      data: { viewCount: { increment: 1 } },
+    });
     return toPublicConfession(confession);
   }
 }

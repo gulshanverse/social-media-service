@@ -59,6 +59,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@ggv/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@ggv/themes':
         specifier: workspace:*
         version: link:../../packages/themes

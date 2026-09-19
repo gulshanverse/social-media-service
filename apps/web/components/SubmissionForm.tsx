@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { appConfig } from '@ggv/config';
 import { confessionCategories } from '@ggv/types';
 import { themes } from '@ggv/themes';
 import { createConfession } from '../lib/api';
@@ -29,7 +30,8 @@ export function SubmissionForm() {
     event.preventDefault();
     const trimmed = content.trim();
     if (!trimmed) return setError('Write something before sending your confession.');
-    if (trimmed.length > 1000) return setError('Keep your confession under 1,000 characters.');
+    if (trimmed.length > appConfig.maxConfessionLength)
+      return setError(`Keep your confession under ${appConfig.maxConfessionLength} characters.`);
     setState('loading');
     setError('');
     try {
@@ -87,14 +89,16 @@ export function SubmissionForm() {
       <textarea
         id="content"
         value={content}
-        onChange={(event) => setContent(event.target.value.slice(0, 1000))}
+        onChange={(event) => setContent(event.target.value.slice(0, appConfig.maxConfessionLength))}
         placeholder="A crush, a rant, a moment you can't stop thinking about…"
-        maxLength={1000}
+        maxLength={appConfig.maxConfessionLength}
         aria-describedby="counter"
         required
       />
       <div className="form-meta">
-        <span id="counter">{content.length}/1000</span>
+        <span id="counter">
+          {content.length}/{appConfig.maxConfessionLength}
+        </span>
         <span>Be kind. Be real.</span>
       </div>
       <div className="form-grid">
