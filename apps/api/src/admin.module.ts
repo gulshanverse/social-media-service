@@ -15,10 +15,11 @@ import { AdminAuthController } from './admin.controller';
 import { AdminService } from './admin.service';
 import { JwtAuthGuard, Roles, RolesGuard, requireUser } from './admin-auth';
 import {
-  AdminQueueQueryDto,
   AdminAuditQueryDto,
+  AdminQueueQueryDto,
   AdminReportQueryDto,
   CreateThemeDto,
+  ListQueryDto,
   UpdateConfessionDto,
   UpdateThemeDto,
 } from './admin.dto';
@@ -92,8 +93,10 @@ export class AdminController {
   ) {
     return this.service.audit(query);
   }
-  @Get('themes') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR, AdminRole.DESIGNER) themes() {
-    return this.service.themes();
+  @Get('themes') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR, AdminRole.DESIGNER) themes(
+    @Query() query: ListQueryDto,
+  ) {
+    return this.service.themes(query);
   }
   @Post('themes') @Roles(AdminRole.SUPER_ADMIN, AdminRole.DESIGNER) createTheme(
     @Body() body: CreateThemeDto,

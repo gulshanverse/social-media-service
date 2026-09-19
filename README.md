@@ -37,3 +37,7 @@ The API explicitly enforces role boundaries: designers can manage themes but can
 ## Phase 4 operations workspace
 
 The admin product now provides a practical moderation console: aggregate dashboard metrics, server-side confession queue search/filter/sort/pagination, full confession review with pending-only editing and state-aware actions, report resolution with confession context, filtered append-only audit activity, and role-aware theme CRUD with live public-card previews. The frontend includes explicit loading, empty, error, success, confirmation, keyboard-focus, and responsive states; backend authorization and DTO validation remain authoritative.
+
+## Phase 4 closure hardening
+
+The final moderation workspace pass adds a backend-backed Theme selector to the confession queue, converts theme listing to standard server-side pagination, strengthens dashboard and query behavior coverage with distinguishable aggregate fixtures, improves explicit mutation feedback grammar, and returns safe not-found errors for missing theme updates. Theme IDs remain database identities throughout the queue, editor, public API, and theme management flows.

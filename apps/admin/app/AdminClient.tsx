@@ -296,6 +296,8 @@ function Dashboard({ admin }: { admin: Admin }) {
 }
 function Confessions() {
   const [data, setData] = useState<PageData<any> | null>(null);
+  const [themes, setThemes] = useState<Theme[]>([]);
+  const [themeError, setThemeError] = useState('');
   const [status, setStatus] = useState('PENDING');
   const [category, setCategory] = useState('');
   const [theme, setTheme] = useState('');
@@ -315,6 +317,11 @@ function Confessions() {
   useEffect(() => {
     load();
   }, [status, category, theme, order, page]);
+  useEffect(() => {
+    api('/admin/themes?page=1&limit=100')
+      .then((value) => setThemes(value.items ?? []))
+      .catch((e) => setThemeError(e instanceof Error ? e.message : 'Themes unavailable.'));
+  }, []);
   function submit(e: FormEvent) {
     e.preventDefault();
     setPage(1);
@@ -393,12 +400,34 @@ function Confessions() {
             <option value="oldest">Oldest</option>
           </select>
         </label>
+        <label>
+          Theme
+          <select
+            value={theme}
+            onChange={(e) => {
+              setTheme(e.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="">All themes</option>
+            {themes.map((value) => (
+              <option value={value.id} key={value.id}>
+                {value.name}
+              </option>
+            ))}
+          </select>
+        </label>
         <button type="submit">Search</button>
         <button type="button" className="secondary" onClick={clear}>
           Clear
         </button>
       </form>
       <Notice error={error} />
+      {themeError && (
+        <div className="notice error" role="alert">
+          Theme filters unavailable: {themeError}
+        </div>
+      )}
       {loading && <div className="state">Loading queue…</div>}
       {!loading && data?.items.length === 0 && (
         <div className="state empty">No confessions match these filters.</div>
@@ -453,8 +482,8 @@ function ConfessionDetail({ admin }: { admin: Admin }) {
       .catch((e) => setError(e.message));
   useEffect(() => {
     load();
-    api('/admin/themes')
-      .then(setThemes)
+    api('/admin/themes?page=1&limit=100')
+      .then((value) => setThemes(value.items ?? []))
       .catch(() => undefined);
   }, [id]);
   async function act(action: string) {
@@ -464,7 +493,12 @@ function ConfessionDetail({ admin }: { admin: Admin }) {
     try {
       await api(`/admin/confessions/${id}/${action}`, { method: 'POST' });
       await load();
-      setMessage(`Confession ${action}d successfully.`);
+      const messages: Record<string, string> = {
+        approve: 'Confession approved successfully.',
+        reject: 'Confession rejected successfully.',
+        archive: 'Confession archived successfully.',
+      };
+      setMessage(messages[action] ?? 'Moderation action completed successfully.');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Action failed.');
     } finally {
@@ -651,7 +685,9 @@ function Reports() {
     if (!confirm(`Confirm ${action} report?`)) return;
     try {
       await api(`/admin/reports/${id}/${action}`, { method: 'POST' });
-      setMessage(`Report ${action}d.`);
+      setMessage(
+        action === 'resolve' ? 'Report resolved successfully.' : 'Report dismissed successfully.',
+      );
       load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Action failed.');
@@ -835,23 +871,25 @@ const emptyTheme = {
   radius: 28,
 };
 function Themes({ admin }: { admin: Admin }) {
-  const [themes, setThemes] = useState<Theme[]>([]);
+  const [data, setData] = useState<PageData<Theme> | null>(null);
   const [form, setForm] = useState<any>(emptyTheme);
   const [editing, setEditing] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
   const canWrite = admin.role === 'SUPER_ADMIN' || admin.role === 'DESIGNER';
   const load = () => {
     setLoading(true);
-    api('/admin/themes')
-      .then(setThemes)
-      .catch((e) => setError(e.message))
+    setError('');
+    api(`/admin/themes?page=${page}&limit=20`)
+      .then(setData)
+      .catch((e) => setError(e instanceof Error ? e.message : 'Themes could not be loaded.'))
       .finally(() => setLoading(false));
   };
   useEffect(() => {
     load();
-  }, []);
+  }, [page]);
   async function save(e: FormEvent) {
     e.preventDefault();
     setError('');
@@ -861,10 +899,11 @@ function Themes({ admin }: { admin: Admin }) {
         method: editing ? 'PATCH' : 'POST',
         body: JSON.stringify(form),
       });
-      setMessage(editing ? 'Theme updated.' : 'Theme created.');
+      setMessage(editing ? 'Theme updated successfully.' : 'Theme created successfully.');
       setForm(emptyTheme);
       setEditing(null);
-      load();
+      if (!editing) setPage(1);
+      else load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Theme could not be saved.');
     }
@@ -879,9 +918,11 @@ function Themes({ admin }: { admin: Admin }) {
       </p>
       <Notice error={error} message={message} />
       {loading && <div className="state">Loading themes…</div>}
-      {!loading && themes.length === 0 && <div className="state empty">No themes exist yet.</div>}
+      {!loading && data?.items.length === 0 && (
+        <div className="state empty">No themes exist yet.</div>
+      )}
       <div className="theme-list">
-        {themes.map((t) => (
+        {data?.items.map((t) => (
           <article className="panel theme-card" key={t.id}>
             <ThemePreview theme={t} label={t.name} />
             <div className="theme-card-meta">
@@ -906,6 +947,7 @@ function Themes({ admin }: { admin: Admin }) {
           </article>
         ))}
       </div>
+      <Pager data={data} onPage={setPage} />
       {canWrite && (
         <form className="panel theme-form" onSubmit={save}>
           <div className="form-heading">
@@ -923,22 +965,16 @@ function Themes({ admin }: { admin: Admin }) {
               </button>
             )}
           </div>
-          {editing ? (
-            <label>
-              Slug
-              <input value={form.slug} disabled />
-            </label>
-          ) : (
-            <label>
-              Slug
-              <input
-                value={form.slug}
-                onChange={(e) => setForm({ ...form, slug: e.target.value })}
-                required
-                minLength={1}
-              />
-            </label>
-          )}
+          <label>
+            Slug
+            <input
+              value={form.slug}
+              disabled={Boolean(editing)}
+              onChange={(e) => setForm({ ...form, slug: e.target.value })}
+              required
+              minLength={1}
+            />
+          </label>
           <label>
             Name
             <input

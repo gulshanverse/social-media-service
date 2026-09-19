@@ -39,3 +39,7 @@ The authenticated admin workspace uses these protected routes:
 - `GET /admin/themes`, `POST /admin/themes`, and `PATCH /admin/themes/:id` power theme listing, creation, editing, and live preview in the admin client.
 
 All query parameters use strict runtime DTO validation. Admin list endpoints return `{ items, page, limit, total, hasMore }` where applicable. The admin client provides explicit loading, empty, error, success, confirmation, and responsive states. Theme previews use database Theme properties while `themeId` continues to mean `Theme.id`; slugs are immutable during updates.
+
+## Phase 4 closure hardening
+
+`GET /admin/themes?page=1&limit=20` now uses the same `{ items, page, limit, total, hasMore }` contract as the other admin workspaces. The confession queue theme filter loads human-readable theme names while sending the actual database `Theme.id` to the server. Theme updates preflight resource existence and return `404 Theme not found.` rather than leaking database exception details.

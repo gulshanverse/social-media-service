@@ -27,7 +27,7 @@ export class AdminService {
     const where = {
       status: query.status ?? ConfessionStatus.PENDING,
       ...(query.category ? { category: query.category } : {}),
-      ...(query.theme ? { theme: { slug: query.theme } } : {}),
+      ...(query.theme ? { theme: { id: query.theme } } : {}),
       ...(query.search
         ? {
             OR: [
@@ -267,21 +267,30 @@ export class AdminService {
     ]);
     return { items, page, limit, total, hasMore: page * limit < total };
   }
-  async themes() {
-    return prisma.theme.findMany({
-      orderBy: { name: 'asc' },
-      select: {
-        id: true,
-        slug: true,
-        name: true,
-        background: true,
-        gradient: true,
-        textColor: true,
-        accentColor: true,
-        fontFamily: true,
-        radius: true,
-      },
-    });
+  async themes(query: { page?: number; limit?: number } = {}) {
+    const page = Math.max(1, query.page ?? 1);
+    const limit = Math.min(100, Math.max(1, query.limit ?? 20));
+    const select = {
+      id: true,
+      slug: true,
+      name: true,
+      background: true,
+      gradient: true,
+      textColor: true,
+      accentColor: true,
+      fontFamily: true,
+      radius: true,
+    } as const;
+    const [items, total] = await Promise.all([
+      prisma.theme.findMany({
+        orderBy: { name: 'asc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        select,
+      }),
+      prisma.theme.count(),
+    ]);
+    return { items, page, limit, total, hasMore: page * limit < total };
   }
   async createTheme(body: CreateThemeDto, actor: AdminIdentity) {
     const data = {
@@ -299,6 +308,8 @@ export class AdminService {
     return item;
   }
   async updateTheme(id: string, body: UpdateThemeDto, actor: AdminIdentity) {
+    const existing = await prisma.theme.findUnique({ where: { id }, select: { id: true } });
+    if (!existing) throw new NotFoundException('Theme not found.');
     const data = Object.fromEntries(
       Object.entries(body).filter(([, value]) => value !== undefined),
     );
