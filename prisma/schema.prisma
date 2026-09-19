@@ -45,12 +45,30 @@ model AdminUser {
   email       String      @unique
   passwordHash String
   name        String?
+  isActive    Boolean     @default(true)
   role        AdminRole   @default(SUPER_ADMIN)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
   confessions Confession[] @relation("ConfessionEditor")
   auditLogs   AuditLog[]  @relation("AuditActor")
   reports     Report[]    @relation("ReportReviewer")
+  sessions    AdminSession[]
+}
+
+model AdminSession {
+  id               String    @id @default(cuid())
+  adminId          String
+  admin            AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  refreshTokenHash String
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  lastUsedAt       DateTime?
+
+  @@index([adminId])
+  @@index([expiresAt])
+  @@index([revokedAt])
 }
 
 model Theme {

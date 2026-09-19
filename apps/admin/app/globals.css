@@ -132,3 +132,148 @@ a {
     grid-template-columns: 1fr;
   }
 }
+
+.admin-nav {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 3rem;
+}
+.admin-nav a {
+  background: #101522;
+  border: 1px solid #273149;
+  padding: 0.55rem 0.8rem;
+}
+.admin-user {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #9ca3af;
+  font-size: 0.85rem;
+}
+.toolbar {
+  display: flex;
+  gap: 0.75rem;
+  margin: 1.5rem 0;
+}
+.toolbar select,
+select {
+  background: #101522;
+  border: 1px solid #34405b;
+  border-radius: 10px;
+  color: #fff;
+  padding: 0.7rem;
+}
+.list {
+  display: grid;
+  gap: 0.8rem;
+  margin-top: 1rem;
+}
+.list-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+  background: #151c2b;
+  border: 1px solid #273149;
+  border-radius: 16px;
+  padding: 1rem;
+  color: #fff;
+}
+.list-card span,
+.list-card small {
+  display: block;
+  color: #9ca3af;
+  font-size: 0.82rem;
+  margin-top: 0.35rem;
+}
+.list-card p {
+  color: #cbd5e1;
+  line-height: 1.5;
+  margin-bottom: 0;
+}
+.detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(240px, 1fr);
+  gap: 1rem;
+  margin-top: 2rem;
+}
+.panel {
+  background: #151c2b;
+  border: 1px solid #273149;
+  border-radius: 18px;
+  padding: 1.25rem;
+}
+.panel form {
+  display: grid;
+  gap: 1rem;
+}
+.panel textarea {
+  min-height: 180px;
+  resize: vertical;
+  border: 1px solid #34405b;
+  border-radius: 10px;
+  background: #101522;
+  color: #fff;
+  padding: 0.8rem;
+  font: inherit;
+}
+.status {
+  display: inline-block;
+  border-radius: 999px;
+  background: #273149;
+  color: #ffb04a;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+.original {
+  white-space: pre-wrap;
+  background: #101522;
+  border-left: 3px solid #ff7a00;
+  padding: 1rem;
+  color: #cbd5e1;
+}
+.actions {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 1.5rem;
+}
+.actions button:nth-child(2),
+.actions button:nth-child(3) {
+  background: #8e304b;
+}
+.theme-list {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+.theme-form {
+  max-width: 560px;
+  display: grid;
+  gap: 1rem;
+}
+.theme-form label {
+  display: grid;
+  gap: 0.4rem;
+}
+.theme-form h2 {
+  margin-top: 0;
+}
+@media (max-width: 760px) {
+  .detail-grid,
+  .theme-list {
+    grid-template-columns: 1fr;
+  }
+  .list-card {
+    flex-direction: column;
+  }
+  .admin-user {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .admin-user .secondary {
+    margin-left: 0;
+  }
+}

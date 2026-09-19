@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { AdminRole, ConfessionStatus, ReportStatus } from '@prisma/client';
+import { AdminRole, ConfessionCategory, ConfessionStatus, ReportStatus } from '@prisma/client';
 import { prisma, recordAudit, AdminIdentity } from './admin-auth';
+import { CreateThemeDto, UpdateConfessionDto, UpdateThemeDto } from './admin.dto';
 
 @Injectable()
 export class AdminService {
@@ -67,19 +68,20 @@ export class AdminService {
     if (!item) throw new NotFoundException('Confession not found.');
     return item;
   }
-  async edit(
-    id: string,
-    body: { content?: string; category?: string; themeId?: string },
-    actor: AdminIdentity,
-  ) {
-    const data: { content?: string; category?: never; themeId?: string } = {};
+  async edit(id: string, body: UpdateConfessionDto, actor: AdminIdentity) {
+    const data: {
+      content?: string;
+      category?: ConfessionCategory;
+      themeId?: string;
+      editorId: string;
+    } = { editorId: actor.id };
     if (body.content !== undefined) {
       const content = body.content.trim();
       if (!content || content.length > 1000)
         throw new BadRequestException('Content must be between 1 and 1000 characters.');
       data.content = content;
     }
-    if (body.category !== undefined) data.category = body.category as never;
+    if (body.category !== undefined) data.category = body.category;
     if (body.themeId !== undefined) {
       const theme = await prisma.theme.findUnique({ where: { slug: body.themeId } });
       if (!theme) throw new BadRequestException('Invalid theme.');
@@ -145,6 +147,7 @@ export class AdminService {
           createdAt: true,
           resolvedAt: true,
           confession: { select: { id: true, publicId: true, content: true, status: true } },
+          reviewer: { select: { id: true, email: true, role: true } },
         },
       }),
       prisma.report.count({ where }),
@@ -161,6 +164,7 @@ export class AdminService {
         createdAt: true,
         resolvedAt: true,
         confession: { select: { id: true, publicId: true, content: true, status: true } },
+        reviewer: { select: { id: true, email: true, role: true } },
       },
     });
     if (!item) throw new NotFoundException('Report not found.');
@@ -218,32 +222,25 @@ export class AdminService {
       },
     });
   }
-  async createTheme(body: Record<string, unknown>, actor: AdminIdentity) {
+  async createTheme(body: CreateThemeDto, actor: AdminIdentity) {
     const data = {
-      slug: String(body.slug),
-      name: String(body.name),
-      background: String(body.background),
-      gradient: String(body.gradient),
-      textColor: String(body.textColor),
-      accentColor: String(body.accentColor),
-      fontFamily: String(body.fontFamily),
-      radius: Number(body.radius ?? 28),
+      slug: body.slug,
+      name: body.name,
+      background: body.background,
+      gradient: body.gradient,
+      textColor: body.textColor,
+      accentColor: body.accentColor,
+      fontFamily: body.fontFamily,
+      radius: body.radius,
     };
     const item = await prisma.theme.create({ data });
     await recordAudit(actor.id, 'THEME_CREATE', 'THEME', item.id);
     return item;
   }
-  async updateTheme(id: string, body: Record<string, unknown>, actor: AdminIdentity) {
-    const allowed = [
-      'name',
-      'background',
-      'gradient',
-      'textColor',
-      'accentColor',
-      'fontFamily',
-      'radius',
-    ];
-    const data = Object.fromEntries(Object.entries(body).filter(([key]) => allowed.includes(key)));
+  async updateTheme(id: string, body: UpdateThemeDto, actor: AdminIdentity) {
+    const data = Object.fromEntries(
+      Object.entries(body).filter(([, value]) => value !== undefined),
+    );
     const item = await prisma.theme.update({ where: { id }, data });
     await recordAudit(actor.id, 'THEME_UPDATE', 'THEME', id, { changedFields: Object.keys(data) });
     return item;

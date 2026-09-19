@@ -14,6 +14,7 @@ import { AdminRole, ConfessionStatus, ReportStatus } from '@prisma/client';
 import { AdminAuthController } from './admin.controller';
 import { AdminService } from './admin.service';
 import { JwtAuthGuard, Roles, RolesGuard, requireUser } from './admin-auth';
+import { CreateThemeDto, UpdateConfessionDto, UpdateThemeDto } from './admin.dto';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -39,7 +40,7 @@ export class AdminController {
   }
   @Patch('confessions/:id') edit(
     @Param('id') id: string,
-    @Body() body: { content?: string; category?: string; themeId?: string },
+    @Body() body: UpdateConfessionDto,
     @Req() req: { user?: ReturnType<typeof requireUser> },
   ) {
     return this.service.edit(id, body, requireUser(req));
@@ -91,14 +92,14 @@ export class AdminController {
     return this.service.themes();
   }
   @Post('themes') @Roles(AdminRole.SUPER_ADMIN, AdminRole.DESIGNER) createTheme(
-    @Body() body: Record<string, unknown>,
+    @Body() body: CreateThemeDto,
     @Req() req: { user?: ReturnType<typeof requireUser> },
   ) {
     return this.service.createTheme(body, requireUser(req));
   }
   @Patch('themes/:id') @Roles(AdminRole.SUPER_ADMIN, AdminRole.DESIGNER) updateTheme(
     @Param('id') id: string,
-    @Body() body: Record<string, unknown>,
+    @Body() body: UpdateThemeDto,
     @Req() req: { user?: ReturnType<typeof requireUser> },
   ) {
     return this.service.updateTheme(id, body, requireUser(req));

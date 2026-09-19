@@ -1,13 +1,13 @@
 # Architecture
 
-The platform is a pnpm monorepo with clear boundaries between public web, admin web, API, and shared packages. The public and admin Next.js applications are independently deployable. The NestJS API owns validation, authorization, moderation state transitions, and persistence through Prisma.
+The platform is a pnpm monorepo with public web, admin web, API, and shared packages. NestJS owns validation, authorization, moderation state transitions, and Prisma persistence. The public confession module retains explicit safe projections and published-only queries.
 
-Phase 2 adds a public confession module to the NestJS API. The module owns DTO validation, normalization, pending creation, published-only pagination/detail queries, view increments, and a process-local anonymous submission limiter. Public confession responses are explicit safe projections rather than Prisma models.
+## Phase 3 repair architecture
 
-## Phase 3 administration
+The API exposes an isolated `/admin/*` namespace. `JwtAuthGuard` verifies a short-lived HMAC access token and loads the current `AdminUser` on every request; the database role and active status are authoritative. `RolesGuard` applies centralized role metadata. Strict global validation rejects unknown fields, while confession and theme DTOs constrain editable properties and values.
 
-`apps/api` exposes an isolated `/admin/*` namespace. Short-lived HMAC access tokens carry only `sub` and `role`; refresh credentials are validated separately. `JwtAuthGuard` authenticates requests and `RolesGuard` enforces centralized role metadata. The `AdminService` maps request fields explicitly and records append-only audit entries for important mutations.
+Login creates an `AdminSession` with a SHA-256 refresh-token hash. Refresh credentials are rotated in an HttpOnly cookie and never returned to JavaScript or stored raw. Logout revokes the session and clears the cookie. Helmet and explicit credentialed CORS origins provide baseline browser/API hardening. Missing production JWT secrets fail closed.
 
-The admin app is an internal moderation workspace. The public app remains anonymous and the public API returns only `PUBLISHED` confessions. Login rate limiting and submission rate limiting are process-local; a multi-instance deployment will require shared state in a future infrastructure phase.
+The admin Next.js app uses one centralized session client. It keeps only the short-lived access token in runtime state, sends credentialed requests for the HttpOnly cookie, refreshes once after a 401, and returns to login when refresh fails. Routes provide dashboard, queue, confession detail/edit/actions, reports, audit logs, and themes. Role-aware navigation is UX only; API guards remain the security boundary.
 
-Admin roles are `SUPER_ADMIN`, `MODERATOR`, and `DESIGNER`. Moderators manage confession and report workflows, designers manage themes, and only super administrators can view audit logs or perform privileged administration.
+The public app remains anonymous. Public feed and detail endpoints expose only `PUBLISHED` confessions and never return original content, editor data, reports, audit data, or admin identity.

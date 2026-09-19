@@ -7,72 +7,117 @@ import {
   HttpStatus,
   Post,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import type { Request, Response } from 'express';
+import { randomUUID } from 'node:crypto';
 import {
   comparePassword,
+  cookieOptions,
+  hashToken,
   issueAccessToken,
   issueRefreshToken,
   JwtAuthGuard,
   loginRateLimiter,
   prisma,
+  readCookie,
   recordAudit,
   requireUser,
+  refreshCookieName,
+  refreshSecret,
   safeAdmin,
   verifyToken,
 } from './admin-auth';
+import { LoginDto, RefreshDto } from './admin.dto';
 
 @Controller('admin/auth')
 export class AdminAuthController {
   @Post('login') async login(
-    @Body() body: { email?: string; password?: string },
-    @Headers('x-forwarded-for') ip?: string,
+    @Body() body: LoginDto,
+    @Headers('x-forwarded-for') ip: string | undefined,
+    @Res({ passthrough: true }) response: Response,
   ) {
-    if (!loginRateLimiter.check(ip ?? 'admin'))
+    if (!loginRateLimiter.check((ip ?? 'unknown').split(',')[0].trim()))
       throw new HttpException('Invalid email or password.', HttpStatus.TOO_MANY_REQUESTS);
-    const admin = body.email
-      ? await prisma.adminUser.findUnique({ where: { email: body.email.toLowerCase().trim() } })
-      : null;
-    if (!admin || !body.password || !(await comparePassword(body.password, admin.passwordHash)))
+    const admin = await prisma.adminUser.findUnique({
+      where: { email: body.email.toLowerCase().trim() },
+    });
+    if (!admin || !admin.isActive || !(await comparePassword(body.password, admin.passwordHash)))
       throw new HttpException('Invalid email or password.', HttpStatus.UNAUTHORIZED);
-    const identity = safeAdmin(admin);
+    const sessionId = randomUUID();
+    const identity = safeAdmin(admin, sessionId);
+    const refreshToken = issueRefreshToken(identity, sessionId);
+    await prisma.adminSession.create({
+      data: {
+        id: sessionId,
+        adminId: admin.id,
+        refreshTokenHash: hashToken(refreshToken),
+        expiresAt: new Date(Date.now() + 604800000),
+      },
+    });
+    response.cookie(refreshCookieName, refreshToken, cookieOptions());
     await recordAudit(admin.id, 'LOGIN', 'ADMIN_USER', admin.id);
-    return {
-      admin: identity,
-      accessToken: issueAccessToken(identity),
-      refreshToken: issueRefreshToken(identity),
-    };
+    return { admin: safeAdmin(admin), accessToken: issueAccessToken(identity) };
   }
-  @Post('refresh') async refresh(@Body() body: { refreshToken?: string }) {
+  @Post('refresh') async refresh(
+    @Body() _body: RefreshDto,
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const token = readCookie(request.headers.cookie, refreshCookieName);
     try {
-      if (!body.refreshToken) throw new Error();
-      const payload = verifyToken(
-        body.refreshToken,
-        process.env.JWT_REFRESH_SECRET ??
-          (process.env.NODE_ENV === 'production' ? '' : 'phase3-development-refresh-secret'),
-      );
-      if (payload.type !== 'refresh' || typeof payload.sub !== 'string') throw new Error();
-      const admin = await prisma.adminUser.findUnique({ where: { id: payload.sub } });
-      if (!admin) throw new Error();
-      const identity = safeAdmin(admin);
+      if (!token) throw new Error();
+      const payload = verifyToken(token, refreshSecret());
+      if (
+        payload.type !== 'refresh' ||
+        typeof payload.sub !== 'string' ||
+        typeof payload.sid !== 'string'
+      )
+        throw new Error();
+      const session = await prisma.adminSession.findUnique({
+        where: { id: payload.sid },
+        include: { admin: true },
+      });
+      if (
+        !session ||
+        session.revokedAt ||
+        session.expiresAt <= new Date() ||
+        session.refreshTokenHash !== hashToken(token) ||
+        !session.admin.isActive
+      )
+        throw new Error();
+      const identity = safeAdmin(session.admin, session.id);
+      const replacement = issueRefreshToken(identity, session.id);
+      await prisma.adminSession.update({
+        where: { id: session.id },
+        data: { refreshTokenHash: hashToken(replacement), lastUsedAt: new Date() },
+      });
+      response.cookie(refreshCookieName, replacement, cookieOptions());
       return { accessToken: issueAccessToken(identity) };
     } catch {
       throw new HttpException('Invalid refresh token.', HttpStatus.UNAUTHORIZED);
     }
   }
   @UseGuards(JwtAuthGuard) @Post('logout') async logout(
-    @Req() request: { user?: ReturnType<typeof requireUser> },
+    @Req() request: Request & { user?: ReturnType<typeof requireUser> },
+    @Res({ passthrough: true }) response: Response,
   ) {
     const user = requireUser(request);
+    if (user.sessionId)
+      await prisma.adminSession.updateMany({
+        where: { id: user.sessionId, adminId: user.id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+    response.clearCookie(refreshCookieName, { ...cookieOptions(), maxAge: undefined });
     await recordAudit(user.id, 'LOGOUT', 'ADMIN_USER', user.id);
     return { success: true };
   }
   @UseGuards(JwtAuthGuard) @Get('me') async me(
-    @Req() request: { user?: ReturnType<typeof requireUser> },
+    @Req() request: Request & { user?: ReturnType<typeof requireUser> },
   ) {
-    const user = requireUser(request);
-    const admin = await prisma.adminUser.findUnique({ where: { id: user.id } });
-    if (!admin) throw new HttpException('Authentication required.', HttpStatus.UNAUTHORIZED);
-    return safeAdmin(admin);
+    return safeAdmin(
+      await prisma.adminUser.findUniqueOrThrow({ where: { id: requireUser(request).id } }),
+    );
   }
 }

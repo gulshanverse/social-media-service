@@ -10,11 +10,11 @@ The API is hosted by NestJS on port 4000. `GET /health` is the foundation health
 
 ## Admin authentication
 
-- `POST /admin/auth/login` accepts email and password and returns a safe admin identity plus short-lived access and refresh credentials.
-- `POST /admin/auth/refresh` exchanges a valid refresh credential for a new access token.
+- `POST /admin/auth/login` accepts email and password, returns a safe admin identity and short-lived access token, and sets the rotating refresh credential in an HttpOnly `admin_refresh` cookie.
+- `POST /admin/auth/refresh` reads the HttpOnly cookie, validates the server-side session, rotates the refresh credential, and returns a new access token.
 - `POST /admin/auth/logout` and `GET /admin/auth/me` require a bearer access token.
 
-Passwords are bcrypt-hashed, secrets come from `JWT_SECRET` and `JWT_REFRESH_SECRET`, and login failures use a generic response. Do not log or return password hashes or secrets.
+Passwords are bcrypt-hashed, secrets come from `JWT_SECRET` and `JWT_REFRESH_SECRET`, and login failures use a generic response. Refresh tokens are never returned in JSON, stored in browser storage, or stored raw in the database. Logout revokes the server-side session and clears the cookie. Do not log or return password hashes or secrets.
 
 ## Moderation
 
