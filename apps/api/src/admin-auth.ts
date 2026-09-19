@@ -1,0 +1,121 @@
+import {
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  Injectable,
+  SetMetadata,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { AdminRole, PrismaClient } from '@prisma/client';
+import { createHmac, timingSafeEqual } from 'node:crypto';
+import bcrypt from 'bcryptjs';
+
+export type AdminIdentity = { id: string; email: string; name: string | null; role: AdminRole };
+export const Roles = (...roles: AdminRole[]) => SetMetadata('roles', roles);
+export const prisma = new PrismaClient();
+const secret = (name: string, fallback: string) =>
+  process.env[name] ?? (process.env.NODE_ENV === 'production' ? '' : fallback);
+const encode = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url');
+const decode = (value: string) =>
+  JSON.parse(Buffer.from(value, 'base64url').toString()) as Record<string, unknown>;
+function sign(payload: object, key: string) {
+  const body = `${encode({ alg: 'HS256', typ: 'JWT' })}.${encode(payload)}`;
+  return `${body}.${createHmac('sha256', key).update(body).digest('base64url')}`;
+}
+export function verifyToken(
+  token: string,
+  key = secret('JWT_SECRET', 'phase3-development-access-secret'),
+) {
+  if (!key) throw new UnauthorizedException('Authentication is unavailable.');
+  const [head, body, signature] = token.split('.');
+  if (!head || !body || !signature) throw new UnauthorizedException('Invalid token.');
+  const expected = createHmac('sha256', key).update(`${head}.${body}`).digest('base64url');
+  if (
+    expected.length !== signature.length ||
+    !timingSafeEqual(Buffer.from(expected), Buffer.from(signature))
+  )
+    throw new UnauthorizedException('Invalid token.');
+  const payload = decode(body);
+  if (typeof payload.exp !== 'number' || payload.exp <= Math.floor(Date.now() / 1000))
+    throw new UnauthorizedException('Token expired.');
+  return payload;
+}
+export function issueAccessToken(admin: AdminIdentity) {
+  return sign(
+    { sub: admin.id, role: admin.role, exp: Math.floor(Date.now() / 1000) + 900 },
+    secret('JWT_SECRET', 'phase3-development-access-secret'),
+  );
+}
+export function issueRefreshToken(admin: AdminIdentity) {
+  return sign(
+    { sub: admin.id, type: 'refresh', exp: Math.floor(Date.now() / 1000) + 604800 },
+    secret('JWT_REFRESH_SECRET', 'phase3-development-refresh-secret'),
+  );
+}
+export const hashPassword = (password: string) => bcrypt.hash(password, 12);
+export const comparePassword = (password: string, hash: string) => bcrypt.compare(password, hash);
+export function safeAdmin(admin: {
+  id: string;
+  email: string;
+  name?: string | null;
+  role: AdminRole;
+}): AdminIdentity {
+  return { id: admin.id, email: admin.email, name: admin.name ?? null, role: admin.role };
+}
+@Injectable()
+export class JwtAuthGuard implements CanActivate {
+  canActivate(context: ExecutionContext) {
+    const request = context
+      .switchToHttp()
+      .getRequest<{ headers: Record<string, string>; user?: AdminIdentity }>();
+    const value = request.headers.authorization;
+    if (!value?.startsWith('Bearer ')) throw new UnauthorizedException('Authentication required.');
+    const payload = verifyToken(value.slice(7));
+    if (typeof payload.sub !== 'string' || typeof payload.role !== 'string')
+      throw new UnauthorizedException('Invalid token.');
+    request.user = { id: payload.sub, email: '', name: null, role: payload.role as AdminRole };
+    return true;
+  }
+}
+@Injectable()
+export class RolesGuard implements CanActivate {
+  constructor(private readonly reflector: { get<T>(key: string, target: object): T | undefined }) {}
+  canActivate(context: ExecutionContext) {
+    const roles =
+      this.reflector.get<AdminRole[]>('roles', context.getHandler()) ??
+      this.reflector.get<AdminRole[]>('roles', context.getClass()) ??
+      [];
+    if (!roles.length) return true;
+    const user = context.switchToHttp().getRequest<{ user?: AdminIdentity }>().user;
+    if (!user || !roles.includes(user.role))
+      throw new ForbiddenException('You do not have permission for this operation.');
+    return true;
+  }
+}
+export async function recordAudit(
+  actorId: string | undefined,
+  action: string,
+  entity: string,
+  entityId: string,
+  metadata?: object,
+) {
+  await prisma.auditLog.create({ data: { actorId, action, entity, entityId, metadata } });
+}
+export class LoginRateLimiter {
+  private readonly attempts = new Map<string, number[]>();
+  check(key: string) {
+    const now = Date.now();
+    const windowMs = Number(process.env.ADMIN_LOGIN_RATE_WINDOW_SECONDS ?? 900) * 1000;
+    const limit = Number(process.env.ADMIN_LOGIN_RATE_LIMIT ?? 5);
+    const current = (this.attempts.get(key) ?? []).filter((stamp) => stamp > now - windowMs);
+    if (current.length >= limit) return false;
+    current.push(now);
+    this.attempts.set(key, current);
+    return true;
+  }
+}
+export const loginRateLimiter = new LoginRateLimiter();
+export function requireUser(request: { user?: AdminIdentity }) {
+  if (!request.user) throw new UnauthorizedException('Authentication required.');
+  return request.user;
+}

@@ -2,61 +2,37 @@
 
 A production-minded foundation for community: public submissions, moderated publishing, themed message cards, reporting, and lightweight analytics.
 
-## Phase 2 status
+## Phase 3 status
 
-The public confession experience is implemented. Students can submit anonymous, categorized, themed confessions; submissions enter `PENDING` and remain private until a later moderation phase publishes them. The admin workflows, card studio, safety controls, and analytics remain intentionally deferred.
+The platform now includes an internal admin authentication and moderation foundation. Administrators can sign in, work within role-based permissions, review and edit pending confessions, approve/reject/archive content, manage reports, view audit history, and manage themes. The public experience remains anonymous and exposes published content only.
 
 ## Architecture
 
 - `apps/web`: Next.js public web application (port 3000)
-- `apps/admin`: Next.js admin application (port 3001)
-- `apps/api`: NestJS API (port 4000)
+- `apps/admin`: Next.js internal moderation application (port 3001)
+- `apps/api`: NestJS API (port 4000), including isolated `/admin/*` APIs
 - `packages/ui`: shared React UI primitives and visual tokens
 - `packages/types`: shared domain types and enums
 - `packages/config`: centralized application configuration
 - `packages/themes`: data-driven confession card themes
-- `prisma`: PostgreSQL schema and seed entry point
+- `prisma`: PostgreSQL schema, seed, admin identity, reports, and audit records
 
-## Local setup
+## Admin workflow
 
-1. Install Node.js 22 and pnpm 9.
-2. Copy `.env.example` to `.env` and update secrets.
-3. Run `pnpm install`.
-4. Start PostgreSQL with `docker compose up -d postgres`.
-5. Generate Prisma client with `pnpm db:generate`.
-6. Apply the schema with `pnpm db:push` and seed the eight shared themes with `pnpm db:seed`.
-7. Run the apps with `pnpm dev`.
+`PENDING` content can be edited, approved to `PUBLISHED`, rejected to `REJECTED`, or archived. Published and rejected content can be archived. Public endpoints return only `PUBLISHED` records. Admin roles are `SUPER_ADMIN`, `MODERATOR`, and `DESIGNER`; API guards enforce permissions independently of UI navigation.
 
-The public web app uses `NEXT_PUBLIC_API_URL` (default `http://localhost:4000`) to reach the NestJS API.
-
-## Public routes
-
-| Route                     | Purpose                                |
-| ------------------------- | -------------------------------------- |
-| `/`                       | Landing page and community explanation |
-| `/send`                   | Anonymous confession submission        |
-| `/confessions`            | Published confession feed              |
-| `/confessions/[publicId]` | Published confession detail            |
-
-Only `PUBLISHED` records are returned by public API routes. Pending, rejected, archived, and otherwise unpublished content is never exposed.
+For setup, copy `.env.example`, provide database and JWT secrets, optionally provide `ADMIN_SEED_EMAIL` and `ADMIN_SEED_PASSWORD`, then run `pnpm db:generate`, `pnpm db:push`, `pnpm db:seed`, and `pnpm dev`. See `docs/api.md`, `docs/moderation.md`, and `docs/deployment.md` for endpoint and security details.
 
 ## Commands
 
-| Command             | Purpose                                        |
-| ------------------- | ---------------------------------------------- |
-| `pnpm dev`          | Start web, admin, and API in parallel          |
-| `pnpm build`        | Build every workspace                          |
-| `pnpm lint`         | Run workspace lint checks                      |
-| `pnpm typecheck`    | Run TypeScript checks                          |
-| `pnpm test`         | Run workspace test commands                    |
-| `pnpm format:check` | Verify Prettier formatting                     |
-| `pnpm db:push`      | Apply Prisma schema to the configured database |
-| `pnpm db:seed`      | Seed development themes                        |
-
-## Environment variables
-
-See `.env.example`. Production deployments must provide a strong `AUTH_SECRET`, a managed PostgreSQL `DATABASE_URL`, public app/API URLs, and configured rate-limit/storage/analytics values.
-
-## Deployment overview
-
-The Next.js applications are Vercel-compatible. The NestJS API and PostgreSQL database are Railway-compatible. Docker Compose is provided for local PostgreSQL development.
+| Command             | Purpose                                    |
+| ------------------- | ------------------------------------------ |
+| `pnpm dev`          | Start web, admin, and API in parallel      |
+| `pnpm build`        | Build every workspace                      |
+| `pnpm lint`         | Run workspace lint checks                  |
+| `pnpm typecheck`    | Run TypeScript checks                      |
+| `pnpm test`         | Run workspace test commands                |
+| `pnpm format:check` | Verify Prettier formatting                 |
+| `pnpm db:generate`  | Generate Prisma client                     |
+| `pnpm db:push`      | Apply Prisma schema                        |
+| `pnpm db:seed`      | Seed themes and optional development admin |

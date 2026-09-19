@@ -2,8 +2,12 @@
 
 The platform is a pnpm monorepo with clear boundaries between public web, admin web, API, and shared packages. The public and admin Next.js applications are independently deployable. The NestJS API owns validation, authorization, moderation state transitions, and persistence through Prisma.
 
-Phase 2 adds a public confession module to the NestJS API. The module owns DTO validation, normalization, pending creation, published-only pagination/detail queries, view increments, and a process-local anonymous submission limiter. Public confession responses are explicit safe projections rather than Prisma models, so original content, internal IDs, moderation data, and reporter data cannot leak through public routes.
+Phase 2 adds a public confession module to the NestJS API. The module owns DTO validation, normalization, pending creation, published-only pagination/detail queries, view increments, and a process-local anonymous submission limiter. Public confession responses are explicit safe projections rather than Prisma models.
 
-The web app consumes the public API through a small browser client. Landing, submission, feed, and detail routes share the existing theme definitions from `packages/themes`; the API verifies the selected theme against both the shared library and the database relation. The eight-theme seed is generated from the same shared source to prevent drift.
+## Phase 3 administration
 
-Admin authentication, moderation state transitions, publishing, reporting, and card generation remain outside the Phase 2 boundary.
+`apps/api` exposes an isolated `/admin/*` namespace. Short-lived HMAC access tokens carry only `sub` and `role`; refresh credentials are validated separately. `JwtAuthGuard` authenticates requests and `RolesGuard` enforces centralized role metadata. The `AdminService` maps request fields explicitly and records append-only audit entries for important mutations.
+
+The admin app is an internal moderation workspace. The public app remains anonymous and the public API returns only `PUBLISHED` confessions. Login rate limiting and submission rate limiting are process-local; a multi-instance deployment will require shared state in a future infrastructure phase.
+
+Admin roles are `SUPER_ADMIN`, `MODERATOR`, and `DESIGNER`. Moderators manage confession and report workflows, designers manage themes, and only super administrators can view audit logs or perform privileged administration.

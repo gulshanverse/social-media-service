@@ -5,5 +5,130 @@ body {
   margin: 0;
   background: #070a12;
   color: #fff;
-  font-family: Inter, Arial, sans-serif;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+.admin-shell {
+  min-height: 100vh;
+  padding: 2rem 5vw;
+  max-width: 1200px;
+  margin: auto;
+}
+.login-card {
+  max-width: 460px;
+  margin: 12vh auto;
+  background: #151c2b;
+  border: 1px solid #273149;
+  border-radius: 24px;
+  padding: 2rem;
+}
+.eyebrow {
+  color: #ff7a00;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  font-size: 0.78rem;
+}
+.muted {
+  color: #9ca3af;
+  line-height: 1.6;
+}
+.login-card form {
+  display: grid;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+label {
+  display: grid;
+  gap: 0.45rem;
+  color: #cbd5e1;
+  font-size: 0.9rem;
+}
+input {
+  border: 1px solid #34405b;
+  border-radius: 10px;
+  background: #101522;
+  color: #fff;
+  padding: 0.8rem;
+  font: inherit;
+}
+button,
+a {
+  border: 0;
+  border-radius: 10px;
+  padding: 0.8rem 1rem;
+  background: linear-gradient(135deg, #ff7a00, #ff3d81);
+  color: #fff;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+}
+.secondary {
+  background: #273149;
+  margin-left: 1rem;
+  padding: 0.55rem 0.8rem;
+}
+.error {
+  color: #ff8c9f;
+}
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10vh;
+}
+.admin-header > div {
+  display: flex;
+  align-items: center;
+  color: #9ca3af;
+  font-size: 0.9rem;
+}
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin: 3rem 0;
+}
+.stats article {
+  background: #151c2b;
+  border: 1px solid #273149;
+  border-radius: 18px;
+  padding: 1.25rem;
+}
+.stats span {
+  color: #9ca3af;
+  display: block;
+}
+.stats strong {
+  font-size: 2rem;
+  display: block;
+  margin-top: 0.6rem;
+}
+.nav-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+.nav-grid a {
+  background: #101522;
+  border: 1px solid #273149;
+  transition: border-color 0.2s;
+}
+.nav-grid a:hover {
+  border-color: #ff7a00;
+}
+@media (max-width: 760px) {
+  .stats,
+  .nav-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .admin-header {
+    align-items: flex-start;
+    gap: 1rem;
+    flex-direction: column;
+  }
+}
+@media (max-width: 460px) {
+  .stats,
+  .nav-grid {
+    grid-template-columns: 1fr;
+  }
 }

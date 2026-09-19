@@ -44,6 +44,7 @@ model AdminUser {
   id          String      @id @default(cuid())
   email       String      @unique
   passwordHash String
+  name        String?
   role        AdminRole   @default(SUPER_ADMIN)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
