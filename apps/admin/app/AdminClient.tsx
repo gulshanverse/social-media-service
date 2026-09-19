@@ -1,18 +1,29 @@
 'use client';
-import { FormEvent, useEffect, useState } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Logo } from '@ggv/ui';
+import { usePathname, useRouter } from 'next/navigation';
 import { appConfig } from '@ggv/config';
+import { Logo } from '@ggv/ui';
+
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
-type Admin = {
-  id: string;
-  email: string;
-  name: string | null;
-  role: 'SUPER_ADMIN' | 'MODERATOR' | 'DESIGNER';
-};
+type Role = 'SUPER_ADMIN' | 'MODERATOR' | 'DESIGNER';
+type Admin = { id: string; email: string; name: string | null; role: Role };
 type Session = { admin: Admin; accessToken: string };
+type Theme = {
+  id: string;
+  slug: string;
+  name: string;
+  background: string;
+  gradient: string;
+  textColor: string;
+  accentColor: string;
+  fontFamily: string;
+  radius: number;
+};
+type PageData<T> = { items: T[]; page: number; limit: number; total: number; hasMore: boolean };
 let runtimeToken = '';
+
 async function refresh() {
   const response = await fetch(`${API}/admin/auth/refresh`, {
     method: 'POST',
@@ -38,27 +49,116 @@ async function api(path: string, init: RequestInit = {}) {
     headers.set('authorization', `Bearer ${runtimeToken}`);
     response = await fetch(`${API}${path}`, { ...init, headers, credentials: 'include' });
   }
-  if (!response.ok) throw new Error((await response.text()) || 'Request failed');
+  if (!response.ok) {
+    let message = 'Request failed.';
+    try {
+      const body = await response.json();
+      message = body.message ?? message;
+    } catch {}
+    throw new Error(message);
+  }
   return response.json();
 }
-function Nav({ admin }: { admin: Admin }) {
-  const links: string[][] = [
-    ['/', 'Dashboard'],
-    ...(admin.role !== 'DESIGNER'
-      ? [
-          ['/confessions', 'Confessions'],
-          ['/reports', 'Reports'],
-        ]
-      : []),
-    ...(admin.role === 'SUPER_ADMIN' ? [['/audit-logs', 'Audit Logs']] : []),
-    ['/themes', 'Themes'],
-  ];
+function qs(values: Record<string, string | number | undefined>) {
+  return Object.entries(values)
+    .filter(([, value]) => value !== undefined && value !== '')
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value!)}`)
+    .join('&');
+}
+function formatDate(value?: string) {
+  return value ? new Date(value).toLocaleString() : '—';
+}
+function Status({ value }: { value: string }) {
+  return <span className={`status status-${value.toLowerCase()}`}>{value}</span>;
+}
+function Notice({ error, message }: { error?: string; message?: string }) {
   return (
-    <nav className="admin-nav">
+    <>
+      {error && (
+        <div className="notice error" role="alert">
+          {error}
+        </div>
+      )}
+      {message && (
+        <div className="notice success" role="status">
+          {message}
+        </div>
+      )}
+    </>
+  );
+}
+function Pager({
+  data,
+  onPage,
+}: {
+  data: PageData<unknown> | null;
+  onPage: (page: number) => void;
+}) {
+  if (!data || data.total === 0) return null;
+  return (
+    <div className="pager">
+      <span>
+        Page {data.page} · {data.total} total
+      </span>
+      <div>
+        <button
+          className="secondary"
+          disabled={data.page <= 1}
+          onClick={() => onPage(data.page - 1)}
+        >
+          Previous
+        </button>
+        <button
+          className="secondary"
+          disabled={!data.hasMore}
+          onClick={() => onPage(data.page + 1)}
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  );
+}
+function ThemePreview({
+  theme,
+  label = 'Preview confession',
+}: {
+  theme: Partial<Theme>;
+  label?: string;
+}) {
+  return (
+    <article
+      className="theme-preview"
+      style={{
+        background: theme.gradient || theme.background || '#151c2b',
+        color: theme.textColor || '#fff',
+        borderRadius: `${theme.radius ?? 28}px`,
+        fontFamily: theme.fontFamily || 'Inter',
+      }}
+    >
+      <div className="preview-top">
+        <strong>GGV CONFESSIONS</strong>
+        <span>ANONYMOUS</span>
+      </div>
+      <p>“{label} — a safe place for campus thoughts.”</p>
+      <div className="preview-bottom" style={{ color: theme.accentColor || '#00b8ff' }}>
+        <span>Campus thoughts</span>
+        <span>Preview</span>
+      </div>
+    </article>
+  );
+}
+function Nav({ admin }: { admin: Admin }) {
+  const links: [string, string][] = [['/', 'Dashboard']];
+  if (admin.role !== 'DESIGNER') links.push(['/confessions', 'Queue'], ['/reports', 'Reports']);
+  if (admin.role === 'SUPER_ADMIN') links.push(['/audit-logs', 'Audit']);
+  links.push(['/themes', 'Themes']);
+  return (
+    <nav className="admin-nav" aria-label="Admin navigation">
       {links.map(([href, label]) => (
-        <a key={href} href={href}>
+        <Link href={href} key={href}>
           {label}
-        </a>
+        </Link>
       ))}
     </nav>
   );
@@ -75,10 +175,13 @@ function Shell({
   return (
     <main className="admin-shell">
       <header className="admin-header">
-        <Logo />
+        <Link href="/" className="brand">
+          <Logo />
+          <span>MODERATION CONSOLE</span>
+        </Link>
         <div className="admin-user">
           <span>
-            {admin.email} · {admin.role}
+            {admin.name || admin.email} · {admin.role}
           </span>
           <button className="secondary" onClick={onLogout}>
             Log out
@@ -114,19 +217,19 @@ function Login({ onLogin }: { onLogin: (session: Session) => void }) {
       const session = await response.json();
       runtimeToken = session.accessToken;
       onLogin(session);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to sign in.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unable to sign in.');
     } finally {
       setLoading(false);
     }
   }
   return (
-    <main className="admin-shell">
+    <main className="admin-shell login-shell">
       <Logo />
       <section className="login-card">
         <p className="eyebrow">INTERNAL MODERATION</p>
         <h1>Admin sign in</h1>
-        <p className="muted">Use your approved administrator credentials.</p>
+        <p className="muted">Review submissions and keep the public feed safe.</p>
         <form onSubmit={submit}>
           <label>
             Email
@@ -136,7 +239,7 @@ function Login({ onLogin }: { onLogin: (session: Session) => void }) {
             Password
             <input name="password" type="password" required autoComplete="current-password" />
           </label>
-          {error && <p className="error">{error}</p>}
+          <Notice error={error} />
           <button disabled={loading}>{loading ? 'Signing in…' : 'Sign in'}</button>
         </form>
       </section>
@@ -145,169 +248,329 @@ function Login({ onLogin }: { onLogin: (session: Session) => void }) {
 }
 function Dashboard({ admin }: { admin: Admin }) {
   const [stats, setStats] = useState<Record<string, number> | null>(null);
+  const [error, setError] = useState('');
   useEffect(() => {
     api('/admin/dashboard')
       .then(setStats)
-      .catch(() => setStats(null));
+      .catch((e) => setError(e.message));
   }, []);
+  const cards = [
+    ['Pending confessions', 'pendingConfessions'],
+    ['Published', 'publishedConfessions'],
+    ['Rejected', 'rejectedConfessions'],
+    ['Open reports', 'openReports'],
+    ['Resolved reports', 'resolvedReports'],
+    ['Total confessions', 'totalConfessions'],
+    ['Active themes', 'activeThemes'],
+  ];
   return (
     <section>
-      <p className="eyebrow">MODERATION WORKSPACE</p>
-      <h1>Good to see you, {admin.name ?? 'admin'}.</h1>
-      <p className="muted">
-        Review submissions, keep the public feed safe, and track moderation activity.
-      </p>
+      <p className="eyebrow">OPERATIONS OVERVIEW</p>
+      <h1>Good to see you, {admin.name || 'admin'}.</h1>
+      <p className="muted">A focused view of the work waiting for your team.</p>
+      <Notice error={error} />
       <div className="stats">
-        {[
-          ['Pending', 'pending'],
-          ['Published', 'published'],
-          ['Rejected', 'rejected'],
-          ['Open reports', 'openReports'],
-        ].map(([label, key]) => (
-          <article key={key}>
+        {cards.map(([label, key]) => (
+          <article className="metric" key={key}>
             <span>{label}</span>
-            <strong>{stats?.[key] ?? '—'}</strong>
+            <strong>{stats ? (stats[key] ?? 0) : '—'}</strong>
           </article>
         ))}
+      </div>
+      <div className="workspace-links">
+        <Link href="/confessions" className="panel-link">
+          <strong>Open moderation queue</strong>
+          <span>Review pending submissions and take action.</span>
+        </Link>
+        <Link href="/reports" className="panel-link">
+          <strong>Review reports</strong>
+          <span>Resolve or dismiss open reports.</span>
+        </Link>
+        <Link href="/themes" className="panel-link">
+          <strong>Manage themes</strong>
+          <span>Keep public confession styling consistent.</span>
+        </Link>
       </div>
     </section>
   );
 }
 function Confessions() {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<PageData<any> | null>(null);
   const [status, setStatus] = useState('PENDING');
+  const [category, setCategory] = useState('');
+  const [theme, setTheme] = useState('');
+  const [search, setSearch] = useState('');
+  const [order, setOrder] = useState('newest');
+  const [page, setPage] = useState(1);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const load = () => {
+    setLoading(true);
     setError('');
-    api(`/admin/confessions?status=${status}&page=1&limit=20`)
+    api(`/admin/confessions?${qs({ status, category, theme, search, order, page, limit: 20 })}`)
       .then(setData)
-      .catch((e) => setError(e.message));
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
   };
   useEffect(() => {
-    void load();
-  }, [status]);
+    load();
+  }, [status, category, theme, order, page]);
+  function submit(e: FormEvent) {
+    e.preventDefault();
+    setPage(1);
+    load();
+  }
+  function clear() {
+    setStatus('PENDING');
+    setCategory('');
+    setTheme('');
+    setSearch('');
+    setOrder('newest');
+    setPage(1);
+  }
   return (
     <section>
-      <h1>Confessions</h1>
-      <div className="toolbar">
-        <select value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option>PENDING</option>
-          <option>PUBLISHED</option>
-          <option>REJECTED</option>
-          <option>ARCHIVED</option>
-        </select>
+      <div className="page-heading">
+        <div>
+          <p className="eyebrow">MODERATION</p>
+          <h1>Confession queue</h1>
+          <p className="muted">Search and triage submissions without leaving the workspace.</p>
+        </div>
       </div>
-      {error && <p className="error">{error}</p>}
-      {!data && !error && <p className="muted">Loading queue…</p>}
-      {data?.items?.length === 0 && <p className="muted">No confessions in this queue.</p>}
+      <form className="filters" onSubmit={submit}>
+        <label>
+          Search
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Content or public ID"
+          />
+        </label>
+        <label>
+          Status
+          <select
+            value={status}
+            onChange={(e) => {
+              setStatus(e.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="PENDING">Pending</option>
+            <option value="PUBLISHED">Published</option>
+            <option value="REJECTED">Rejected</option>
+            <option value="ARCHIVED">Archived</option>
+          </select>
+        </label>
+        <label>
+          Category
+          <select
+            value={category}
+            onChange={(e) => {
+              setCategory(e.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="">All categories</option>
+            {[
+              'CRUSH',
+              'RELATIONSHIP',
+              'FRIENDSHIP',
+              'FUNNY',
+              'COLLEGE_LIFE',
+              'ADVICE',
+              'APPRECIATION',
+              'RANT',
+              'OTHER',
+            ].map((v) => (
+              <option key={v}>{v}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Order
+          <select value={order} onChange={(e) => setOrder(e.target.value)}>
+            <option value="newest">Newest</option>
+            <option value="oldest">Oldest</option>
+          </select>
+        </label>
+        <button type="submit">Search</button>
+        <button type="button" className="secondary" onClick={clear}>
+          Clear
+        </button>
+      </form>
+      <Notice error={error} />
+      {loading && <div className="state">Loading queue…</div>}
+      {!loading && data?.items.length === 0 && (
+        <div className="state empty">No confessions match these filters.</div>
+      )}
       <div className="list">
-        {data?.items?.map((item: any) => (
+        {data?.items.map((item) => (
           <Link className="list-card" href={`/confessions/${item.id}`} key={item.id}>
             <div>
-              <strong>{item.publicId}</strong>
+              <div className="row-title">
+                <strong>{item.publicId}</strong>
+                <Status value={item.status} />
+              </div>
               <span>
-                {item.category ?? 'Uncategorized'} · {item.status} ·{' '}
-                {item.theme?.name ?? 'No theme'}
+                {item.category || 'Uncategorized'} · {item.theme?.name || 'No theme'} · Created{' '}
+                {formatDate(item.createdAt)}
               </span>
               <p>
-                {item.content.slice(0, 180)}
-                {item.content.length > 180 ? '…' : ''}
+                {item.content.slice(0, 220)}
+                {item.content.length > 220 ? '…' : ''}
               </p>
             </div>
             <small>
               {item.reportCount} reports
               <br />
-              {new Date(item.createdAt).toLocaleString()}
+              Updated {formatDate(item.updatedAt)}
             </small>
           </Link>
         ))}
       </div>
+      <Pager data={data} onPage={setPage} />
     </section>
   );
 }
 function ConfessionDetail({ admin }: { admin: Admin }) {
   const id = usePathname().split('/').pop();
   const [item, setItem] = useState<any>(null);
+  const [themes, setThemes] = useState<Theme[]>([]);
   const [form, setForm] = useState({ content: '', category: '', themeId: '' });
+  const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [saving, setSaving] = useState(false);
   const load = () =>
     api(`/admin/confessions/${id}`)
       .then((value) => {
         setItem(value);
         setForm({
           content: value.content,
-          category: value.category ?? '',
-          themeId: value.theme?.id ?? '',
+          category: value.category || '',
+          themeId: value.theme?.id || '',
         });
       })
-      .catch((e) => setMessage(e.message));
+      .catch((e) => setError(e.message));
   useEffect(() => {
-    void load();
+    load();
+    api('/admin/themes')
+      .then(setThemes)
+      .catch(() => undefined);
   }, [id]);
   async function act(action: string) {
-    if ((action === 'reject' || action === 'archive') && !confirm(`Confirm ${action}?`)) return;
-    setMessage('');
+    if (!confirm(`Confirm ${action} for this confession?`)) return;
+    setSaving(true);
+    setError('');
     try {
       await api(`/admin/confessions/${id}/${action}`, { method: 'POST' });
       await load();
-      setMessage(`Confession ${action}d.`);
+      setMessage(`Confession ${action}d successfully.`);
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : 'Action failed.');
+      setError(e instanceof Error ? e.message : 'Action failed.');
+    } finally {
+      setSaving(false);
     }
   }
   async function save(e: FormEvent) {
     e.preventDefault();
+    setSaving(true);
+    setError('');
     try {
       await api(`/admin/confessions/${id}`, { method: 'PATCH', body: JSON.stringify(form) });
       await load();
-      setMessage('Saved.');
+      setMessage('Confession saved successfully.');
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : 'Save failed.');
+      setError(e instanceof Error ? e.message : 'Save failed.');
+    } finally {
+      setSaving(false);
     }
   }
   if (!item)
     return (
       <section>
-        <p className="muted">{message || 'Loading confession…'}</p>
+        <Notice error={error} />
+        <div className="state">{error ? 'Unable to load confession.' : 'Loading confession…'}</div>
       </section>
     );
+  const editable = item.status === 'PENDING' && admin.role !== 'DESIGNER';
   const canModerate = admin.role !== 'DESIGNER';
   return (
     <section>
-      <Link href="/confessions">← Back to queue</Link>
-      <h1>{item.publicId}</h1>
+      <Link href="/confessions" className="back-link">
+        ← Back to queue
+      </Link>
+      <div className="page-heading">
+        <div>
+          <p className="eyebrow">REVIEW WORKSPACE</p>
+          <h1>{item.publicId}</h1>
+          <p className="muted">
+            Created {formatDate(item.createdAt)} · Updated {formatDate(item.updatedAt)}
+          </p>
+        </div>
+        <Status value={item.status} />
+      </div>
+      <Notice error={error} message={message} />
       <div className="detail-grid">
         <article className="panel">
-          <span className="status">{item.status}</span>
-          <p className="muted">
-            Submitted {new Date(item.createdAt).toLocaleString()} · Updated{' '}
-            {new Date(item.updatedAt).toLocaleString()}
-          </p>
-          <form onSubmit={save}>
-            <label>
-              Current content
-              <textarea
-                value={form.content}
-                onChange={(e) => setForm({ ...form, content: e.target.value })}
-                maxLength={appConfig.maxConfessionLength}
-              />
-            </label>
-            <label>
-              Category
-              <input
-                value={form.category}
-                onChange={(e) => setForm({ ...form, category: e.target.value })}
-              />
-            </label>
-            <label>
-              Theme ID
-              <input
-                value={form.themeId}
-                onChange={(e) => setForm({ ...form, themeId: e.target.value })}
-              />
-            </label>
-            {canModerate && <button>Save edit</button>}
-          </form>
+          <h2>Confession content</h2>
+          {editable ? (
+            <form onSubmit={save}>
+              <label>
+                Content
+                <textarea
+                  value={form.content}
+                  onChange={(e) => setForm({ ...form, content: e.target.value })}
+                  maxLength={appConfig.maxConfessionLength}
+                  required
+                />
+                <span className="counter">
+                  {form.content.length} / {appConfig.maxConfessionLength}
+                </span>
+              </label>
+              <label>
+                Category
+                <select
+                  value={form.category}
+                  onChange={(e) => setForm({ ...form, category: e.target.value })}
+                >
+                  <option value="">Uncategorized</option>
+                  {[
+                    'CRUSH',
+                    'RELATIONSHIP',
+                    'FRIENDSHIP',
+                    'FUNNY',
+                    'COLLEGE_LIFE',
+                    'ADVICE',
+                    'APPRECIATION',
+                    'RANT',
+                    'OTHER',
+                  ].map((v) => (
+                    <option key={v}>{v}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Theme
+                <select
+                  value={form.themeId}
+                  onChange={(e) => setForm({ ...form, themeId: e.target.value })}
+                >
+                  <option value="">No theme</option>
+                  {themes.map((t) => (
+                    <option value={t.id} key={t.id}>
+                      {t.name} · {t.id}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button>
+            </form>
+          ) : (
+            <div className="content-read">
+              <p>{item.content}</p>
+              <p className="muted">This confession is not editable in its current state.</p>
+            </div>
+          )}
           {item.originalContent !== item.content && (
             <>
               <h3>Original submitted content</h3>
@@ -316,201 +579,403 @@ function ConfessionDetail({ admin }: { admin: Admin }) {
           )}
         </article>
         <aside className="panel">
-          <p>Reports: {item.reportCount}</p>
-          <p>
-            Published:{' '}
-            {item.publishedAt ? new Date(item.publishedAt).toLocaleString() : 'Not published'}
-          </p>
-          <p>Editor: {item.editor?.email ?? 'None'}</p>
+          <h2>Moderation</h2>
+          <dl className="facts">
+            <dt>Category</dt>
+            <dd>{item.category || 'Uncategorized'}</dd>
+            <dt>Theme</dt>
+            <dd>{item.theme?.name || 'No theme'}</dd>
+            <dt>Published</dt>
+            <dd>{formatDate(item.publishedAt)}</dd>
+            <dt>Reports</dt>
+            <dd>{item.reportCount}</dd>
+            <dt>Editor</dt>
+            <dd>{item.editor?.email || 'None'}</dd>
+          </dl>
           {canModerate && (
             <div className="actions">
-              <button onClick={() => act('approve')}>Approve</button>
-              <button onClick={() => act('reject')}>Reject</button>
-              <button onClick={() => act('archive')}>Archive</button>
+              {item.status === 'PENDING' && (
+                <>
+                  <button disabled={saving} onClick={() => act('approve')}>
+                    Approve
+                  </button>
+                  <button className="danger" disabled={saving} onClick={() => act('reject')}>
+                    Reject
+                  </button>
+                </>
+              )}
+              {['PUBLISHED', 'REJECTED'].includes(item.status) && (
+                <button className="danger" disabled={saving} onClick={() => act('archive')}>
+                  Archive
+                </button>
+              )}
             </div>
           )}
-          {message && <p className="muted">{message}</p>}
         </aside>
       </div>
+      {item.reports?.length > 0 && (
+        <div className="panel report-context">
+          <h2>Associated reports</h2>
+          {item.reports.map((r: any) => (
+            <div className="report-line" key={r.id}>
+              <Status value={r.status} />
+              <span>{r.reason}</span>
+              <small>{formatDate(r.createdAt)}</small>
+            </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
 function Reports() {
-  const [items, setItems] = useState<any[]>([]);
+  const [data, setData] = useState<PageData<any> | null>(null);
   const [status, setStatus] = useState('OPEN');
+  const [search, setSearch] = useState('');
+  const [order, setOrder] = useState('newest');
+  const [page, setPage] = useState(1);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
-  const load = () =>
-    api(`/admin/reports?status=${status}`)
-      .then((v) => setItems(v.items))
-      .catch((e) => setMessage(e.message));
+  const load = () => {
+    setLoading(true);
+    api(`/admin/reports?${qs({ status, search, order, page, limit: 20 })}`)
+      .then(setData)
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
+  };
   useEffect(() => {
-    void load();
-  }, [status]);
+    load();
+  }, [status, order, page]);
   async function act(id: string, action: string) {
+    if (!confirm(`Confirm ${action} report?`)) return;
     try {
       await api(`/admin/reports/${id}/${action}`, { method: 'POST' });
+      setMessage(`Report ${action}d.`);
       load();
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : 'Action failed.');
+      setError(e instanceof Error ? e.message : 'Action failed.');
     }
   }
   return (
     <section>
+      <p className="eyebrow">TRUST & SAFETY</p>
       <h1>Reports</h1>
-      <select value={status} onChange={(e) => setStatus(e.target.value)}>
-        <option>OPEN</option>
-        <option>RESOLVED</option>
-        <option>DISMISSED</option>
-        <option>ARCHIVED</option>
-      </select>
-      {message && <p className="error">{message}</p>}
+      <p className="muted">Resolve reports with the related confession context in view.</p>
+      <form
+        className="filters"
+        onSubmit={(e) => {
+          e.preventDefault();
+          setPage(1);
+          load();
+        }}
+      >
+        <label>
+          Search
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Reason or confession ID"
+          />
+        </label>
+        <label>
+          Status
+          <select
+            value={status}
+            onChange={(e) => {
+              setStatus(e.target.value);
+              setPage(1);
+            }}
+          >
+            <option>OPEN</option>
+            <option>RESOLVED</option>
+            <option>DISMISSED</option>
+            <option>ARCHIVED</option>
+          </select>
+        </label>
+        <label>
+          Order
+          <select value={order} onChange={(e) => setOrder(e.target.value)}>
+            <option value="newest">Newest</option>
+            <option value="oldest">Oldest</option>
+          </select>
+        </label>
+        <button>Search</button>
+      </form>
+      <Notice error={error} message={message} />
+      {loading && <div className="state">Loading reports…</div>}
+      {!loading && data?.items.length === 0 && (
+        <div className="state empty">No reports match this view.</div>
+      )}
       <div className="list">
-        {items.length === 0 ? (
-          <p className="muted">No reports in this view.</p>
-        ) : (
-          items.map((r: any) => (
-            <article className="list-card" key={r.id}>
-              <div>
-                <strong>{r.id}</strong>
-                <span>
-                  {r.confession.publicId} · {r.status}
-                </span>
-                <p>{r.reason}</p>
+        {data?.items.map((r) => (
+          <article className="list-card" key={r.id}>
+            <div>
+              <div className="row-title">
+                <strong>{r.confession.publicId}</strong>
+                <Status value={r.status} />
               </div>
-              <div>
-                {r.status === 'OPEN' && (
-                  <>
-                    <button onClick={() => act(r.id, 'resolve')}>Resolve</button>
-                    <button className="secondary" onClick={() => act(r.id, 'dismiss')}>
-                      Dismiss
-                    </button>
-                  </>
-                )}
-              </div>
-            </article>
-          ))
-        )}
+              <span>
+                Report {r.id} · {formatDate(r.createdAt)}
+              </span>
+              <p>{r.reason}</p>
+              <Link href={`/confessions/${r.confession.id}`} className="inline-link">
+                Open confession context →
+              </Link>
+            </div>
+            <div className="card-actions">
+              {r.reviewer && (
+                <small>
+                  Reviewed by {r.reviewer.email}
+                  <br />
+                  {formatDate(r.resolvedAt)}
+                </small>
+              )}
+              {r.status === 'OPEN' && (
+                <>
+                  <button onClick={() => act(r.id, 'resolve')}>Resolve</button>
+                  <button className="secondary" onClick={() => act(r.id, 'dismiss')}>
+                    Dismiss
+                  </button>
+                </>
+              )}
+            </div>
+          </article>
+        ))}
       </div>
+      <Pager data={data} onPage={setPage} />
     </section>
   );
 }
 function AuditLogs() {
-  const [data, setData] = useState<any>();
-  useEffect(() => {
-    api('/admin/audit-logs')
+  const [data, setData] = useState<PageData<any> | null>(null);
+  const [action, setAction] = useState('');
+  const [entity, setEntity] = useState('');
+  const [page, setPage] = useState(1);
+  const [error, setError] = useState('');
+  const load = () =>
+    api(`/admin/audit?${qs({ action, entity, page, limit: 30 })}`)
       .then(setData)
-      .catch(() => setData({ items: [] }));
-  }, []);
+      .catch((e) => setError(e.message));
+  useEffect(() => {
+    load();
+  }, [page]);
   return (
     <section>
-      <h1>Audit logs</h1>
+      <p className="eyebrow">ACCOUNTABILITY</p>
+      <h1>Audit activity</h1>
+      <p className="muted">
+        Append-only operational history. Sensitive authentication material is never displayed.
+      </p>
+      <form
+        className="filters"
+        onSubmit={(e) => {
+          e.preventDefault();
+          setPage(1);
+          load();
+        }}
+      >
+        <label>
+          Action
+          <input
+            value={action}
+            onChange={(e) => setAction(e.target.value)}
+            placeholder="e.g. EDIT"
+          />
+        </label>
+        <label>
+          Entity
+          <input
+            value={entity}
+            onChange={(e) => setEntity(e.target.value)}
+            placeholder="e.g. CONFESSION"
+          />
+        </label>
+        <button>Filter</button>
+      </form>
+      <Notice error={error} />
+      {!data && !error && <div className="state">Loading audit activity…</div>}
+      {data?.items.length === 0 && (
+        <div className="state empty">No audit events match these filters.</div>
+      )}
       <div className="list">
-        {data?.items?.map((log: any) => (
+        {data?.items.map((log) => (
           <article className="list-card" key={log.id}>
             <div>
-              <strong>{log.action}</strong>
-              <span>
-                {log.entity} · {log.entityId}
-              </span>
+              <div className="row-title">
+                <strong>{log.action}</strong>
+                <span>
+                  {log.entity} · {log.entityId}
+                </span>
+              </div>
+              <p className="safe-metadata">
+                {log.metadata ? JSON.stringify(log.metadata) : 'No metadata'}
+              </p>
             </div>
             <small>
-              {log.actor?.email ?? 'System'}
+              {log.actor?.email || 'System'}
               <br />
-              {new Date(log.createdAt).toLocaleString()}
+              {formatDate(log.createdAt)}
             </small>
           </article>
         ))}
       </div>
+      <Pager data={data} onPage={setPage} />
     </section>
   );
 }
+const emptyTheme = {
+  slug: '',
+  name: '',
+  background: '#070a12',
+  gradient: 'linear-gradient(135deg,#070a12,#101c3b)',
+  textColor: '#ffffff',
+  accentColor: '#00b8ff',
+  fontFamily: 'Inter',
+  radius: 28,
+};
 function Themes({ admin }: { admin: Admin }) {
-  const [themes, setThemes] = useState<any[]>([]);
+  const [themes, setThemes] = useState<Theme[]>([]);
+  const [form, setForm] = useState<any>(emptyTheme);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [error, setError] = useState('');
   const [message, setMessage] = useState('');
-  const [form, setForm] = useState({
-    slug: '',
-    name: '',
-    background: '#070a12',
-    gradient: '',
-    textColor: '#ffffff',
-    accentColor: '#00b8ff',
-    fontFamily: 'Inter',
-    radius: 28,
-  });
-  const load = () =>
+  const [loading, setLoading] = useState(true);
+  const canWrite = admin.role === 'SUPER_ADMIN' || admin.role === 'DESIGNER';
+  const load = () => {
+    setLoading(true);
     api('/admin/themes')
       .then(setThemes)
-      .catch((e) => setMessage(e.message));
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
+  };
   useEffect(() => {
-    void load();
+    load();
   }, []);
   async function save(e: FormEvent) {
     e.preventDefault();
+    setError('');
+    setMessage('');
     try {
-      await api('/admin/themes', { method: 'POST', body: JSON.stringify(form) });
-      setMessage('Theme created.');
-      setForm({ ...form, slug: '', name: '' });
+      await api(editing ? `/admin/themes/${editing}` : '/admin/themes', {
+        method: editing ? 'PATCH' : 'POST',
+        body: JSON.stringify(form),
+      });
+      setMessage(editing ? 'Theme updated.' : 'Theme created.');
+      setForm(emptyTheme);
+      setEditing(null);
       load();
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : 'Theme could not be saved.');
+      setError(e instanceof Error ? e.message : 'Theme could not be saved.');
     }
   }
   return (
     <section>
+      <p className="eyebrow">DESIGN SYSTEM</p>
       <h1>Themes</h1>
-      {message && <p className="muted">{message}</p>}
+      <p className="muted">
+        Create a public-card theme and preview it before saving. Slugs stay immutable after
+        creation.
+      </p>
+      <Notice error={error} message={message} />
+      {loading && <div className="state">Loading themes…</div>}
+      {!loading && themes.length === 0 && <div className="state empty">No themes exist yet.</div>}
       <div className="theme-list">
         {themes.map((t) => (
-          <article className="panel" key={t.id}>
-            <h3>{t.name}</h3>
-            <p>{t.slug}</p>
-            <div
-              style={{
-                background: t.background,
-                color: t.textColor,
-                borderRadius: t.radius,
-                padding: '1rem',
-              }}
-            >
-              Theme preview
+          <article className="panel theme-card" key={t.id}>
+            <ThemePreview theme={t} label={t.name} />
+            <div className="theme-card-meta">
+              <div>
+                <h3>{t.name}</h3>
+                <span className="muted">
+                  {t.slug} · {t.id}
+                </span>
+              </div>
+              {canWrite && (
+                <button
+                  className="secondary"
+                  onClick={() => {
+                    setEditing(t.id);
+                    setForm({ ...t });
+                  }}
+                >
+                  Edit
+                </button>
+              )}
             </div>
           </article>
         ))}
       </div>
-      {admin.role !== 'MODERATOR' && (
+      {canWrite && (
         <form className="panel theme-form" onSubmit={save}>
-          <h2>Create theme</h2>
-          {(
-            [
-              'slug',
-              'name',
-              'background',
-              'gradient',
-              'textColor',
-              'accentColor',
-              'fontFamily',
-            ] as const
-          ).map((key) => (
-            <label key={key}>
-              {key}
+          <div className="form-heading">
+            <h2>{editing ? 'Edit theme' : 'Create theme'}</h2>
+            {editing && (
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => {
+                  setEditing(null);
+                  setForm(emptyTheme);
+                }}
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+          {editing ? (
+            <label>
+              Slug
+              <input value={form.slug} disabled />
+            </label>
+          ) : (
+            <label>
+              Slug
               <input
-                value={form[key]}
-                onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+                value={form.slug}
+                onChange={(e) => setForm({ ...form, slug: e.target.value })}
                 required
+                minLength={1}
               />
             </label>
-          ))}
+          )}
           <label>
-            radius
+            Name
+            <input
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              required
+              minLength={1}
+            />
+          </label>
+          <div className="form-grid">
+            {(['background', 'gradient', 'textColor', 'accentColor', 'fontFamily'] as const).map(
+              (key) => (
+                <label key={key}>
+                  {key}
+                  <input
+                    value={form[key]}
+                    onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+                    required
+                    minLength={1}
+                  />
+                </label>
+              ),
+            )}
+          </div>
+          <label>
+            Radius
             <input
               type="number"
               min="0"
               max="100"
               value={form.radius}
               onChange={(e) => setForm({ ...form, radius: Number(e.target.value) })}
+              required
             />
           </label>
-          <button>Create theme</button>
+          <ThemePreview theme={form} label={form.name || 'Live preview'} />
+          <button>{editing ? 'Save theme' : 'Create theme'}</button>
         </form>
       )}
     </section>
@@ -539,18 +1004,18 @@ export default function AdminClient() {
   if (!ready)
     return (
       <main className="admin-shell">
-        <p className="muted">Loading session…</p>
+        <div className="state">Loading secure workspace…</div>
       </main>
     );
   if (!admin) return <Login onLogin={(s) => setAdmin(s.admin)} />;
-  let content =
+  const content =
     pathname === '/confessions' ? (
       <Confessions />
     ) : pathname.startsWith('/confessions/') ? (
       <ConfessionDetail admin={admin} />
     ) : pathname === '/reports' ? (
       <Reports />
-    ) : pathname === '/audit-logs' ? (
+    ) : pathname === '/audit-logs' || pathname === '/audit' ? (
       <AuditLogs />
     ) : pathname === '/themes' ? (
       <Themes admin={admin} />

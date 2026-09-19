@@ -7,7 +7,7 @@
     "build": "tsc -p tsconfig.json",
     "lint": "ESLINT_USE_FLAT_CONFIG=false eslint src --ext .ts",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "tsx src/confessions/confessions.test.ts && tsx src/admin.test.ts"
+    "test": "tsx src/confessions/confessions.test.ts && tsx src/admin.test.ts && tsx src/phase4.test.ts"
   },
   "dependencies": {
     "@ggv/config": "workspace:*",

@@ -9,6 +9,7 @@ import {
   MaxLength,
   Min,
   MinLength,
+  IsIn,
 } from 'class-validator';
 import { ConfessionCategory, ConfessionStatus, ReportStatus } from '@prisma/client';
 import { appConfig } from '@ggv/config';
@@ -55,7 +56,15 @@ export class AdminQueueQueryDto extends ListQueryDto {
   @IsOptional() @IsEnum(ConfessionStatus) status?: ConfessionStatus;
   @IsOptional() @IsEnum(ConfessionCategory) category?: ConfessionCategory;
   @IsOptional() @IsString() @MaxLength(100) theme?: string;
+  @IsOptional() @IsString() @MaxLength(120) search?: string;
+  @IsOptional() @IsIn(['newest', 'oldest']) order?: 'newest' | 'oldest';
 }
 export class AdminReportQueryDto extends ListQueryDto {
   @IsOptional() @IsEnum(ReportStatus) status?: ReportStatus;
+  @IsOptional() @IsString() @MaxLength(120) search?: string;
+  @IsOptional() @IsIn(['newest', 'oldest']) order?: 'newest' | 'oldest';
+}
+export class AdminAuditQueryDto extends ListQueryDto {
+  @IsOptional() @IsString() @MaxLength(80) action?: string;
+  @IsOptional() @IsString() @MaxLength(80) entity?: string;
 }

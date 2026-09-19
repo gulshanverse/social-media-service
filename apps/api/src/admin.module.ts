@@ -16,6 +16,7 @@ import { AdminService } from './admin.service';
 import { JwtAuthGuard, Roles, RolesGuard, requireUser } from './admin-auth';
 import {
   AdminQueueQueryDto,
+  AdminAuditQueryDto,
   AdminReportQueryDto,
   CreateThemeDto,
   UpdateConfessionDto,
@@ -86,8 +87,8 @@ export class AdminController {
   ) {
     return this.service.reportAction(id, 'dismiss', requireUser(req));
   }
-  @Get('audit-logs') @Roles(AdminRole.SUPER_ADMIN) audit(
-    @Query() query: { page?: number; limit?: number },
+  @Get(['audit', 'audit-logs']) @Roles(AdminRole.SUPER_ADMIN) audit(
+    @Query() query: AdminAuditQueryDto,
   ) {
     return this.service.audit(query);
   }

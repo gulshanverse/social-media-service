@@ -27,3 +27,15 @@ Confession reads, edits, and approve/reject/archive actions are restricted to `S
 `GET /admin/reports`, `GET /admin/reports/:id`, `POST /admin/reports/:id/resolve`, and `POST /admin/reports/:id/dismiss` are restricted to `SUPER_ADMIN` and `MODERATOR`. Only `OPEN` reports may transition to `RESOLVED` or `DISMISSED`. `GET /admin/audit-logs` is `SUPER_ADMIN` only. `GET /admin/themes` is available to all administrator roles; theme creation and editing are restricted to `SUPER_ADMIN` and `DESIGNER`, with immutable slugs. `GET /admin/dashboard` is available to any authenticated active administrator.
 
 All admin response projections are intentional. Reporter identity, password hashes, JWTs, session refresh hashes, and internal secrets are never returned to frontend clients.
+
+## Phase 4 admin workspace
+
+The authenticated admin workspace uses these protected routes:
+
+- `GET /admin/dashboard` returns aggregate operational metrics: pending, published, rejected, total confessions, open/resolved reports, and active themes.
+- `GET /admin/confessions?page=1&limit=20&status=PENDING&category=CRUSH&search=campus&order=newest` supports server-side pagination, status/category/theme filtering, public ID/content search, and newest/oldest ordering.
+- `GET /admin/reports?page=1&limit=20&status=OPEN&search=spam&order=newest` supports server-side report-reason/confession-reference search and consistent pagination.
+- `GET /admin/audit?page=1&limit=30&action=EDIT&entity=CONFESSION` is a `SUPER_ADMIN`-only, newest-first audit workspace. `/admin/audit-logs` remains an alias.
+- `GET /admin/themes`, `POST /admin/themes`, and `PATCH /admin/themes/:id` power theme listing, creation, editing, and live preview in the admin client.
+
+All query parameters use strict runtime DTO validation. Admin list endpoints return `{ items, page, limit, total, hasMore }` where applicable. The admin client provides explicit loading, empty, error, success, confirmation, and responsive states. Theme previews use database Theme properties while `themeId` continues to mean `Theme.id`; slugs are immutable during updates.

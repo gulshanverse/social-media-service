@@ -28,11 +28,19 @@ export class AdminService {
       status: query.status ?? ConfessionStatus.PENDING,
       ...(query.category ? { category: query.category } : {}),
       ...(query.theme ? { theme: { slug: query.theme } } : {}),
+      ...(query.search
+        ? {
+            OR: [
+              { publicId: { contains: query.search, mode: 'insensitive' as const } },
+              { content: { contains: query.search, mode: 'insensitive' as const } },
+            ],
+          }
+        : {}),
     };
     const [items, total] = await Promise.all([
       prisma.confession.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: query.order === 'oldest' ? 'asc' : 'desc' },
         skip: (page - 1) * limit,
         take: limit,
         select: {
@@ -157,14 +165,32 @@ export class AdminService {
     await recordAudit(actor.id, action.toUpperCase(), 'CONFESSION', id);
     return item;
   }
-  async reports(query: { page?: number; limit?: number; status?: ReportStatus }) {
+  async reports(query: {
+    page?: number;
+    limit?: number;
+    status?: ReportStatus;
+    search?: string;
+    order?: 'newest' | 'oldest';
+  }) {
     const page = Math.max(1, query.page ?? 1);
     const limit = Math.min(50, Math.max(1, query.limit ?? 20));
-    const where = query.status ? { status: query.status } : {};
+    const where = {
+      ...(query.status ? { status: query.status } : {}),
+      ...(query.search
+        ? {
+            OR: [
+              { reason: { contains: query.search, mode: 'insensitive' as const } },
+              {
+                confession: { publicId: { contains: query.search, mode: 'insensitive' as const } },
+              },
+            ],
+          }
+        : {}),
+    };
     const [items, total] = await Promise.all([
       prisma.report.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: query.order === 'oldest' ? 'asc' : 'desc' },
         skip: (page - 1) * limit,
         take: limit,
         select: {
@@ -213,11 +239,16 @@ export class AdminService {
     await recordAudit(actor.id, `REPORT_${action.toUpperCase()}`, 'REPORT', id);
     return item;
   }
-  async audit(query: { page?: number; limit?: number }) {
+  async audit(query: { page?: number; limit?: number; action?: string; entity?: string }) {
     const page = Math.max(1, query.page ?? 1);
     const limit = Math.min(100, Math.max(1, query.limit ?? 50));
+    const where = {
+      ...(query.action ? { action: { contains: query.action, mode: 'insensitive' as const } } : {}),
+      ...(query.entity ? { entity: { contains: query.entity, mode: 'insensitive' as const } } : {}),
+    };
     const [items, total] = await Promise.all([
       prisma.auditLog.findMany({
+        where,
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
@@ -232,7 +263,7 @@ export class AdminService {
           actor: { select: { email: true, role: true } },
         },
       }),
-      prisma.auditLog.count(),
+      prisma.auditLog.count({ where }),
     ]);
     return { items, page, limit, total, hasMore: page * limit < total };
   }
@@ -276,12 +307,31 @@ export class AdminService {
     return item;
   }
   async dashboard() {
-    const [pending, published, rejected, openReports] = await Promise.all([
+    const [
+      pending,
+      published,
+      rejected,
+      openReports,
+      resolvedReports,
+      totalConfessions,
+      activeThemes,
+    ] = await Promise.all([
       prisma.confession.count({ where: { status: 'PENDING' } }),
       prisma.confession.count({ where: { status: 'PUBLISHED' } }),
       prisma.confession.count({ where: { status: 'REJECTED' } }),
       prisma.report.count({ where: { status: 'OPEN' } }),
+      prisma.report.count({ where: { status: 'RESOLVED' } }),
+      prisma.confession.count(),
+      prisma.theme.count(),
     ]);
-    return { pending, published, rejected, openReports };
+    return {
+      pendingConfessions: pending,
+      publishedConfessions: published,
+      rejectedConfessions: rejected,
+      openReports,
+      resolvedReports,
+      totalConfessions,
+      activeThemes,
+    };
   }
 }

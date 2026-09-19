@@ -33,3 +33,7 @@ See `docs/api.md`, `docs/moderation.md`, `docs/architecture.md`, `docs/security-
 ## Phase 3.1 consistency rules
 
 The API explicitly enforces role boundaries: designers can manage themes but cannot read or mutate confession, report, or audit routes; moderators can moderate and manage reports but cannot access audit logs or mutate themes; super administrators can perform all intended operations. Confession edits are pending-only, reports transition only from open, and `themeId` is a database Theme ID. Refresh rotation uses an atomic conditional update so concurrent reuse of one old credential cannot succeed twice. Login and submission rate limits are process-local; proxy deployments must configure trusted proxy behavior for request IP handling, and multi-instance rate limiting remains a future infrastructure concern.
+
+## Phase 4 operations workspace
+
+The admin product now provides a practical moderation console: aggregate dashboard metrics, server-side confession queue search/filter/sort/pagination, full confession review with pending-only editing and state-aware actions, report resolution with confession context, filtered append-only audit activity, and role-aware theme CRUD with live public-card previews. The frontend includes explicit loading, empty, error, success, confirmation, keyboard-focus, and responsive states; backend authorization and DTO validation remain authoritative.
