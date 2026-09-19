@@ -1,6 +1,6 @@
-# College Confession Platform
+# Social Media Service
 
-A production-minded foundation for an anonymous college confession community: public submissions, moderated publishing, themed confession cards, reporting, and lightweight analytics.
+A production-minded foundation for community: public submissions, moderated publishing, themed message cards, reporting, and lightweight analytics.
 
 ## Phase 1 status
 
