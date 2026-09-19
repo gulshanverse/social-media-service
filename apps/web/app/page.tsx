@@ -8,7 +8,6 @@ export default function Home() {
         <Logo />
         <nav>
           <Link href="/confessions">Community</Link>
-          <Link href="/rules">Rules</Link>
           <Link className="nav-cta" href="/send">
             Send one 💌
           </Link>
