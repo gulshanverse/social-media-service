@@ -29,3 +29,7 @@ Copy `.env.example` to `.env`, provide a PostgreSQL `DATABASE_URL`, and set deve
 `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm build` are required CI checks. Prisma schema validation requires `DATABASE_URL`; use the configured environment or a disposable PostgreSQL URL for `pnpm prisma validate`.
 
 See `docs/api.md`, `docs/moderation.md`, `docs/architecture.md`, `docs/security-phase3.md`, and `docs/deployment.md` for details.
+
+## Phase 3.1 consistency rules
+
+The API explicitly enforces role boundaries: designers can manage themes but cannot read or mutate confession, report, or audit routes; moderators can moderate and manage reports but cannot access audit logs or mutate themes; super administrators can perform all intended operations. Confession edits are pending-only, reports transition only from open, and `themeId` is a database Theme ID. Refresh rotation uses an atomic conditional update so concurrent reuse of one old credential cannot succeed twice. Login and submission rate limits are process-local; proxy deployments must configure trusted proxy behavior for request IP handling, and multi-instance rate limiting remains a future infrastructure concern.

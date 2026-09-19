@@ -10,7 +10,8 @@ import {
   Min,
   MinLength,
 } from 'class-validator';
-import { ConfessionCategory } from '@prisma/client';
+import { ConfessionCategory, ConfessionStatus } from '@prisma/client';
+import { appConfig } from '@ggv/config';
 
 export class LoginDto {
   @IsEmail() email!: string;
@@ -21,7 +22,7 @@ export class UpdateConfessionDto {
   @IsString()
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @MinLength(1)
-  @MaxLength(1000)
+  @MaxLength(appConfig.maxConfessionLength)
   content?: string;
   @IsOptional() @IsEnum(ConfessionCategory) category?: ConfessionCategory;
   @IsOptional() @IsString() @MaxLength(100) themeId?: string;
@@ -49,4 +50,9 @@ export class RefreshDto {}
 export class ListQueryDto {
   @IsOptional() @Transform(({ value }) => Number(value)) @IsInt() @Min(1) page = 1;
   @IsOptional() @Transform(({ value }) => Number(value)) @IsInt() @Min(1) @Max(100) limit = 20;
+}
+export class AdminQueueQueryDto extends ListQueryDto {
+  @IsOptional() @IsEnum(ConfessionStatus) status?: ConfessionStatus;
+  @IsOptional() @IsEnum(ConfessionCategory) category?: ConfessionCategory;
+  @IsOptional() @IsString() @MaxLength(100) theme?: string;
 }

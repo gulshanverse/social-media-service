@@ -10,6 +10,7 @@
     "test": "node -e \"console.log('admin: no runtime tests')\""
   },
   "dependencies": {
+    "@ggv/config": "workspace:^",
     "@ggv/ui": "workspace:*",
     "next": "^15.1.3",
     "react": "^19.0.0",

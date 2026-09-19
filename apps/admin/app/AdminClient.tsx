@@ -3,6 +3,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Logo } from '@ggv/ui';
+import { appConfig } from '@ggv/config';
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 type Admin = {
   id: string;
@@ -236,7 +237,7 @@ function ConfessionDetail({ admin }: { admin: Admin }) {
         setForm({
           content: value.content,
           category: value.category ?? '',
-          themeId: value.theme?.slug ?? '',
+          themeId: value.theme?.id ?? '',
         });
       })
       .catch((e) => setMessage(e.message));
@@ -288,7 +289,7 @@ function ConfessionDetail({ admin }: { admin: Admin }) {
               <textarea
                 value={form.content}
                 onChange={(e) => setForm({ ...form, content: e.target.value })}
-                maxLength={1000}
+                maxLength={appConfig.maxConfessionLength}
               />
             </label>
             <label>
@@ -299,7 +300,7 @@ function ConfessionDetail({ admin }: { admin: Admin }) {
               />
             </label>
             <label>
-              Theme slug
+              Theme ID
               <input
                 value={form.themeId}
                 onChange={(e) => setForm({ ...form, themeId: e.target.value })}

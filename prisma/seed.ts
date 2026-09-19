@@ -6,6 +6,7 @@ const prisma = new PrismaClient();
 async function main() {
   await prisma.theme.createMany({
     data: themes.map((theme) => ({
+      id: theme.id,
       slug: theme.id,
       name: theme.name,
       background: theme.background,

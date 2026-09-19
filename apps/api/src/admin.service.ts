@@ -1,22 +1,32 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { AdminRole, ConfessionCategory, ConfessionStatus, ReportStatus } from '@prisma/client';
 import { prisma, recordAudit, AdminIdentity } from './admin-auth';
-import { CreateThemeDto, UpdateConfessionDto, UpdateThemeDto } from './admin.dto';
+import {
+  AdminQueueQueryDto,
+  CreateThemeDto,
+  UpdateConfessionDto,
+  UpdateThemeDto,
+} from './admin.dto';
+import { appConfig } from '@ggv/config';
+
+export function assertOpenReportTransition(status: ReportStatus, action: 'resolve' | 'dismiss') {
+  if (status !== ReportStatus.OPEN)
+    throw new BadRequestException(`Cannot ${action} a ${status.toLowerCase()} report.`);
+}
+
+export function assertPendingConfessionEdit(status: ConfessionStatus) {
+  if (status !== ConfessionStatus.PENDING)
+    throw new BadRequestException(`Cannot edit a ${status.toLowerCase()} confession.`);
+}
 
 @Injectable()
 export class AdminService {
-  async queue(query: {
-    page?: number;
-    limit?: number;
-    status?: ConfessionStatus;
-    category?: string;
-    theme?: string;
-  }) {
+  async queue(query: AdminQueueQueryDto) {
     const page = Math.max(1, query.page ?? 1);
     const limit = Math.min(50, Math.max(1, query.limit ?? 20));
     const where = {
       status: query.status ?? ConfessionStatus.PENDING,
-      ...(query.category ? { category: query.category as never } : {}),
+      ...(query.category ? { category: query.category } : {}),
       ...(query.theme ? { theme: { slug: query.theme } } : {}),
     };
     const [items, total] = await Promise.all([
@@ -58,7 +68,19 @@ export class AdminService {
         updatedAt: true,
         publishedAt: true,
         reportCount: true,
-        theme: true,
+        theme: {
+          select: {
+            id: true,
+            slug: true,
+            name: true,
+            background: true,
+            gradient: true,
+            textColor: true,
+            accentColor: true,
+            fontFamily: true,
+            radius: true,
+          },
+        },
         editor: { select: { id: true, email: true, role: true } },
         reports: {
           select: { id: true, reason: true, status: true, createdAt: true, resolvedAt: true },
@@ -69,6 +91,9 @@ export class AdminService {
     return item;
   }
   async edit(id: string, body: UpdateConfessionDto, actor: AdminIdentity) {
+    const current = await prisma.confession.findUnique({ where: { id }, select: { status: true } });
+    if (!current) throw new NotFoundException('Confession not found.');
+    assertPendingConfessionEdit(current.status);
     const data: {
       content?: string;
       category?: ConfessionCategory;
@@ -77,13 +102,15 @@ export class AdminService {
     } = { editorId: actor.id };
     if (body.content !== undefined) {
       const content = body.content.trim();
-      if (!content || content.length > 1000)
-        throw new BadRequestException('Content must be between 1 and 1000 characters.');
+      if (!content || content.length > appConfig.maxConfessionLength)
+        throw new BadRequestException(
+          `Content must be between 1 and ${appConfig.maxConfessionLength} characters.`,
+        );
       data.content = content;
     }
     if (body.category !== undefined) data.category = body.category;
     if (body.themeId !== undefined) {
-      const theme = await prisma.theme.findUnique({ where: { slug: body.themeId } });
+      const theme = await prisma.theme.findUnique({ where: { id: body.themeId } });
       if (!theme) throw new BadRequestException('Invalid theme.');
       data.themeId = theme.id;
     }
@@ -171,6 +198,9 @@ export class AdminService {
     return item;
   }
   async reportAction(id: string, action: 'resolve' | 'dismiss', actor: AdminIdentity) {
+    const current = await prisma.report.findUnique({ where: { id }, select: { status: true } });
+    if (!current) throw new NotFoundException('Report not found.');
+    assertOpenReportTransition(current.status, action);
     const item = await prisma.report.update({
       where: { id },
       data: {

@@ -8,6 +8,7 @@ import { ConfessionsPrisma, ConfessionsService } from './confessions.service';
 import { SubmissionRateLimiter } from './rate-limit';
 
 const theme = {
+  id: 'midnight',
   slug: 'midnight',
   name: 'Midnight',
   background: '#070a12',

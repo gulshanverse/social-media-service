@@ -10,11 +10,16 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { AdminRole, ConfessionStatus, ReportStatus } from '@prisma/client';
+import { AdminRole, ReportStatus } from '@prisma/client';
 import { AdminAuthController } from './admin.controller';
 import { AdminService } from './admin.service';
 import { JwtAuthGuard, Roles, RolesGuard, requireUser } from './admin-auth';
-import { CreateThemeDto, UpdateConfessionDto, UpdateThemeDto } from './admin.dto';
+import {
+  AdminQueueQueryDto,
+  CreateThemeDto,
+  UpdateConfessionDto,
+  UpdateThemeDto,
+} from './admin.dto';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -23,52 +28,49 @@ export class AdminController {
   @Get('dashboard') dashboard() {
     return this.service.dashboard();
   }
-  @Get('confessions') queue(
-    @Query()
-    query: {
-      page?: number;
-      limit?: number;
-      status?: ConfessionStatus;
-      category?: string;
-      theme?: string;
-    },
+  @Get('confessions') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) queue(
+    @Query() query: AdminQueueQueryDto,
   ) {
     return this.service.queue(query);
   }
-  @Get('confessions/:id') detail(@Param('id') id: string) {
+  @Get('confessions/:id') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) detail(
+    @Param('id') id: string,
+  ) {
     return this.service.detail(id);
   }
-  @Patch('confessions/:id') edit(
+  @Patch('confessions/:id') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) edit(
     @Param('id') id: string,
     @Body() body: UpdateConfessionDto,
     @Req() req: { user?: ReturnType<typeof requireUser> },
   ) {
     return this.service.edit(id, body, requireUser(req));
   }
-  @Post('confessions/:id/approve') approve(
+  @Post('confessions/:id/approve') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) approve(
     @Param('id') id: string,
     @Req() req: { user?: ReturnType<typeof requireUser> },
   ) {
     return this.service.transition(id, 'approve', requireUser(req));
   }
-  @Post('confessions/:id/reject') reject(
+  @Post('confessions/:id/reject') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) reject(
     @Param('id') id: string,
     @Req() req: { user?: ReturnType<typeof requireUser> },
   ) {
     return this.service.transition(id, 'reject', requireUser(req));
   }
-  @Post('confessions/:id/archive') archive(
+  @Post('confessions/:id/archive') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) archive(
     @Param('id') id: string,
     @Req() req: { user?: ReturnType<typeof requireUser> },
   ) {
     return this.service.transition(id, 'archive', requireUser(req));
   }
-  @Get('reports') reports(
+  @Get('reports') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) reports(
     @Query() query: { page?: number; limit?: number; status?: ReportStatus },
   ) {
     return this.service.reports(query);
   }
-  @Get('reports/:id') report(@Param('id') id: string) {
+  @Get('reports/:id') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) report(
+    @Param('id') id: string,
+  ) {
     return this.service.report(id);
   }
   @Post('reports/:id/resolve') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) resolve(

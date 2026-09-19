@@ -31,6 +31,9 @@ importers:
 
   apps/admin:
     dependencies:
+      '@ggv/config':
+        specifier: workspace:^
+        version: link:../../packages/config
       '@ggv/ui':
         specifier: workspace:*
         version: link:../../packages/ui

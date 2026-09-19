@@ -2,7 +2,6 @@ import {
   Body,
   Controller,
   Get,
-  Headers,
   HttpException,
   HttpStatus,
   Post,
@@ -35,10 +34,10 @@ import { LoginDto, RefreshDto } from './admin.dto';
 export class AdminAuthController {
   @Post('login') async login(
     @Body() body: LoginDto,
-    @Headers('x-forwarded-for') ip: string | undefined,
+    @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ) {
-    if (!loginRateLimiter.check((ip ?? 'unknown').split(',')[0].trim()))
+    if (!loginRateLimiter.check(request.ip || 'unknown'))
       throw new HttpException('Invalid email or password.', HttpStatus.TOO_MANY_REQUESTS);
     const admin = await prisma.adminUser.findUnique({
       where: { email: body.email.toLowerCase().trim() },
@@ -89,13 +88,20 @@ export class AdminAuthController {
         throw new Error();
       const identity = safeAdmin(session.admin, session.id);
       const replacement = issueRefreshToken(identity, session.id);
-      await prisma.adminSession.update({
-        where: { id: session.id },
+      const consumed = await prisma.adminSession.updateMany({
+        where: {
+          id: session.id,
+          refreshTokenHash: session.refreshTokenHash,
+          revokedAt: null,
+          expiresAt: { gt: new Date() },
+        },
         data: { refreshTokenHash: hashToken(replacement), lastUsedAt: new Date() },
       });
+      if (consumed.count !== 1) throw new Error();
       response.cookie(refreshCookieName, replacement, cookieOptions());
       return { accessToken: issueAccessToken(identity) };
     } catch {
+      response.clearCookie(refreshCookieName, { ...cookieOptions(), maxAge: undefined });
       throw new HttpException('Invalid refresh token.', HttpStatus.UNAUTHORIZED);
     }
   }

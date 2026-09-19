@@ -13,6 +13,7 @@ import { CreateConfessionDto, ListConfessionsQueryDto } from './dto';
 import { SubmissionRateLimiter } from './rate-limit';
 
 type ThemeRecord = {
+  id: string;
   slug: string;
   name: string;
   background: string;
@@ -32,7 +33,7 @@ type ConfessionRecord = {
 
 export type ConfessionsPrisma = {
   theme: {
-    findUnique(args: { where: { slug: string } }): Promise<ThemeRecord | null>;
+    findUnique(args: { where: { id: string } }): Promise<ThemeRecord | null>;
   };
   confession: {
     create(args: {
@@ -121,7 +122,7 @@ export class ConfessionsService {
         HttpStatus.TOO_MANY_REQUESTS,
       );
     const themeId = dto.themeId ?? 'midnight';
-    const theme = await this.database.theme.findUnique({ where: { slug: themeId } });
+    const theme = await this.database.theme.findUnique({ where: { id: themeId } });
     if (!theme || !themes.some((item) => item.id === themeId))
       throw new BadRequestException('Please choose a valid theme.');
     const publicId = `${Date.now().toString(36)}-${crypto.randomUUID().slice(0, 8)}`;
@@ -132,7 +133,7 @@ export class ConfessionsService {
         originalContent: content,
         category: dto.category,
         status: ConfessionStatus.PENDING,
-        themeId: theme.slug,
+        themeId: theme.id,
       },
     });
     return {

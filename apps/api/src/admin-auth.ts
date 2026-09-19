@@ -40,7 +40,9 @@ function sign(payload: object, key: string) {
 }
 export function verifyToken(token: string, key = accessSecret()) {
   if (!key) throw new UnauthorizedException('Authentication is unavailable.');
-  const [head, body, signature] = token.split('.');
+  const parts = token.split('.');
+  if (parts.length !== 3) throw new UnauthorizedException('Invalid token.');
+  const [head, body, signature] = parts;
   if (!head || !body || !signature) throw new UnauthorizedException('Invalid token.');
   const expected = createHmac('sha256', key).update(`${head}.${body}`).digest('base64url');
   if (
@@ -48,12 +50,16 @@ export function verifyToken(token: string, key = accessSecret()) {
     !timingSafeEqual(Buffer.from(expected), Buffer.from(signature))
   )
     throw new UnauthorizedException('Invalid token.');
+  let header: Record<string, unknown>;
   let payload: Record<string, unknown>;
   try {
+    header = decode(head);
     payload = decode(body);
   } catch {
     throw new UnauthorizedException('Invalid token.');
   }
+  if (header.alg !== 'HS256' || header.typ !== 'JWT' || !payload || typeof payload !== 'object')
+    throw new UnauthorizedException('Invalid token.');
   if (typeof payload.exp !== 'number' || payload.exp <= Math.floor(Date.now() / 1000))
     throw new UnauthorizedException('Token expired.');
   return payload;
@@ -62,6 +68,7 @@ export function issueAccessToken(admin: AdminIdentity) {
   return sign(
     {
       sub: admin.id,
+      type: 'access',
       role: admin.role,
       sid: admin.sessionId,
       iat: Math.floor(Date.now() / 1000),
@@ -124,7 +131,20 @@ export class JwtAuthGuard implements CanActivate {
     const value = request.headers.authorization;
     if (!value?.startsWith('Bearer ')) throw new UnauthorizedException('Authentication required.');
     const payload = verifyToken(value.slice(7));
-    if (typeof payload.sub !== 'string') throw new UnauthorizedException('Invalid token.');
+    if (
+      payload.type !== 'access' ||
+      typeof payload.sub !== 'string' ||
+      typeof payload.sid !== 'string'
+    )
+      throw new UnauthorizedException('Invalid token.');
+    const session = await prisma.adminSession.findUnique({ where: { id: payload.sid } });
+    if (
+      !session ||
+      session.adminId !== payload.sub ||
+      session.revokedAt ||
+      session.expiresAt <= new Date()
+    )
+      throw new UnauthorizedException('Authentication required.');
     const admin = await prisma.adminUser.findUnique({ where: { id: payload.sub } });
     if (!admin || !admin.isActive) throw new UnauthorizedException('Authentication required.');
     request.user = safeAdmin(admin, typeof payload.sid === 'string' ? payload.sid : undefined);
