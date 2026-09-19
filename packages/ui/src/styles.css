@@ -1,0 +1,30 @@
+:root {
+  --ggv-bg: #070a12;
+  --ggv-surface: #101522;
+  --ggv-card: #151c2b;
+  --ggv-text: #fff;
+  --ggv-muted: #9ca3af;
+  --ggv-pink: #ff2d75;
+  --ggv-orange: #ff7a00;
+}
+.ggv-button {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.8rem 1.2rem;
+  color: #fff;
+  background: linear-gradient(135deg, var(--ggv-pink), var(--ggv-orange));
+  font-weight: 700;
+  cursor: pointer;
+}
+.ggv-button:focus-visible {
+  outline: 3px solid #c8ff00;
+  outline-offset: 3px;
+}
+.ggv-logo {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+  color: #ffd54a;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}

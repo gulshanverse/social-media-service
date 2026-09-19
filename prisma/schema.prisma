@@ -1,0 +1,118 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  MODERATOR
+  DESIGNER
+}
+
+enum ConfessionCategory {
+  CRUSH
+  RELATIONSHIP
+  FRIENDSHIP
+  FUNNY
+  COLLEGE_LIFE
+  ADVICE
+  APPRECIATION
+  RANT
+  OTHER
+}
+
+enum ConfessionStatus {
+  PENDING
+  APPROVED
+  PUBLISHED
+  REJECTED
+  ARCHIVED
+}
+
+enum ReportStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+  ARCHIVED
+}
+
+model AdminUser {
+  id          String      @id @default(cuid())
+  email       String      @unique
+  passwordHash String
+  role        AdminRole   @default(SUPER_ADMIN)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  confessions Confession[] @relation("ConfessionEditor")
+  auditLogs   AuditLog[]  @relation("AuditActor")
+  reports     Report[]    @relation("ReportReviewer")
+}
+
+model Theme {
+  id              String       @id @default(cuid())
+  slug            String       @unique
+  name            String
+  background      String
+  gradient        String
+  textColor       String
+  accentColor     String
+  fontFamily      String
+  borderStyle     String       @default("solid")
+  radius          Int          @default(28)
+  logoVisibility  Boolean      @default(true)
+  handleVisibility Boolean     @default(true)
+  layoutVariant   String       @default("classic")
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  confessions     Confession[]
+}
+
+model Confession {
+  id              String             @id @default(cuid())
+  publicId        String             @unique
+  content         String
+  originalContent String
+  category        ConfessionCategory?
+  status          ConfessionStatus    @default(PENDING)
+  themeId         String?
+  theme           Theme?              @relation(fields: [themeId], references: [id])
+  editorId        String?
+  editor          AdminUser?          @relation("ConfessionEditor", fields: [editorId], references: [id])
+  viewCount       Int                 @default(0)
+  shareCount      Int                 @default(0)
+  reportCount     Int                 @default(0)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  publishedAt     DateTime?
+  reports         Report[]
+
+  @@index([status, createdAt])
+}
+
+model Report {
+  id           String         @id @default(cuid())
+  confessionId String
+  confession   Confession     @relation(fields: [confessionId], references: [id])
+  reason       String
+  status       ReportStatus   @default(OPEN)
+  reporterHash String?
+  reviewerId   String?
+  reviewer     AdminUser?     @relation("ReportReviewer", fields: [reviewerId], references: [id])
+  createdAt    DateTime       @default(now())
+  resolvedAt   DateTime?
+}
+
+model AuditLog {
+  id         String      @id @default(cuid())
+  actorId    String?
+  actor      AdminUser?  @relation("AuditActor", fields: [actorId], references: [id])
+  action     String
+  entity     String
+  entityId   String
+  metadata   Json?
+  createdAt  DateTime    @default(now())
+}
