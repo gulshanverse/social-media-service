@@ -10,12 +10,13 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { AdminRole, ReportStatus } from '@prisma/client';
+import { AdminRole } from '@prisma/client';
 import { AdminAuthController } from './admin.controller';
 import { AdminService } from './admin.service';
 import { JwtAuthGuard, Roles, RolesGuard, requireUser } from './admin-auth';
 import {
   AdminQueueQueryDto,
+  AdminReportQueryDto,
   CreateThemeDto,
   UpdateConfessionDto,
   UpdateThemeDto,
@@ -64,7 +65,7 @@ export class AdminController {
     return this.service.transition(id, 'archive', requireUser(req));
   }
   @Get('reports') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) reports(
-    @Query() query: { page?: number; limit?: number; status?: ReportStatus },
+    @Query() query: AdminReportQueryDto,
   ) {
     return this.service.reports(query);
   }

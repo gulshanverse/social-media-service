@@ -10,7 +10,7 @@ export const confessionCategories = [
   'OTHER',
 ] as const;
 export type ConfessionCategory = (typeof confessionCategories)[number];
-export type ConfessionStatus = 'PENDING' | 'APPROVED' | 'PUBLISHED' | 'REJECTED' | 'ARCHIVED';
+export type ConfessionStatus = 'PENDING' | 'PUBLISHED' | 'REJECTED' | 'ARCHIVED';
 export type AdminRole = 'SUPER_ADMIN' | 'MODERATOR' | 'DESIGNER';
 export type ReportStatus = 'OPEN' | 'RESOLVED' | 'DISMISSED' | 'ARCHIVED';
 export type PublicTheme = {

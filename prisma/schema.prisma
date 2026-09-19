@@ -27,7 +27,6 @@ enum ConfessionCategory {
 
 enum ConfessionStatus {
   PENDING
-  APPROVED
   PUBLISHED
   REJECTED
   ARCHIVED

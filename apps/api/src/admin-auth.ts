@@ -18,7 +18,10 @@ export type AdminIdentity = {
   sessionId?: string;
 };
 export const Roles = (...roles: AdminRole[]) => SetMetadata('roles', roles);
-export const prisma = new PrismaClient();
+export let prisma = new PrismaClient();
+export function setPrismaForTests(client: PrismaClient) {
+  prisma = client;
+}
 const secret = (name: string, fallback: string) => {
   const value = process.env[name];
   if (value) return value;
@@ -38,7 +41,11 @@ function sign(payload: object, key: string) {
   const body = `${encode({ alg: 'HS256', typ: 'JWT' })}.${encode(payload)}`;
   return `${body}.${createHmac('sha256', key).update(body).digest('base64url')}`;
 }
-export function verifyToken(token: string, key = accessSecret()) {
+export function verifyToken(
+  token: string,
+  key = accessSecret(),
+  expectedType?: 'access' | 'refresh',
+) {
   if (!key) throw new UnauthorizedException('Authentication is unavailable.');
   const parts = token.split('.');
   if (parts.length !== 3) throw new UnauthorizedException('Invalid token.');
@@ -59,6 +66,8 @@ export function verifyToken(token: string, key = accessSecret()) {
     throw new UnauthorizedException('Invalid token.');
   }
   if (header.alg !== 'HS256' || header.typ !== 'JWT' || !payload || typeof payload !== 'object')
+    throw new UnauthorizedException('Invalid token.');
+  if (expectedType && payload.type !== expectedType)
     throw new UnauthorizedException('Invalid token.');
   if (typeof payload.exp !== 'number' || payload.exp <= Math.floor(Date.now() / 1000))
     throw new UnauthorizedException('Token expired.');
@@ -130,7 +139,7 @@ export class JwtAuthGuard implements CanActivate {
       .getRequest<{ headers: Record<string, string>; user?: AdminIdentity }>();
     const value = request.headers.authorization;
     if (!value?.startsWith('Bearer ')) throw new UnauthorizedException('Authentication required.');
-    const payload = verifyToken(value.slice(7));
+    const payload = verifyToken(value.slice(7), accessSecret(), 'access');
     if (
       payload.type !== 'access' ||
       typeof payload.sub !== 'string' ||

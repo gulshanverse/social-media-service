@@ -67,7 +67,7 @@ export class AdminAuthController {
     const token = readCookie(request.headers.cookie, refreshCookieName);
     try {
       if (!token) throw new Error();
-      const payload = verifyToken(token, refreshSecret());
+      const payload = verifyToken(token, refreshSecret(), 'refresh');
       if (
         payload.type !== 'refresh' ||
         typeof payload.sub !== 'string' ||

@@ -10,7 +10,7 @@ import {
   Min,
   MinLength,
 } from 'class-validator';
-import { ConfessionCategory, ConfessionStatus } from '@prisma/client';
+import { ConfessionCategory, ConfessionStatus, ReportStatus } from '@prisma/client';
 import { appConfig } from '@ggv/config';
 
 export class LoginDto {
@@ -30,20 +30,20 @@ export class UpdateConfessionDto {
 export class CreateThemeDto {
   @IsString() @MinLength(1) @MaxLength(80) slug!: string;
   @IsString() @MinLength(1) @MaxLength(120) name!: string;
-  @IsString() @MaxLength(200) background!: string;
-  @IsString() @MaxLength(500) gradient!: string;
-  @IsString() @MaxLength(100) textColor!: string;
-  @IsString() @MaxLength(100) accentColor!: string;
-  @IsString() @MaxLength(120) fontFamily!: string;
+  @IsString() @MinLength(1) @MaxLength(200) background!: string;
+  @IsString() @MinLength(1) @MaxLength(500) gradient!: string;
+  @IsString() @MinLength(1) @MaxLength(100) textColor!: string;
+  @IsString() @MinLength(1) @MaxLength(100) accentColor!: string;
+  @IsString() @MinLength(1) @MaxLength(120) fontFamily!: string;
   @IsInt() @Min(0) @Max(100) radius!: number;
 }
 export class UpdateThemeDto {
   @IsOptional() @IsString() @MinLength(1) @MaxLength(120) name?: string;
-  @IsOptional() @IsString() @MaxLength(200) background?: string;
-  @IsOptional() @IsString() @MaxLength(500) gradient?: string;
-  @IsOptional() @IsString() @MaxLength(100) textColor?: string;
-  @IsOptional() @IsString() @MaxLength(100) accentColor?: string;
-  @IsOptional() @IsString() @MaxLength(120) fontFamily?: string;
+  @IsOptional() @IsString() @MinLength(1) @MaxLength(200) background?: string;
+  @IsOptional() @IsString() @MinLength(1) @MaxLength(500) gradient?: string;
+  @IsOptional() @IsString() @MinLength(1) @MaxLength(100) textColor?: string;
+  @IsOptional() @IsString() @MinLength(1) @MaxLength(100) accentColor?: string;
+  @IsOptional() @IsString() @MinLength(1) @MaxLength(120) fontFamily?: string;
   @IsOptional() @IsInt() @Min(0) @Max(100) radius?: number;
 }
 export class RefreshDto {}
@@ -55,4 +55,7 @@ export class AdminQueueQueryDto extends ListQueryDto {
   @IsOptional() @IsEnum(ConfessionStatus) status?: ConfessionStatus;
   @IsOptional() @IsEnum(ConfessionCategory) category?: ConfessionCategory;
   @IsOptional() @IsString() @MaxLength(100) theme?: string;
+}
+export class AdminReportQueryDto extends ListQueryDto {
+  @IsOptional() @IsEnum(ReportStatus) status?: ReportStatus;
 }
