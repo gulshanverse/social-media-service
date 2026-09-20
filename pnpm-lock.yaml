@@ -116,6 +116,9 @@ importers:
       rxjs:
         specifier: ^7.8.1
         version: 7.8.2
+      tsx:
+        specifier: ^4.19.2
+        version: 4.23.13
     devDependencies:
       '@nestjs/testing':
         specifier: ^10.4.15
@@ -132,9 +135,6 @@ importers:
       supertest:
         specifier: ^7.2.2
         version: 7.2.2
-      tsx:
-        specifier: ^4.19.2
-        version: 4.23.13
       typescript:
         specifier: ^5.7.2
         version: 5.9.3

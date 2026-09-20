@@ -6,8 +6,9 @@ import { AppModule } from './module';
 import { SafeApiExceptionFilter } from './api-errors';
 import { requestIdMiddleware, structuredLog } from './observability';
 import { prisma } from './admin-auth';
-
+import { validateProductionEnvironment } from './production-config';
 export async function createApp() {
+  validateProductionEnvironment();
   const app = await NestFactory.create(AppModule, { bodyParser: true });
   app.use(helmet());
   app.use(requestIdMiddleware);

@@ -22,13 +22,13 @@ The three existing roles remain authoritative: `SUPER_ADMIN` can moderate, resol
 
 ## Local setup
 
-Copy `.env.example` to `.env`, provide a PostgreSQL `DATABASE_URL`, and set development-only `ADMIN_SEED_EMAIL` and `ADMIN_SEED_PASSWORD` if an initial admin is needed. Run `pnpm install`, `pnpm db:generate`, `pnpm db:push`, `pnpm db:seed`, and `pnpm dev`. Cookie CORS requires `WEB_ORIGIN` and `ADMIN_ORIGIN` to match the browser origins.
+Copy `.env.example` to `.env`, provide a PostgreSQL `DATABASE_URL`, and set development-only `ADMIN_SEED_EMAIL` and `ADMIN_SEED_PASSWORD` if an initial admin is needed. Run `pnpm install`, `pnpm db:generate`, `pnpm db:push`, `pnpm db:seed`, and `pnpm dev`. Cookie CORS requires `WEB_ORIGIN` and `ADMIN_ORIGIN` to match the browser origins. Production uses `pnpm db:migrate:deploy`, never `pnpm db:push`.
 
 ## Validation commands
 
 `pnpm format:check`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm build` are required CI checks. Prisma schema validation requires `DATABASE_URL`; use the configured environment or a disposable PostgreSQL URL for `pnpm prisma validate`.
 
-See `docs/api.md`, `docs/moderation.md`, `docs/architecture.md`, `docs/security-phase3.md`, and `docs/deployment.md` for details.
+See `docs/api.md`, `docs/moderation.md`, `docs/architecture.md`, `docs/security-phase3.md`, `docs/deployment.md`, and `docs/production-runbook.md` for details.
 
 ## Phase 3.1 consistency rules
 
