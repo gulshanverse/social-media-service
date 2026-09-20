@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",
-    "build": "next build",
+    "build": "pnpm --filter @ggv/config build && pnpm --filter @ggv/themes build && pnpm --filter @ggv/types build && next build",
     "lint": "ESLINT_USE_FLAT_CONFIG=false next lint",
     "typecheck": "tsc -p tsconfig.json",
     "test": "node -e \"console.log('web: no runtime tests')\""
