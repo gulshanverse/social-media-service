@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   HttpException,
   HttpStatus,
@@ -69,6 +70,9 @@ export type ConfessionsPrisma = {
 
 type RateLimiter = Pick<SubmissionRateLimiter, 'check'>;
 
+export const CONFESSIONS_PRISMA = 'CONFESSIONS_PRISMA';
+export const CONFESSIONS_RATE_LIMITER = 'CONFESSIONS_RATE_LIMITER';
+
 const prisma = sharedPrisma as unknown as ConfessionsPrisma;
 const rateLimiter = new SubmissionRateLimiter();
 
@@ -99,7 +103,9 @@ function toPublicConfession(confession: ConfessionRecord): PublicConfession {
 @Injectable()
 export class ConfessionsService {
   constructor(
+    @Inject(CONFESSIONS_PRISMA)
     private readonly database: ConfessionsPrisma = prisma,
+    @Inject(CONFESSIONS_RATE_LIMITER)
     private readonly submissions: RateLimiter = rateLimiter,
   ) {}
 
