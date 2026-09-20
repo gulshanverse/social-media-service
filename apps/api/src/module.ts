@@ -36,5 +36,15 @@ export class HealthController {
   }
 }
 
-@Module({ imports: [ConfessionsModule, AdminModule], controllers: [HealthController] })
+@Controller()
+export class MetricsController {
+  @Get('metrics') metrics() {
+    return metricsSnapshot();
+  }
+}
+
+@Module({
+  imports: [ConfessionsModule, AdminModule],
+  controllers: [HealthController, MetricsController],
+})
 export class AppModule {}

@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import express from 'express';
 import helmet from 'helmet';
 import { AppModule } from './module';
 import { SafeApiExceptionFilter } from './api-errors';
@@ -35,10 +36,11 @@ export function configureTrustedProxy(app: {
 
 export async function createApp() {
   validateProductionEnvironment();
-  const app = await NestFactory.create(AppModule, { bodyParser: true });
+  const app = await NestFactory.create(AppModule, { bodyParser: false });
+  app.use(requestIdMiddleware);
+  app.use(express.json({ limit: '32kb' }));
   configureTrustedProxy(app);
   app.use(helmet());
-  app.use(requestIdMiddleware);
   app.useGlobalFilters(new SafeApiExceptionFilter());
   const allowedOrigins = [
     process.env.WEB_ORIGIN ??

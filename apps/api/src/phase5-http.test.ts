@@ -99,6 +99,30 @@ async function run() {
       });
     const metrics = await request(server).get('/health/metrics').expect(200);
     assert.equal(typeof metrics.body.counters.http_requests_total, 'number');
+    const rootMetrics = await request(server).get('/metrics').expect(200);
+    assert.equal(typeof rootMetrics.body.counters.http_requests_total, 'number');
+    const malformed = await request(server)
+      .post('/admin/auth/refresh')
+      .set('Content-Type', 'application/json')
+      .send('{"invalid":')
+      .expect(400);
+    assert.deepEqual(malformed.body, {
+      statusCode: 400,
+      message: 'Invalid JSON payload.',
+      code: 'VALIDATION_ERROR',
+      requestId: malformed.headers['x-request-id'],
+    });
+    const oversized = await request(server)
+      .post('/admin/auth/refresh')
+      .set('Content-Type', 'application/json')
+      .send(`{"payload":"${'a'.repeat(33_000)}"}`)
+      .expect(413);
+    assert.deepEqual(oversized.body, {
+      statusCode: 413,
+      message: 'Request payload is too large.',
+      code: 'PAYLOAD_TOO_LARGE',
+      requestId: oversized.headers['x-request-id'],
+    });
     await request(server).get('/health/ready').expect(200);
     fakePrisma.$queryRaw = async () => {
       throw new Error('database unavailable');
