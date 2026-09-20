@@ -79,7 +79,7 @@ The implementation is pushed to the `main` branch so the repository's existing d
 
 ## 9. Unverified Items
 
-The following remain genuinely unverified: live Render rate-limit environment values; authenticated hosted logout, protected-request rejection, and re-login; hosted Web/Admin/API browser verification; real-origin hosted CORS and network-loop checks; live Render migration status; Render PostgreSQL backup/PITR configuration and restore test; and the post-push GitHub Actions result at the time this report was written.
+The following remain genuinely unverified: live Render rate-limit environment values; authenticated hosted logout, protected-request rejection, and re-login; hosted Web/Admin/API browser verification; real-origin hosted CORS and network-loop checks; live Render migration status; Render PostgreSQL backup/PITR configuration and restore test; and the final conclusion of the post-push GitHub Actions run, which was queued at the final check.
 
 ## 10. Risks / Recommendations
 
@@ -87,9 +87,9 @@ Before a production launch, attach evidence for a provider backup and isolated r
 
 ## 11. Git
 
-- Final commit SHA: recorded after commit and push
+- Final commit SHA: `cd68eb67c7a0f5ea8ffac398050fad3d006322bc`
 - Commit message: `fix(api): harden payload handling and metrics endpoint`
 - Branch: `main`
 - Working tree status: verified clean after commit/push
 
-> Note: The final commit SHA and post-push CI result are filled into the release record after the commit is created.
+> Post-push CI run `35545539227` was observed in `queued` state for this SHA; it was not falsely marked as passed.
