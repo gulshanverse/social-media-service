@@ -6,6 +6,8 @@ on:
 jobs:
   quality:
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/social_media?schema=public
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
