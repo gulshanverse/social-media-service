@@ -7,7 +7,7 @@ import { SafeApiExceptionFilter } from './api-errors';
 import { requestIdMiddleware, structuredLog } from './observability';
 import { prisma } from './admin-auth';
 
-async function bootstrap() {
+export async function createApp() {
   const app = await NestFactory.create(AppModule, { bodyParser: true });
   app.use(helmet());
   app.use(requestIdMiddleware);
@@ -23,6 +23,11 @@ async function bootstrap() {
     new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
   );
   app.enableShutdownHooks();
+  return app;
+}
+
+export async function bootstrap() {
+  const app = await createApp();
   await app.listen(process.env.PORT ?? 4000);
   structuredLog('info', 'api.started', {
     service: 'social-media-service-api',
@@ -38,4 +43,6 @@ async function bootstrap() {
   process.once('SIGTERM', () => void shutdown('SIGTERM'));
   process.once('SIGINT', () => void shutdown('SIGINT'));
 }
-void bootstrap();
+
+const invokedFile = process.argv[1] ?? '';
+if (invokedFile.endsWith('/main.ts') || invokedFile.endsWith('/main.js')) void bootstrap();

@@ -476,7 +476,7 @@ async function testRbacMetadata() {
     AdminRole.SUPER_ADMIN,
   ]);
   const guard = (roles: AdminRole[], role: AdminRole) =>
-    new RolesGuard({ get: <T>() => roles as T }).canActivate({
+    new RolesGuard({ get: <T>() => roles as T } as any).canActivate({
       getHandler: () => AdminController.prototype.queue,
       getClass: () => AdminController,
       switchToHttp: () => ({ getRequest: () => ({ user: { ...admin, role } }) }),

@@ -7,7 +7,7 @@
     "build": "next build",
     "lint": "ESLINT_USE_FLAT_CONFIG=false next lint",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "node -e \"console.log('admin: no runtime tests')\""
+    "test": "vitest run"
   },
   "dependencies": {
     "@ggv/config": "workspace:^",
@@ -17,9 +17,14 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
     "@types/node": "^22.10.2",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
-    "typescript": "^5.7.2"
+    "jsdom": "^30.1.0",
+    "typescript": "^5.7.2",
+    "vitest": "^5.0.1"
   }
 }

@@ -2,10 +2,12 @@ import {
   CanActivate,
   ExecutionContext,
   ForbiddenException,
+  Inject,
   Injectable,
   SetMetadata,
   UnauthorizedException,
 } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { AdminRole, PrismaClient } from '@prisma/client';
 import { createHash, createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 import bcrypt from 'bcryptjs';
@@ -162,7 +164,7 @@ export class JwtAuthGuard implements CanActivate {
 }
 @Injectable()
 export class RolesGuard implements CanActivate {
-  constructor(private readonly reflector: { get<T>(key: string, target: object): T | undefined }) {}
+  constructor(@Inject(Reflector) private readonly reflector: Reflector) {}
   canActivate(context: ExecutionContext) {
     const roles =
       this.reflector.get<AdminRole[]>('roles', context.getHandler()) ??

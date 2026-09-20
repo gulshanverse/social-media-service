@@ -1,4 +1,5 @@
-import { Transform } from 'class-transformer';
+import { plainToInstance, Transform } from 'class-transformer';
+import { BadRequestException, PipeTransform } from '@nestjs/common';
 import {
   IsEnum,
   IsInt,
@@ -14,6 +15,7 @@ import {
   ArrayNotEmpty,
   ArrayMaxSize,
 } from 'class-validator';
+import { validateSync } from 'class-validator';
 import { ConfessionCategory, ConfessionStatus, ReportStatus } from '@prisma/client';
 import { appConfig } from '@ggv/config';
 
@@ -74,4 +76,13 @@ export class AdminAuditQueryDto extends ListQueryDto {
 export class BulkModerationDto {
   @IsArray() @ArrayNotEmpty() @ArrayMaxSize(100) @IsString({ each: true }) ids!: string[];
   @IsIn(['approve', 'reject', 'archive']) action!: 'approve' | 'reject' | 'archive';
+}
+
+export class BulkModerationPipe implements PipeTransform {
+  transform(value: unknown) {
+    const dto = plainToInstance(BulkModerationDto, value);
+    const errors = validateSync(dto, { whitelist: true, forbidNonWhitelisted: true });
+    if (errors.length) throw new BadRequestException('Invalid request.');
+    return dto;
+  }
 }

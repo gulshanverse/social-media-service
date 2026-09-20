@@ -148,7 +148,7 @@ function ThemePreview({
     </article>
   );
 }
-function Nav({ admin }: { admin: Admin }) {
+export function Nav({ admin }: { admin: Admin }) {
   const links: [string, string][] = [['/', 'Dashboard']];
   if (admin.role !== 'DESIGNER') links.push(['/confessions', 'Queue'], ['/reports', 'Reports']);
   if (admin.role === 'SUPER_ADMIN') links.push(['/audit-logs', 'Audit']);
@@ -246,7 +246,7 @@ function Login({ onLogin }: { onLogin: (session: Session) => void }) {
     </main>
   );
 }
-function Dashboard({ admin }: { admin: Admin }) {
+export function Dashboard({ admin }: { admin: Admin }) {
   const [stats, setStats] = useState<Record<string, number> | null>(null);
   const [error, setError] = useState('');
   useEffect(() => {
@@ -278,14 +278,18 @@ function Dashboard({ admin }: { admin: Admin }) {
         ))}
       </div>
       <div className="workspace-links">
-        <Link href="/confessions" className="panel-link">
-          <strong>Open moderation queue</strong>
-          <span>Review pending submissions and take action.</span>
-        </Link>
-        <Link href="/reports" className="panel-link">
-          <strong>Review reports</strong>
-          <span>Resolve or dismiss open reports.</span>
-        </Link>
+        {admin.role !== 'DESIGNER' && (
+          <>
+            <Link href="/confessions" className="panel-link">
+              <strong>Open moderation queue</strong>
+              <span>Review pending submissions and take action.</span>
+            </Link>
+            <Link href="/reports" className="panel-link">
+              <strong>Review reports</strong>
+              <span>Resolve or dismiss open reports.</span>
+            </Link>
+          </>
+        )}
         <Link href="/themes" className="panel-link">
           <strong>Manage themes</strong>
           <span>Keep public confession styling consistent.</span>
@@ -294,7 +298,7 @@ function Dashboard({ admin }: { admin: Admin }) {
     </section>
   );
 }
-function Confessions() {
+export function Confessions() {
   const [data, setData] = useState<PageData<any> | null>(null);
   const [themes, setThemes] = useState<Theme[]>([]);
   const [themeError, setThemeError] = useState('');
@@ -763,7 +767,7 @@ function ConfessionDetail({ admin }: { admin: Admin }) {
     </section>
   );
 }
-function Reports() {
+export function Reports() {
   const [data, setData] = useState<PageData<any> | null>(null);
   const [status, setStatus] = useState('OPEN');
   const [search, setSearch] = useState('');
@@ -884,7 +888,7 @@ function Reports() {
     </section>
   );
 }
-function AuditLogs() {
+export function AuditLogs() {
   const [data, setData] = useState<PageData<any> | null>(null);
   const [action, setAction] = useState('');
   const [entity, setEntity] = useState('');
@@ -971,7 +975,7 @@ const emptyTheme = {
   fontFamily: 'Inter',
   radius: 28,
 };
-function Themes({ admin }: { admin: Admin }) {
+export function Themes({ admin }: { admin: Admin }) {
   const [data, setData] = useState<PageData<Theme> | null>(null);
   const [form, setForm] = useState<any>(emptyTheme);
   const [editing, setEditing] = useState<string | null>(null);

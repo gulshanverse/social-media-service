@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Inject,
   Module,
   Param,
   Patch,
@@ -19,6 +20,7 @@ import {
   BulkModerationDto,
   AdminQueueQueryDto,
   AdminReportQueryDto,
+  BulkModerationPipe,
   CreateThemeDto,
   ListQueryDto,
   UpdateConfessionDto,
@@ -28,7 +30,7 @@ import {
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class AdminController {
-  constructor(private readonly service: AdminService) {}
+  constructor(@Inject(AdminService) private readonly service: AdminService) {}
   @Get('dashboard') dashboard() {
     return this.service.dashboard();
   }
@@ -68,7 +70,7 @@ export class AdminController {
     return this.service.transition(id, 'archive', requireUser(req));
   }
   @Post('confessions/bulk') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) bulk(
-    @Body() body: BulkModerationDto,
+    @Body(new BulkModerationPipe()) body: BulkModerationDto,
     @Req() req: { user?: ReturnType<typeof requireUser> },
   ) {
     return this.service.bulkModerate(body, requireUser(req));

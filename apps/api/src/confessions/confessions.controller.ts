@@ -1,10 +1,20 @@
-import { Body, Controller, Get, Headers, Param, ParseIntPipe, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  Inject,
+  Param,
+  ParseIntPipe,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { CreateConfessionDto } from './dto';
 import { ConfessionsService } from './confessions.service';
 
 @Controller('confessions')
 export class ConfessionsController {
-  constructor(private readonly confessions: ConfessionsService) {}
+  constructor(@Inject(ConfessionsService) private readonly confessions: ConfessionsService) {}
 
   @Post()
   create(
