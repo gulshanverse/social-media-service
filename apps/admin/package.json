@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3001",
-    "build": "next build",
+    "build": "pnpm --filter @ggv/config build && next build",
     "lint": "ESLINT_USE_FLAT_CONFIG=false next lint",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run"
