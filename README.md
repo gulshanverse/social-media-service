@@ -22,7 +22,7 @@ The three existing roles remain authoritative: `SUPER_ADMIN` can moderate, resol
 
 ## Local setup
 
-Copy `.env.example` to `.env`, provide a PostgreSQL `DATABASE_URL`, and set development-only `ADMIN_SEED_EMAIL` and `ADMIN_SEED_PASSWORD` if an initial admin is needed. Run `pnpm install`, `pnpm db:generate`, `pnpm db:push`, `pnpm db:seed`, and `pnpm dev`. Cookie CORS requires `WEB_ORIGIN` and `ADMIN_ORIGIN` to match the browser origins. Production uses `pnpm db:migrate:deploy`, never `pnpm db:push`.
+Copy `.env.example` to `.env`, provide a PostgreSQL `DATABASE_URL`, and set development-only `ADMIN_SEED_EMAIL` and `ADMIN_SEED_PASSWORD` if an initial admin is needed. Run `pnpm install`, `pnpm db:generate`, `pnpm db:push`, `pnpm db:seed`, and `pnpm dev`. Cookie CORS requires `WEB_ORIGIN` and `ADMIN_ORIGIN` to match the browser origins. The root `docker-compose.yml` is a development-only PostgreSQL helper. Production and staging use a dedicated migration/release job running `pnpm db:migrate:deploy` once against the target database before the matching API release; they never use `pnpm db:push`.
 
 ## Validation commands
 
@@ -32,7 +32,7 @@ See `docs/api.md`, `docs/moderation.md`, `docs/architecture.md`, `docs/security-
 
 ## Phase 3.1 consistency rules
 
-The API explicitly enforces role boundaries: designers can manage themes but cannot read or mutate confession, report, or audit routes; moderators can moderate and manage reports but cannot access audit logs or mutate themes; super administrators can perform all intended operations. Confession edits are pending-only, reports transition only from open, and `themeId` is a database Theme ID. Refresh rotation uses an atomic conditional update so concurrent reuse of one old credential cannot succeed twice. Login and submission rate limits are process-local; proxy deployments must configure trusted proxy behavior for request IP handling, and multi-instance rate limiting remains a future infrastructure concern.
+The API explicitly enforces role boundaries: designers can manage themes but cannot read or mutate confession, report, or audit routes; moderators can moderate and manage reports but cannot access audit logs or mutate themes; super administrators can perform all intended operations. Confession edits are pending-only, reports transition only from open, and `themeId` is a database Theme ID. Refresh rotation uses an atomic conditional update so concurrent reuse of one old credential cannot succeed twice. Login and submission rate limits are process-local; proxy deployments must configure the exact fixed `TRUST_PROXY_HOPS` value for request IP handling. Multi-instance deployments require a shared gateway or distributed limiter before horizontal scaling.
 
 ## Phase 4 operations workspace
 

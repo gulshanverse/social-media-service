@@ -47,15 +47,15 @@ pnpm test
 pnpm build
 ```
 
-For the API container, build from the repository root. The runtime image runs as the unprivileged `app` user, exposes port `4000`, contains a liveness healthcheck, and starts the compiled API rather than a development server. Provide runtime variables through the platform; do not copy `.env` files into the image.
+For the API container, build from the repository root. The runtime image runs as the unprivileged `app` user, exposes port `4000`, contains a liveness healthcheck, and starts the compiled API rather than a development server. Provide runtime variables through the platform; do not copy `.env` files into the image. Use a dedicated migration/release job for database changes; do not make every API replica run migrations.
 
-Before starting the matching API release, take a verified database backup and deploy migrations:
+Before starting the matching API release, take a verified database backup. Then the dedicated migration/release job, using the exact release commit and target `DATABASE_URL`, deploys migrations:
 
 ```bash
 pnpm db:migrate:deploy
 ```
 
-Then start the API and route traffic only after readiness succeeds. Deploy the web and admin applications with the same API URL and release metadata.
+The job must complete successfully before the matching API image starts receiving traffic. If it fails, stop the rollout, keep the previous compatible application version serving traffic, and investigate against the backup. Do not start replicas against a partially migrated database. Deploy the web and admin applications with the same API URL and release metadata.
 
 ## 4. Database migration and recovery
 
