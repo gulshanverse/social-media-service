@@ -87,7 +87,8 @@ Before a production launch, attach evidence for a provider backup and isolated r
 
 ## 11. Git
 
-- Final commit SHA: `cd68eb67c7a0f5ea8ffac398050fad3d006322bc`
+- Implementation commit SHA: `cd68eb67c7a0f5ea8ffac398050fad3d006322bc`
+- Report commit SHA: `6af97f8`
 - Commit message: `fix(api): harden payload handling and metrics endpoint`
 - Branch: `main`
 - Working tree status: verified clean after commit/push
