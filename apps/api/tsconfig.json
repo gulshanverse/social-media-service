@@ -2,6 +2,9 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "dist",
+    "noEmit": false,
+    "module": "CommonJS",
+    "moduleResolution": "Node",
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true
   },

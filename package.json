@@ -6,13 +6,16 @@
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm -r test",
+    "test": "pnpm --filter @ggv/config build && pnpm --filter @ggv/themes build && pnpm --filter @ggv/types build && pnpm -r test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "db:generate": "pnpm exec prisma generate",
     "db:push": "pnpm exec prisma db push",
     "db:migrate:deploy": "pnpm exec prisma migrate deploy",
     "db:seed": "pnpm exec prisma db seed"
+  },
+  "prisma": {
+    "seed": "pnpm --filter @ggv/api exec tsx ../../prisma/seed.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

@@ -2,9 +2,10 @@
   "name": "@ggv/themes",
   "version": "0.1.0",
   "private": true,
-  "main": "src/index.ts",
+  "main": "dist/index.js",
   "types": "src/index.ts",
   "scripts": {
+    "build": "tsc -p tsconfig.json",
     "lint": "ESLINT_USE_FLAT_CONFIG=false eslint src --ext .ts",
     "typecheck": "tsc -p tsconfig.json",
     "test": "node -e \"console.log('themes: no runtime tests')\""

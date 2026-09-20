@@ -3,9 +3,9 @@ import { validateProductionEnvironment } from './production-config';
 
 const validProductionEnvironment: NodeJS.ProcessEnv = {
   NODE_ENV: 'production',
-  DATABASE_URL: 'postgresql://db.example/social_media',
-  JWT_SECRET: 'a'.repeat(64),
-  JWT_REFRESH_SECRET: 'b'.repeat(64),
+  DATABASE_URL: 'postgresql://db.internal/social_media',
+  JWT_SECRET: 'access-key-with-random-material-1234567890',
+  JWT_REFRESH_SECRET: 'refresh-key-with-random-material-0987654321',
   WEB_ORIGIN: 'https://web.example.com/',
   ADMIN_ORIGIN: 'https://admin.example.com/',
   PORT: '4000',
@@ -32,6 +32,30 @@ assert.throws(
 assert.throws(
   () => validateProductionEnvironment({ ...validProductionEnvironment, PORT: 'four-thousand' }),
   /PORT/,
+);
+assert.throws(
+  () =>
+    validateProductionEnvironment({
+      ...validProductionEnvironment,
+      DATABASE_URL: 'postgresql://localhost/db',
+    }),
+  /DATABASE_URL/,
+);
+assert.throws(
+  () =>
+    validateProductionEnvironment({
+      ...validProductionEnvironment,
+      JWT_REFRESH_SECRET: validProductionEnvironment.JWT_SECRET,
+    }),
+  /JWT_SECRET, JWT_REFRESH_SECRET/,
+);
+assert.throws(
+  () =>
+    validateProductionEnvironment({
+      ...validProductionEnvironment,
+      ADMIN_LOGIN_RATE_LIMIT: '0',
+    }),
+  /ADMIN_LOGIN_RATE_LIMIT/,
 );
 assert.doesNotThrow(() => validateProductionEnvironment({ NODE_ENV: 'development' }));
 console.log('phase 6 production configuration tests passed');
