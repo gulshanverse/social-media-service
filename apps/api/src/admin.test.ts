@@ -9,6 +9,7 @@ import { AdminController } from './admin.module';
 import {
   AdminIdentity,
   accessSecret,
+  cookieOptions,
   hashPassword,
   issueAccessToken,
   issueRefreshToken,
@@ -59,6 +60,30 @@ function signed(
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString('base64url');
   const body = `${encode(header)}.${encode(payload)}`;
   return `${body}.${createHmac('sha256', key).update(body).digest('base64url')}`;
+}
+function testCookieOptions() {
+  const previousNodeEnv = process.env.NODE_ENV;
+  try {
+    process.env.NODE_ENV = 'production';
+    assert.deepEqual(cookieOptions(), {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'none',
+      path: '/admin/auth',
+      maxAge: 604800000,
+    });
+    process.env.NODE_ENV = 'development';
+    assert.deepEqual(cookieOptions(), {
+      httpOnly: true,
+      secure: false,
+      sameSite: 'lax',
+      path: '/admin/auth',
+      maxAge: 604800000,
+    });
+  } finally {
+    if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previousNodeEnv;
+  }
 }
 function fakeDatabase(overrides: Record<string, unknown> = {}) {
   return {
@@ -487,6 +512,7 @@ async function testRbacMetadata() {
 }
 async function run() {
   try {
+    testCookieOptions();
     await testJwtParsingAndTypes();
     await testGuardSessionInvalidation();
     await testRefreshRotation();
