@@ -185,11 +185,15 @@ export async function recordAudit(
   await prisma.auditLog.create({ data: { actorId, action, entity, entityId, metadata } });
 }
 export class LoginRateLimiter {
+  constructor(
+    private readonly limitEnv = 'ADMIN_LOGIN_RATE_LIMIT',
+    private readonly windowEnv = 'ADMIN_LOGIN_RATE_WINDOW_SECONDS',
+  ) {}
   private readonly attempts = new Map<string, number[]>();
   check(key: string) {
     const now = Date.now();
-    const windowMs = Number(process.env.ADMIN_LOGIN_RATE_WINDOW_SECONDS ?? 900) * 1000;
-    const limit = Number(process.env.ADMIN_LOGIN_RATE_LIMIT ?? 5);
+    const windowMs = Number(process.env[this.windowEnv] ?? 900) * 1000;
+    const limit = Number(process.env[this.limitEnv] ?? 5);
     const current = (this.attempts.get(key) ?? []).filter((stamp) => stamp > now - windowMs);
     if (current.length >= limit) return false;
     current.push(now);
@@ -198,6 +202,10 @@ export class LoginRateLimiter {
   }
 }
 export const loginRateLimiter = new LoginRateLimiter();
+export const refreshRateLimiter = new LoginRateLimiter(
+  'ADMIN_REFRESH_RATE_LIMIT',
+  'ADMIN_REFRESH_RATE_WINDOW_SECONDS',
+);
 export function requireUser(request: { user?: AdminIdentity }) {
   if (!request.user) throw new UnauthorizedException('Authentication required.');
   return request.user;

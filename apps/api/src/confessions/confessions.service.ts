@@ -5,12 +5,14 @@ import {
   HttpStatus,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaClient, ConfessionStatus } from '@prisma/client';
+import { ConfessionStatus } from '@prisma/client';
 import { appConfig } from '@ggv/config';
 import { themes } from '@ggv/themes';
 import type { PublicConfession, PublicConfessionPage, SubmissionResult } from '@ggv/types';
 import { CreateConfessionDto, ListConfessionsQueryDto } from './dto';
 import { SubmissionRateLimiter } from './rate-limit';
+import { increment } from '../observability';
+import { prisma as sharedPrisma } from '../admin-auth';
 
 type ThemeRecord = {
   id: string;
@@ -67,7 +69,7 @@ export type ConfessionsPrisma = {
 
 type RateLimiter = Pick<SubmissionRateLimiter, 'check'>;
 
-const prisma = new PrismaClient() as unknown as ConfessionsPrisma;
+const prisma = sharedPrisma as unknown as ConfessionsPrisma;
 const rateLimiter = new SubmissionRateLimiter();
 
 function toPublicTheme(theme: ThemeRecord) {
@@ -136,6 +138,7 @@ export class ConfessionsService {
         themeId: theme.id,
       },
     });
+    increment('confessions_submitted_total');
     return {
       publicId,
       status: 'PENDING',
@@ -144,8 +147,8 @@ export class ConfessionsService {
   }
 
   async list(query: ListConfessionsQueryDto): Promise<PublicConfessionPage> {
-    const page = query.page ?? 1;
-    const limit = query.limit ?? 12;
+    const page = Math.min(100, Math.max(1, query.page ?? 1));
+    const limit = Math.min(50, Math.max(1, query.limit ?? 12));
     const where = { status: ConfessionStatus.PUBLISHED };
     const [items, total] = await Promise.all([
       this.database.confession.findMany({

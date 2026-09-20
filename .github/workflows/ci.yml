@@ -14,6 +14,7 @@ jobs:
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:generate
+      - run: pnpm prisma validate
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck

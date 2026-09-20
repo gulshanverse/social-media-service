@@ -539,3 +539,51 @@ button:disabled {
     padding: 22px;
   }
 }
+.bulk-bar {
+  position: sticky;
+  top: 0.75rem;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+  padding: 0.8rem 1rem;
+  margin: 1rem 0;
+  background: #111a2b;
+  border: 1px solid #2b4265;
+  border-radius: 14px;
+  box-shadow: 0 10px 24px #0005;
+}
+.select-all {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.9rem 0;
+  color: #b8c7dd;
+  font-size: 0.9rem;
+}
+.list-card > input[type='checkbox'] {
+  width: 1.15rem;
+  height: 1.15rem;
+  accent-color: #00b8ff;
+  flex: 0 0 auto;
+}
+.list-card > a {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+.bulk-bar button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+@media (max-width: 720px) {
+  .bulk-bar {
+    top: 0.25rem;
+  }
+  .bulk-bar button {
+    flex: 1 1 42%;
+  }
+}

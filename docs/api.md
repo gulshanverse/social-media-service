@@ -43,3 +43,11 @@ All query parameters use strict runtime DTO validation. Admin list endpoints ret
 ## Phase 4 closure hardening
 
 `GET /admin/themes?page=1&limit=20` now uses the same `{ items, page, limit, total, hasMore }` contract as the other admin workspaces. The confession queue theme filter loads human-readable theme names while sending the actual database `Theme.id` to the server. Theme updates preflight resource existence and return `404 Theme not found.` rather than leaking database exception details.
+
+## Phase 5 operational contracts
+
+The API exposes `GET /health` and `GET /health/live` for liveness, `GET /health/ready` for PostgreSQL readiness, `GET /health/version` for safe build metadata, and `GET /health/metrics` for lightweight operational counters. Every response includes `X-Request-ID`; a valid bounded incoming request ID is reused, otherwise one is generated.
+
+Errors are normalized to `{ statusCode, message, code, requestId }` where a request ID is available. Production responses do not expose stack traces, Prisma errors, SQL, paths, secrets, tokens, cookies, or authorization headers. `429` responses include `Retry-After` where applicable.
+
+Authenticated administrators may call `GET /admin/auth/sessions` to see safe metadata for their own active sessions and `POST /admin/auth/logout-all` to revoke all of their sessions. No session token or hash is returned. Moderators and super administrators may call `POST /admin/confessions/bulk` with `{ ids, action }`; the response contains `requested`, `processed`, `skipped`, and per-ID high-level outcomes. Each record is re-evaluated server-side and stale or invalid records are skipped safely.

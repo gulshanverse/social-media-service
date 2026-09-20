@@ -109,6 +109,7 @@ model Confession {
   reports         Report[]
 
   @@index([status, createdAt])
+  @@index([themeId, createdAt])
 }
 
 model Report {
@@ -122,6 +123,10 @@ model Report {
   reviewer     AdminUser?     @relation("ReportReviewer", fields: [reviewerId], references: [id])
   createdAt    DateTime       @default(now())
   resolvedAt   DateTime?
+
+  @@index([status, createdAt])
+  @@index([confessionId])
+  @@index([reviewerId])
 }
 
 model AuditLog {
@@ -133,4 +138,10 @@ model AuditLog {
   entityId   String
   metadata   Json?
   createdAt  DateTime    @default(now())
+
+  @@index([createdAt])
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+  @@index([entity, createdAt])
+  @@index([entityId])
 }

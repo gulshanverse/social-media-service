@@ -3,11 +3,13 @@ import { AdminRole, ConfessionCategory, ConfessionStatus, ReportStatus } from '@
 import { prisma, recordAudit, AdminIdentity } from './admin-auth';
 import {
   AdminQueueQueryDto,
+  BulkModerationDto,
   CreateThemeDto,
   UpdateConfessionDto,
   UpdateThemeDto,
 } from './admin.dto';
 import { appConfig } from '@ggv/config';
+import { increment } from './observability';
 
 export function assertOpenReportTransition(status: ReportStatus, action: 'resolve' | 'dismiss') {
   if (status !== ReportStatus.OPEN)
@@ -163,7 +165,69 @@ export class AdminService {
       select: { id: true, publicId: true, status: true, publishedAt: true },
     });
     await recordAudit(actor.id, action.toUpperCase(), 'CONFESSION', id);
+    increment('moderation_actions_total');
     return item;
+  }
+  async bulkModerate(body: BulkModerationDto, actor: AdminIdentity) {
+    const results: Array<{ id: string; outcome: string }> = [];
+    const seen = new Set<string>();
+    for (const id of body.ids) {
+      if (seen.has(id)) {
+        results.push({ id, outcome: 'SKIPPED_DUPLICATE' });
+        continue;
+      }
+      seen.add(id);
+      const current = await prisma.confession.findUnique({
+        where: { id },
+        select: { status: true },
+      });
+      if (!current) {
+        results.push({ id, outcome: 'NOT_FOUND' });
+        continue;
+      }
+      const allowed: ConfessionStatus[] =
+        body.action === 'archive'
+          ? [ConfessionStatus.PUBLISHED, ConfessionStatus.REJECTED]
+          : [ConfessionStatus.PENDING];
+      if (!allowed.includes(current.status)) {
+        results.push({ id, outcome: 'SKIPPED_INVALID_STATE' });
+        continue;
+      }
+      const next =
+        body.action === 'approve'
+          ? ConfessionStatus.PUBLISHED
+          : body.action === 'reject'
+            ? ConfessionStatus.REJECTED
+            : ConfessionStatus.ARCHIVED;
+      const updated = await prisma.confession.updateMany({
+        where: { id, status: current.status },
+        data: { status: next, ...(body.action === 'approve' ? { publishedAt: new Date() } : {}) },
+      });
+      if (updated.count !== 1) {
+        results.push({ id, outcome: 'SKIPPED_STALE_STATE' });
+        continue;
+      }
+      await recordAudit(actor.id, body.action.toUpperCase(), 'CONFESSION', id, { source: 'bulk' });
+      results.push({
+        id,
+        outcome:
+          body.action === 'approve'
+            ? 'APPROVED'
+            : body.action === 'reject'
+              ? 'REJECTED'
+              : 'ARCHIVED',
+      });
+    }
+    const processed = results.filter((item) =>
+      ['APPROVED', 'REJECTED', 'ARCHIVED'].includes(item.outcome),
+    ).length;
+    increment('moderation_actions_total', processed);
+    await recordAudit(actor.id, 'BULK_MODERATION', 'CONFESSION', 'bulk', {
+      count: body.ids.length,
+      action: body.action.toUpperCase(),
+      processed,
+    });
+    return { requested: body.ids.length, processed, skipped: body.ids.length - processed, results };
   }
   async reports(query: {
     page?: number;
@@ -237,6 +301,7 @@ export class AdminService {
       select: { id: true, status: true, resolvedAt: true },
     });
     await recordAudit(actor.id, `REPORT_${action.toUpperCase()}`, 'REPORT', id);
+    increment('reports_processed_total');
     return item;
   }
   async audit(query: { page?: number; limit?: number; action?: string; entity?: string }) {
@@ -305,6 +370,7 @@ export class AdminService {
     };
     const item = await prisma.theme.create({ data });
     await recordAudit(actor.id, 'THEME_CREATE', 'THEME', item.id);
+    increment('theme_mutations_total');
     return item;
   }
   async updateTheme(id: string, body: UpdateThemeDto, actor: AdminIdentity) {
@@ -315,6 +381,7 @@ export class AdminService {
     );
     const item = await prisma.theme.update({ where: { id }, data });
     await recordAudit(actor.id, 'THEME_UPDATE', 'THEME', id, { changedFields: Object.keys(data) });
+    increment('theme_mutations_total');
     return item;
   }
   async dashboard() {

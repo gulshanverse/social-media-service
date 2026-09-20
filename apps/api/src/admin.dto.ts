@@ -10,6 +10,9 @@ import {
   Min,
   MinLength,
   IsIn,
+  IsArray,
+  ArrayNotEmpty,
+  ArrayMaxSize,
 } from 'class-validator';
 import { ConfessionCategory, ConfessionStatus, ReportStatus } from '@prisma/client';
 import { appConfig } from '@ggv/config';
@@ -67,4 +70,8 @@ export class AdminReportQueryDto extends ListQueryDto {
 export class AdminAuditQueryDto extends ListQueryDto {
   @IsOptional() @IsString() @MaxLength(80) action?: string;
   @IsOptional() @IsString() @MaxLength(80) entity?: string;
+}
+export class BulkModerationDto {
+  @IsArray() @ArrayNotEmpty() @ArrayMaxSize(100) @IsString({ each: true }) ids!: string[];
+  @IsIn(['approve', 'reject', 'archive']) action!: 'approve' | 'reject' | 'archive';
 }

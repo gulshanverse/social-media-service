@@ -16,6 +16,7 @@ import { AdminService } from './admin.service';
 import { JwtAuthGuard, Roles, RolesGuard, requireUser } from './admin-auth';
 import {
   AdminAuditQueryDto,
+  BulkModerationDto,
   AdminQueueQueryDto,
   AdminReportQueryDto,
   CreateThemeDto,
@@ -65,6 +66,12 @@ export class AdminController {
     @Req() req: { user?: ReturnType<typeof requireUser> },
   ) {
     return this.service.transition(id, 'archive', requireUser(req));
+  }
+  @Post('confessions/bulk') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) bulk(
+    @Body() body: BulkModerationDto,
+    @Req() req: { user?: ReturnType<typeof requireUser> },
+  ) {
+    return this.service.bulkModerate(body, requireUser(req));
   }
   @Get('reports') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) reports(
     @Query() query: AdminReportQueryDto,

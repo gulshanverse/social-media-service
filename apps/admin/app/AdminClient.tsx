@@ -298,12 +298,27 @@ function Confessions() {
   const [data, setData] = useState<PageData<any> | null>(null);
   const [themes, setThemes] = useState<Theme[]>([]);
   const [themeError, setThemeError] = useState('');
-  const [status, setStatus] = useState('PENDING');
-  const [category, setCategory] = useState('');
-  const [theme, setTheme] = useState('');
+  const [status, setStatus] = useState(() =>
+    typeof window === 'undefined'
+      ? 'PENDING'
+      : localStorage.getItem('admin.queue.status') || 'PENDING',
+  );
+  const [category, setCategory] = useState(() =>
+    typeof window === 'undefined' ? '' : localStorage.getItem('admin.queue.category') || '',
+  );
+  const [theme, setTheme] = useState(() =>
+    typeof window === 'undefined' ? '' : localStorage.getItem('admin.queue.theme') || '',
+  );
   const [search, setSearch] = useState('');
-  const [order, setOrder] = useState('newest');
+  const [order, setOrder] = useState(() =>
+    typeof window === 'undefined'
+      ? 'newest'
+      : localStorage.getItem('admin.queue.order') || 'newest',
+  );
   const [page, setPage] = useState(1);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const load = () => {
@@ -315,13 +330,23 @@ function Confessions() {
       .finally(() => setLoading(false));
   };
   useEffect(() => {
+    localStorage.setItem('admin.queue.status', status);
+    localStorage.setItem('admin.queue.category', category);
+    localStorage.setItem('admin.queue.theme', theme);
+    localStorage.setItem('admin.queue.order', order);
+  }, [status, category, theme, order]);
+  useEffect(() => {
     load();
+    setSelected([]);
   }, [status, category, theme, order, page]);
   useEffect(() => {
     api('/admin/themes?page=1&limit=100')
       .then((value) => setThemes(value.items ?? []))
       .catch((e) => setThemeError(e instanceof Error ? e.message : 'Themes unavailable.'));
   }, []);
+  const visibleIds = data?.items.map((item) => item.id) ?? [];
+  const allVisibleSelected =
+    visibleIds.length > 0 && visibleIds.every((id) => selected.includes(id));
   function submit(e: FormEvent) {
     e.preventDefault();
     setPage(1);
@@ -334,6 +359,40 @@ function Confessions() {
     setSearch('');
     setOrder('newest');
     setPage(1);
+    setSelected([]);
+  }
+  function toggle(id: string) {
+    setSelected((current) =>
+      current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
+    );
+  }
+  function toggleAll() {
+    setSelected(allVisibleSelected ? [] : visibleIds);
+  }
+  async function bulk(action: 'approve' | 'reject' | 'archive') {
+    if (
+      !selected.length ||
+      !confirm(
+        `${action[0].toUpperCase()}${action.slice(1)} ${selected.length} selected confessions?`,
+      )
+    )
+      return;
+    setBulkBusy(true);
+    setError('');
+    setMessage('');
+    try {
+      const result = await api('/admin/confessions/bulk', {
+        method: 'POST',
+        body: JSON.stringify({ ids: selected, action }),
+      });
+      setMessage(`${result.processed} processed, ${result.skipped} skipped.`);
+      setSelected([]);
+      load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Bulk action failed.');
+    } finally {
+      setBulkBusy(false);
+    }
   }
   return (
     <section>
@@ -341,7 +400,9 @@ function Confessions() {
         <div>
           <p className="eyebrow">MODERATION</p>
           <h1>Confession queue</h1>
-          <p className="muted">Search and triage submissions without leaving the workspace.</p>
+          <p className="muted">
+            Search, triage, and safely action submissions without leaving the workspace.
+          </p>
         </div>
       </div>
       <form className="filters" onSubmit={submit}>
@@ -362,10 +423,9 @@ function Confessions() {
               setPage(1);
             }}
           >
-            <option value="PENDING">Pending</option>
-            <option value="PUBLISHED">Published</option>
-            <option value="REJECTED">Rejected</option>
-            <option value="ARCHIVED">Archived</option>
+            {['PENDING', 'PUBLISHED', 'REJECTED', 'ARCHIVED'].map((v) => (
+              <option key={v}>{v}</option>
+            ))}
           </select>
         </label>
         <label>
@@ -394,13 +454,6 @@ function Confessions() {
           </select>
         </label>
         <label>
-          Order
-          <select value={order} onChange={(e) => setOrder(e.target.value)}>
-            <option value="newest">Newest</option>
-            <option value="oldest">Oldest</option>
-          </select>
-        </label>
-        <label>
           Theme
           <select
             value={theme}
@@ -417,44 +470,92 @@ function Confessions() {
             ))}
           </select>
         </label>
+        <label>
+          Order
+          <select
+            value={order}
+            onChange={(e) => {
+              setOrder(e.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="newest">Newest</option>
+            <option value="oldest">Oldest</option>
+          </select>
+        </label>
         <button type="submit">Search</button>
         <button type="button" className="secondary" onClick={clear}>
           Clear
         </button>
       </form>
-      <Notice error={error} />
+      <Notice error={error} message={message} />
       {themeError && (
         <div className="notice error" role="alert">
           Theme filters unavailable: {themeError}
         </div>
       )}
-      {loading && <div className="state">Loading queue…</div>}
+      {selected.length > 0 && (
+        <div className="bulk-bar" role="region" aria-label="Bulk moderation actions">
+          <strong>{selected.length} selected</strong>
+          <button disabled={bulkBusy} onClick={() => bulk('approve')}>
+            Approve selected
+          </button>
+          <button disabled={bulkBusy} onClick={() => bulk('reject')}>
+            Reject selected
+          </button>
+          <button disabled={bulkBusy} className="secondary" onClick={() => bulk('archive')}>
+            Archive selected
+          </button>
+          <button disabled={bulkBusy} className="secondary" onClick={() => setSelected([])}>
+            Clear selection
+          </button>
+        </div>
+      )}
+      {loading && (
+        <div className="state" role="status">
+          Loading queue…
+        </div>
+      )}
       {!loading && data?.items.length === 0 && (
         <div className="state empty">No confessions match these filters.</div>
       )}
+      {data?.items.length ? (
+        <label className="select-all">
+          <input type="checkbox" checked={allVisibleSelected} onChange={toggleAll} /> Select all
+          visible
+        </label>
+      ) : null}
       <div className="list">
         {data?.items.map((item) => (
-          <Link className="list-card" href={`/confessions/${item.id}`} key={item.id}>
-            <div>
-              <div className="row-title">
-                <strong>{item.publicId}</strong>
-                <Status value={item.status} />
+          <div className="list-card" key={item.id}>
+            <input
+              aria-label={`Select ${item.publicId}`}
+              type="checkbox"
+              checked={selected.includes(item.id)}
+              onChange={() => toggle(item.id)}
+            />
+            <Link href={`/confessions/${item.id}`}>
+              <div>
+                <div className="row-title">
+                  <strong>{item.publicId}</strong>
+                  <Status value={item.status} />
+                </div>
+                <span>
+                  {item.category || 'Uncategorized'} · {item.theme?.name || 'No theme'} · Created{' '}
+                  {formatDate(item.createdAt)}
+                </span>
+                <p>
+                  {item.content.slice(0, 220)}
+                  {item.content.length > 220 ? '…' : ''}
+                </p>
               </div>
-              <span>
-                {item.category || 'Uncategorized'} · {item.theme?.name || 'No theme'} · Created{' '}
-                {formatDate(item.createdAt)}
-              </span>
-              <p>
-                {item.content.slice(0, 220)}
-                {item.content.length > 220 ? '…' : ''}
-              </p>
-            </div>
+            </Link>
             <small>
               {item.reportCount} reports
               <br />
               Updated {formatDate(item.updatedAt)}
             </small>
-          </Link>
+          </div>
         ))}
       </div>
       <Pager data={data} onPage={setPage} />

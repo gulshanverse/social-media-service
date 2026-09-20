@@ -19,6 +19,7 @@ import {
   issueRefreshToken,
   JwtAuthGuard,
   loginRateLimiter,
+  refreshRateLimiter,
   prisma,
   readCookie,
   recordAudit,
@@ -29,21 +30,35 @@ import {
   verifyToken,
 } from './admin-auth';
 import { LoginDto, RefreshDto } from './admin.dto';
+import { increment, structuredLog } from './observability';
 
 @Controller('admin/auth')
 export class AdminAuthController {
+  private setRetryAfter(response: Response, seconds: string) {
+    if (typeof response.header === 'function') response.header('Retry-After', seconds);
+    else response.setHeader?.('Retry-After', seconds);
+  }
+
   @Post('login') async login(
     @Body() body: LoginDto,
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ) {
-    if (!loginRateLimiter.check(request.ip || 'unknown'))
+    if (request.ip && !loginRateLimiter.check(request.ip)) {
+      this.setRetryAfter(response, process.env.ADMIN_LOGIN_RATE_WINDOW_SECONDS ?? '900');
       throw new HttpException('Invalid email or password.', HttpStatus.TOO_MANY_REQUESTS);
+    }
     const admin = await prisma.adminUser.findUnique({
       where: { email: body.email.toLowerCase().trim() },
     });
-    if (!admin || !admin.isActive || !(await comparePassword(body.password, admin.passwordHash)))
+    if (!admin || !admin.isActive || !(await comparePassword(body.password, admin.passwordHash))) {
+      increment('auth_login_failures');
+      structuredLog('warn', 'auth.login_failed', {
+        requestId: request.header('x-request-id'),
+        source: 'admin',
+      });
       throw new HttpException('Invalid email or password.', HttpStatus.UNAUTHORIZED);
+    }
     const sessionId = randomUUID();
     const identity = safeAdmin(admin, sessionId);
     const refreshToken = issueRefreshToken(identity, sessionId);
@@ -57,6 +72,7 @@ export class AdminAuthController {
     });
     response.cookie(refreshCookieName, refreshToken, cookieOptions());
     await recordAudit(admin.id, 'LOGIN', 'ADMIN_USER', admin.id);
+    increment('auth_logins_total');
     return { admin: safeAdmin(admin), accessToken: issueAccessToken(identity) };
   }
   @Post('refresh') async refresh(
@@ -64,6 +80,10 @@ export class AdminAuthController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ) {
+    if (request.ip && !refreshRateLimiter.check(request.ip)) {
+      this.setRetryAfter(response, process.env.ADMIN_REFRESH_RATE_WINDOW_SECONDS ?? '900');
+      throw new HttpException('Too many refresh attempts.', HttpStatus.TOO_MANY_REQUESTS);
+    }
     const token = readCookie(request.headers.cookie, refreshCookieName);
     try {
       if (!token) throw new Error();
@@ -117,7 +137,32 @@ export class AdminAuthController {
       });
     response.clearCookie(refreshCookieName, { ...cookieOptions(), maxAge: undefined });
     await recordAudit(user.id, 'LOGOUT', 'ADMIN_USER', user.id);
+    increment('auth_logouts_total');
     return { success: true };
+  }
+  @UseGuards(JwtAuthGuard) @Get('sessions') async sessions(
+    @Req() request: Request & { user?: ReturnType<typeof requireUser> },
+  ) {
+    const user = requireUser(request);
+    const items = await prisma.adminSession.findMany({
+      where: { adminId: user.id, revokedAt: null, expiresAt: { gt: new Date() } },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, createdAt: true, lastUsedAt: true, expiresAt: true, revokedAt: true },
+    });
+    return { items: items.map((item) => ({ ...item, current: item.id === user.sessionId })) };
+  }
+  @UseGuards(JwtAuthGuard) @Post('logout-all') async logoutAll(
+    @Req() request: Request & { user?: ReturnType<typeof requireUser> },
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const user = requireUser(request);
+    const result = await prisma.adminSession.updateMany({
+      where: { adminId: user.id, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    response.clearCookie(refreshCookieName, { ...cookieOptions(), maxAge: undefined });
+    await recordAudit(user.id, 'LOGOUT_ALL', 'ADMIN_USER', user.id, { count: result.count });
+    return { success: true, revoked: result.count };
   }
   @UseGuards(JwtAuthGuard) @Get('me') async me(
     @Req() request: Request & { user?: ReturnType<typeof requireUser> },
