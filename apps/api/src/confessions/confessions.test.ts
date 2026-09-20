@@ -98,9 +98,9 @@ async function run() {
   const previousLimit = process.env.SUBMISSION_RATE_LIMIT;
   process.env.SUBMISSION_RATE_LIMIT = '1';
   try {
-    await controller.create(validDto(), undefined, undefined);
+    await controller.create(validDto(), { ip: 'direct-test-client' } as any);
     await assert.rejects(
-      () => controller.create(validDto(), undefined, undefined),
+      () => controller.create(validDto(), { ip: 'direct-test-client' } as any),
       (error: unknown) => error instanceof HttpException && error.getStatus() === 429,
     );
   } finally {

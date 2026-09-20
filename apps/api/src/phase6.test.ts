@@ -9,6 +9,7 @@ const validProductionEnvironment: NodeJS.ProcessEnv = {
   WEB_ORIGIN: 'https://web.example.com/',
   ADMIN_ORIGIN: 'https://admin.example.com/',
   PORT: '4000',
+  TRUST_PROXY_HOPS: '1',
   APP_VERSION: '1.0.0',
   GIT_COMMIT: 'abc123',
   SUBMISSION_RATE_LIMIT: '5',
@@ -32,6 +33,10 @@ assert.throws(
 assert.throws(
   () => validateProductionEnvironment({ ...validProductionEnvironment, PORT: 'four-thousand' }),
   /PORT/,
+);
+assert.throws(
+  () => validateProductionEnvironment({ ...validProductionEnvironment, TRUST_PROXY_HOPS: '11' }),
+  /TRUST_PROXY_HOPS/,
 );
 assert.throws(
   () =>

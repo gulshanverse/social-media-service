@@ -22,12 +22,15 @@ Copy `.env.example` only as a variable checklist. Do not use its development pla
 - `JWT_SECRET` and `JWT_REFRESH_SECRET`
 - `WEB_ORIGIN` and `ADMIN_ORIGIN` as explicit absolute origins
 - `PORT`
+- `TRUST_PROXY_HOPS` as the exact fixed reverse-proxy hop count, or `0` when no proxy is trusted
 - `APP_VERSION` and `GIT_COMMIT`
 - `SUBMISSION_RATE_LIMIT` and `SUBMISSION_RATE_WINDOW_SECONDS`
 - `ADMIN_LOGIN_RATE_LIMIT` and `ADMIN_LOGIN_RATE_WINDOW_SECONDS`
 - `ADMIN_REFRESH_RATE_LIMIT` and `ADMIN_REFRESH_RATE_WINDOW_SECONDS`
 
-`ADMIN_SEED_EMAIL` and `ADMIN_SEED_PASSWORD` are development/bootstrap inputs only. Supply them only to a controlled one-time seed operation; never bake them into an image or commit them. Secrets must be supplied by the hosting platform's secret manager, not by source control or Docker build arguments.
+`ADMIN_SEED_EMAIL` and `ADMIN_SEED_PASSWORD` are development/bootstrap inputs only. In production, an existing administrator is never overwritten. Creating a missing administrator requires `ADMIN_SEED_ALLOW_PRODUCTION=true` for a controlled one-time operation. Never bake seed credentials into an image or commit them. Secrets must be supplied by the hosting platform's secret manager, not by source control or Docker build arguments.
+
+`TRUST_PROXY_HOPS` configures Express's native proxy-aware `request.ip` resolution. Set it to `0` for direct traffic. For a reverse-proxy deployment, set it to the exact fixed number of trusted hops and ensure the API is not reachable through a variable-length or untrusted chain. The application never parses client-supplied `X-Forwarded-For` or `X-Real-IP` headers itself.
 
 ## 3. Release and deployment
 

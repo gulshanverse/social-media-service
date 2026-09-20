@@ -5,6 +5,7 @@ const requiredProductionVariables = [
   'WEB_ORIGIN',
   'ADMIN_ORIGIN',
   'PORT',
+  'TRUST_PROXY_HOPS',
   'APP_VERSION',
   'GIT_COMMIT',
   'SUBMISSION_RATE_LIMIT',
@@ -84,6 +85,12 @@ export function validateProductionEnvironment(env: NodeJS.ProcessEnv = process.e
   if (!isPositiveInteger(env.PORT, 65535)) invalid.add('PORT');
   if (!isBoundedMetadata(env.APP_VERSION)) invalid.add('APP_VERSION');
   if (!isBoundedMetadata(env.GIT_COMMIT)) invalid.add('GIT_COMMIT');
+  if (env.TRUST_PROXY_HOPS !== undefined && !/^\d+$/.test(env.TRUST_PROXY_HOPS)) {
+    invalid.add('TRUST_PROXY_HOPS');
+  }
+  if (env.TRUST_PROXY_HOPS !== undefined && Number(env.TRUST_PROXY_HOPS) > 10) {
+    invalid.add('TRUST_PROXY_HOPS');
+  }
 
   for (const name of [
     'SUBMISSION_RATE_LIMIT',

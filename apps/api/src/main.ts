@@ -7,9 +7,36 @@ import { SafeApiExceptionFilter } from './api-errors';
 import { requestIdMiddleware, structuredLog } from './observability';
 import { prisma } from './admin-auth';
 import { validateProductionEnvironment } from './production-config';
+
+const DEFAULT_TRUST_PROXY_HOPS = 0;
+const MAX_TRUST_PROXY_HOPS = 10;
+
+function readTrustProxyHops(value = process.env.TRUST_PROXY_HOPS): number {
+  const raw =
+    value ?? (process.env.NODE_ENV === 'production' ? undefined : `${DEFAULT_TRUST_PROXY_HOPS}`);
+  if (!raw || !/^\d+$/.test(raw)) {
+    throw new Error('TRUST_PROXY_HOPS must be a non-negative integer.');
+  }
+  const hops = Number(raw);
+  if (!Number.isSafeInteger(hops) || hops > MAX_TRUST_PROXY_HOPS) {
+    throw new Error(`TRUST_PROXY_HOPS must be between 0 and ${MAX_TRUST_PROXY_HOPS}.`);
+  }
+  return hops;
+}
+
+/** Configure Express's native proxy-aware IP resolution. */
+export function configureTrustedProxy(app: {
+  getHttpAdapter: () => { getInstance: () => { set: (key: string, value: unknown) => void } };
+}) {
+  const hops = readTrustProxyHops();
+  app.getHttpAdapter().getInstance().set('trust proxy', hops);
+  return hops;
+}
+
 export async function createApp() {
   validateProductionEnvironment();
   const app = await NestFactory.create(AppModule, { bodyParser: true });
+  configureTrustedProxy(app);
   app.use(helmet());
   app.use(requestIdMiddleware);
   app.useGlobalFilters(new SafeApiExceptionFilter());

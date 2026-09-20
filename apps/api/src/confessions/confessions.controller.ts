@@ -2,13 +2,14 @@ import {
   Body,
   Controller,
   Get,
-  Headers,
   Inject,
   Param,
   ParseIntPipe,
   Post,
+  Req,
   Query,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { CreateConfessionDto } from './dto';
 import { ConfessionsService } from './confessions.service';
 
@@ -17,13 +18,8 @@ export class ConfessionsController {
   constructor(@Inject(ConfessionsService) private readonly confessions: ConfessionsService) {}
 
   @Post()
-  create(
-    @Body() dto: CreateConfessionDto,
-    @Headers('x-forwarded-for') forwardedFor?: string,
-    @Headers('x-real-ip') realIp?: string,
-  ) {
-    const clientKey = (forwardedFor?.split(',')[0] ?? realIp ?? 'anonymous').trim();
-    return this.confessions.create(dto, clientKey);
+  create(@Body() dto: CreateConfessionDto, @Req() request: Request) {
+    return this.confessions.create(dto, request.ip || 'anonymous');
   }
 
   @Get()
