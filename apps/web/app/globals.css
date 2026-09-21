@@ -1122,7 +1122,7 @@ body:has(.college-profile-page) > .site-footer {
   display: none;
 }
 .public-header + .college-profile-page {
-  padding-top: 0;
+  padding-top: 20px;
 }
 body:has(.college-profile-page) .public-header {
   display: none;
