@@ -62,6 +62,12 @@ export default function ConfessionDetailPage({
               >
                 Copy link
               </button>
+              <Link
+                className="back-link"
+                href={`/report?confession=${encodeURIComponent(publicId)}`}
+              >
+                Report this
+              </Link>
             </div>
             <div className="detail-cta">
               <h2>Have something to say?</h2>

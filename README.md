@@ -30,6 +30,14 @@ Copy `.env.example` to `.env`, provide a PostgreSQL `DATABASE_URL`, and set deve
 
 See `docs/api.md`, `docs/moderation.md`, `docs/architecture.md`, `docs/security-phase3.md`, `docs/deployment.md`, and `docs/production-runbook.md` for details.
 
+## Phase 9 launch readiness
+
+The public app now includes launch-facing About, Privacy, Terms, Community Guidelines, Contact, and Report Content pages, a shared footer, canonical/Open Graph metadata, `sitemap.xml`, and `robots.txt`. Public reports are validated and persisted into the existing moderation/report workflow; pending confessions remain private until moderator approval. The service does not create `ads.txt` until the real AdSense publisher ID is supplied.
+
+The canonical public host is `https://www.confessions.live`. Add `admin.confessions.live` as an additional Vercel domain and keep `smsccadmin.vercel.app` as fallback until login, CORS, session refresh, moderation, and logout have all been verified on the custom domain. Only then should production `ADMIN_ORIGIN` be changed.
+
+Read `PHASE9_FINAL_REPORT.md` for the implementation summary, validation evidence, production-only checklist, and intentionally deferred work.
+
 ## Phase 3.1 consistency rules
 
 The API explicitly enforces role boundaries: designers can manage themes but cannot read or mutate confession, report, or audit routes; moderators can moderate and manage reports but cannot access audit logs or mutate themes; super administrators can perform all intended operations. Confession edits are pending-only, reports transition only from open, and `themeId` is a database Theme ID. Refresh rotation uses an atomic conditional update so concurrent reuse of one old credential cannot succeed twice. Login and submission rate limits are process-local; proxy deployments must configure the exact fixed `TRUST_PROXY_HOPS` value for request IP handling. Multi-instance deployments require a shared gateway or distributed limiter before horizontal scaling.

@@ -6,11 +6,13 @@ import {
   HttpStatus,
   NotFoundException,
 } from '@nestjs/common';
+import { createHash } from 'node:crypto';
 import { ConfessionStatus } from '@prisma/client';
 import { appConfig } from '@ggv/config';
 import { themes } from '@ggv/themes';
 import type { PublicConfession, PublicConfessionPage, SubmissionResult } from '@ggv/types';
 import { CreateConfessionDto, ListConfessionsQueryDto } from './dto';
+import { reportReasons } from './report.dto';
 import { SubmissionRateLimiter } from './rate-limit';
 import { increment } from '../observability';
 import { prisma as sharedPrisma } from '../admin-auth';
@@ -27,6 +29,7 @@ type ThemeRecord = {
   radius: number;
 };
 type ConfessionRecord = {
+  id?: string;
   publicId: string;
   content: string;
   category: string | null;
@@ -63,7 +66,15 @@ export type ConfessionsPrisma = {
     }): Promise<ConfessionRecord | null>;
     update(args: {
       where: { publicId: string };
-      data: { viewCount: { increment: number } };
+      data: { viewCount: { increment: number }; reportCount?: { increment: number } };
+    }): Promise<unknown>;
+  };
+  report?: {
+    findFirst(args: {
+      where: { confessionId: string; reporterHash: string; status: 'OPEN' };
+    }): Promise<{ id: string } | null>;
+    create(args: {
+      data: { confessionId: string; reason: string; reporterHash: string };
     }): Promise<unknown>;
   };
 };
@@ -220,5 +231,34 @@ export class ConfessionsService {
       data: { viewCount: { increment: 1 } },
     });
     return toPublicConfession(confession);
+  }
+
+  async report(publicId: string, reason: string, clientKey: string) {
+    if (!reportReasons.includes(reason as (typeof reportReasons)[number]))
+      throw new BadRequestException('Please choose a valid report reason.');
+    const confession = await this.database.confession.findFirst({
+      where: { publicId, status: ConfessionStatus.PUBLISHED },
+      select: { id: true },
+    });
+    if (!confession?.id) throw new NotFoundException('Confession not found.');
+    if (!this.database.report) throw new BadRequestException('Reporting is unavailable.');
+    const reporterHash = createHash('sha256').update(clientKey).digest('hex');
+    const existing = await this.database.report.findFirst({
+      where: { confessionId: confession.id, reporterHash, status: 'OPEN' },
+    });
+    if (existing)
+      return {
+        status: 'RECEIVED',
+        message: 'Thanks. Your report is already with the moderation team.',
+      };
+    await this.database.report.create({
+      data: { confessionId: confession.id, reason, reporterHash },
+    });
+    await this.database.confession.update({
+      where: { publicId },
+      data: { viewCount: { increment: 0 }, reportCount: { increment: 1 } },
+    });
+    increment('reports_submitted_total');
+    return { status: 'RECEIVED', message: 'Thanks. The moderation team will review this report.' };
   }
 }

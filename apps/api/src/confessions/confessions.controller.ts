@@ -12,6 +12,7 @@ import {
 import type { Request } from 'express';
 import { CreateConfessionDto } from './dto';
 import { ConfessionsService } from './confessions.service';
+import { CreateReportDto } from './report.dto';
 
 @Controller('confessions')
 export class ConfessionsController {
@@ -33,5 +34,14 @@ export class ConfessionsController {
   @Get(':publicId')
   findOne(@Param('publicId') publicId: string) {
     return this.confessions.findPublished(publicId);
+  }
+
+  @Post(':publicId/report')
+  report(
+    @Param('publicId') publicId: string,
+    @Body() dto: CreateReportDto,
+    @Req() request: Request,
+  ) {
+    return this.confessions.report(publicId, dto.reason, request.ip || 'anonymous');
   }
 }

@@ -522,6 +522,96 @@ a:hover .confession-card {
   color: #9ca3af;
   font-size: 0.9rem;
 }
+.site-footer {
+  max-width: 1240px;
+  margin: auto;
+  padding: 42px 5vw 56px;
+  border-top: 1px solid #1a2232;
+  display: flex;
+  justify-content: space-between;
+  gap: 32px;
+  color: #8792a8;
+  font-size: 0.82rem;
+}
+.site-footer strong {
+  color: #fff;
+}
+.site-footer p {
+  max-width: 260px;
+  line-height: 1.5;
+}
+.site-footer nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  max-width: 520px;
+  align-content: start;
+}
+.site-footer a:hover {
+  color: #fff;
+}
+.legal-page {
+  max-width: 860px;
+  margin: auto;
+  padding: 70px 5vw 100px;
+}
+.legal-page h1 {
+  font:
+    600 clamp(2.8rem, 7vw, 6rem)/0.95 'Space Grotesk',
+    sans-serif;
+  letter-spacing: -0.055em;
+  margin: 0 0 22px;
+}
+.legal-intro {
+  max-width: 680px;
+  color: #a8afbf;
+  font-size: 1.15rem;
+  line-height: 1.6;
+}
+.legal-content {
+  margin-top: 54px;
+}
+.legal-content section {
+  padding: 28px 0;
+  border-top: 1px solid #202b40;
+}
+.legal-content h2 {
+  font:
+    600 1.5rem 'Space Grotesk',
+    sans-serif;
+  margin: 0 0 12px;
+}
+.legal-content p,
+.legal-content li {
+  color: #a8afbf;
+  line-height: 1.7;
+}
+.legal-content a {
+  color: #c8ff00;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.report-form {
+  margin: 20px 0 40px;
+}
+.report-form input {
+  margin-top: 10px;
+  width: 100%;
+  color: #fff;
+  background: #151c2b;
+  border: 1px solid #2b3750;
+  border-radius: 16px;
+  padding: 16px;
+}
+.report-form label + label {
+  margin-top: 24px;
+}
+.form-success {
+  color: #c8ff00;
+  padding: 12px 15px;
+  border-radius: 12px;
+  background: rgba(200, 255, 0, 0.08);
+}
 @media (max-width: 800px) {
   .site-header nav a:not(.nav-cta) {
     display: none;
@@ -554,6 +644,12 @@ a:hover .confession-card {
   }
   .detail-cta .ggv-button {
     margin-top: 20px;
+  }
+  .site-footer {
+    display: block;
+  }
+  .site-footer nav {
+    margin-top: 22px;
   }
 }
 @media (max-width: 520px) {

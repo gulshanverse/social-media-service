@@ -21,3 +21,11 @@ export const getConfessions = (page = 1) =>
   request<PublicConfessionPage>(`/confessions?page=${page}&limit=12`, { cache: 'no-store' });
 export const getConfession = (publicId: string) =>
   request<PublicConfession>(`/confessions/${encodeURIComponent(publicId)}`, { cache: 'no-store' });
+export const reportConfession = (publicId: string, reason: string) =>
+  request<{ status: string; message: string }>(
+    `/confessions/${encodeURIComponent(publicId)}/report`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    },
+  );
