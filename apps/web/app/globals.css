@@ -732,7 +732,7 @@ body:has(.college-profile-page) > .site-footer {
 
 .college-profile-page {
   min-height: 100svh;
-  padding: max(20px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+  padding: 20px 16px 24px;
   display: flex;
   justify-content: center;
   align-items: flex-start;
