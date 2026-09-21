@@ -27,6 +27,9 @@ export const metadata: Metadata = {
     title: 'College Confession',
     description: 'Anonymous campus stories, reviewed before publishing.',
   },
+  other: {
+    'google-adsense-account': 'ca-pub-8185076856023549',
+  },
 };
 export default function Layout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
