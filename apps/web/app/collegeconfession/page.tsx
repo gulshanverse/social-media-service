@@ -68,26 +68,28 @@ export default async function CollegeConfessionPage() {
   return (
     <main className={`college-profile-page college-theme-${settings.themePreset}`}>
       <div className="college-profile-card">
-        <header className="college-profile-header">
-          <div className="college-profile-avatar" aria-hidden={!settings.profileImageUrl}>
-            {settings.profileImageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={settings.profileImageUrl} alt="" />
-            ) : (
-              '♛'
-            )}
-          </div>
-          <div>
-            <p className="college-profile-handle">{settings.handle}</p>
-            <p className="college-profile-tagline">{settings.headerMessage}</p>
-          </div>
-        </header>
+        <div className="college-profile-composer-shell">
+          <header className="college-profile-header">
+            <div className="college-profile-avatar" aria-hidden={!settings.profileImageUrl}>
+              {settings.profileImageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={settings.profileImageUrl} alt="" />
+              ) : (
+                '♛'
+              )}
+            </div>
+            <div>
+              <p className="college-profile-handle">{settings.handle}</p>
+              <p className="college-profile-tagline">{settings.headerMessage}</p>
+            </div>
+          </header>
 
-        <CollegeConfessionComposer
-          defaultPrompt={settings.defaultPrompt}
-          prompts={settings.prompts}
-          maxCharacters={settings.maxCharacters}
-        />
+          <CollegeConfessionComposer
+            defaultPrompt={settings.defaultPrompt}
+            prompts={settings.prompts}
+            maxCharacters={settings.maxCharacters}
+          />
+        </div>
 
         <section className="college-community-note" aria-label="Community invitation">
           <p>👇 Join your college confession community 👇</p>
