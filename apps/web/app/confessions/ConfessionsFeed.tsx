@@ -27,7 +27,7 @@ export default function ConfessionsFeed({ page }: ConfessionsFeedProps) {
       <header className="site-header">
         <Link href="/">
           <span className="brand-mark">
-            ♛ <b>GGV</b>
+            ♛ <b>COLLEGE CONFESSION</b>
           </span>
         </Link>
         <Link className="nav-cta" href="/send">

@@ -1,11 +1,12 @@
 import Link from 'next/link';
-import { Logo } from '@ggv/ui';
 
 export default function Home() {
   return (
     <main className="site-shell">
       <header className="site-header">
-        <Logo />
+        <Link href="/" className="brand-mark">
+          ♛ <b>COLLEGE CONFESSION</b>
+        </Link>
         <nav>
           <Link href="/confessions">Community</Link>
           <Link className="nav-cta" href="/send">

@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { Logo } from '@ggv/ui';
 import { SubmissionForm } from '../../components/SubmissionForm';
 
 export default function SendPage() {
@@ -7,7 +6,9 @@ export default function SendPage() {
     <main className="site-shell">
       <header className="site-header">
         <Link href="/">
-          <Logo />
+          <span className="brand-mark">
+            ♛ <b>COLLEGE CONFESSION</b>
+          </span>
         </Link>
         <Link className="back-link" href="/confessions">
           View community ↗
