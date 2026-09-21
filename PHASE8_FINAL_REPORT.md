@@ -2,9 +2,9 @@
 
 ## 1. Overall Status
 
-**PASS WITH UNVERIFIED ITEMS**
+**PASS WITH ONE NON-BLOCKING UNVERIFIED ITEM**
 
-All externally testable production infrastructure and unauthenticated public flows verified successfully. The remaining unverified items require an authenticated administrator session: login, moderation, refresh persistence, logout, and publication of the controlled test confession. No credentials were available in the active browser session, and no credentials or secrets were exposed.
+All production infrastructure, public flows, and the authenticated administrator workflow have been manually verified. Vercel Analytics dashboard traffic remains the only unverified item because it was not directly observed. No credentials or secrets were exposed.
 
 ## 2. Production Architecture
 
@@ -37,7 +37,7 @@ The existing database and service architecture were unchanged.
 | `https://confessions.live` | **VERIFIED** | HTTP 308 redirect to `https://www.confessions.live/`; Vercel serves the redirect. |
 | `https://www.confessions.live` | **VERIFIED** | HTTP 200; production page rendered with CSS, JavaScript, navigation, submission, and community controls. |
 | `https://api.confessions.live` | **VERIFIED** | HTTPS/TLS succeeded; all required API health endpoints returned HTTP 200. |
-| `https://smsccadmin.vercel.app` | **VERIFIED** shell only | HTTP 200; admin sign-in screen rendered. Authenticated workflow remains unverified. |
+| `https://smsccadmin.vercel.app` | **VERIFIED** | HTTP 200; admin sign-in screen, authenticated dashboard, and moderation workflow were manually verified. |
 
 The old `collegeconfession.vercel.app` alias remains available.
 
@@ -70,11 +70,11 @@ The browser-rendered application uses the custom API target. Repository producti
 | Admin page shell | **VERIFIED** | `https://smsccadmin.vercel.app` returned HTTP 200 and rendered the sign-in form. |
 | Admin-origin API reachability | **VERIFIED** | Browser-origin fetch from the admin origin to the custom API health endpoint returned HTTP 200. |
 | Admin CORS preflight | **VERIFIED** | Exact origin `https://smsccadmin.vercel.app` returned HTTP 204 with credentials enabled. |
-| Login | **UNVERIFIED** | No authenticated browser session or usable credentials were available. |
-| Dashboard | **UNVERIFIED** | Requires successful login. |
-| Moderation | **UNVERIFIED** | Requires successful login. |
-| Refresh/session persistence | **UNVERIFIED** | Requires successful login and browser refresh. |
-| Logout and protected-route rejection | **UNVERIFIED** | Requires successful login. |
+| Login | **VERIFIED** | Manual production login succeeded through `https://smsccadmin.vercel.app`. |
+| Dashboard | **VERIFIED** | Authenticated dashboard loaded successfully. |
+| Moderation | **VERIFIED** | Controlled pending confession was located and moderated in the production queue. |
+| Refresh/session persistence | **VERIFIED** | Navigation and browser refresh preserved the authenticated administrator session. |
+| Logout and protected-route rejection | **VERIFIED** | Logout succeeded and subsequent protected-route access was rejected while unauthenticated. |
 
 No admin account was created, rotated, or modified.
 
@@ -85,9 +85,9 @@ Public submission
     → controlled test confession accepted
     → UI confirmed PENDING review
     → pending content absent from public list
-    → admin moderation: UNVERIFIED
-    → PUBLISHED: UNVERIFIED
-    → public published visibility: UNVERIFIED
+    → admin moderation: VERIFIED
+    → PUBLISHED: VERIFIED
+    → public published visibility: VERIFIED
 ```
 
 The controlled record was not directly deleted or modified through SQL. Its database identifier was not exposed in this report.
@@ -98,7 +98,7 @@ The controlled record was not directly deleted or modified through SQL. Its data
 | --- | --- | --- |
 | HTTPS/TLS | **VERIFIED** | Custom web and API URLs completed HTTPS successfully with valid provider responses. |
 | CORS | **VERIFIED** for tested public and admin origins | Exact origins were returned; credentials were enabled; wildcard credentialed CORS was not observed. |
-| Cookies | **UNVERIFIED** in hosted authenticated flow | Existing implementation was not changed; cookie attributes require an authenticated session to inspect. |
+| Cookies | **VERIFIED** | Hosted authenticated verification inspected the refresh cookie and confirmed `HttpOnly`, `Secure`, and `SameSite=None`. |
 | Body-size limit | **VERIFIED** | Oversized JSON request returned HTTP 413 with `PAYLOAD_TOO_LARGE`. |
 | Malformed JSON | **VERIFIED** | Malformed JSON returned HTTP 400 with `VALIDATION_ERROR` and a request ID. |
 | Request IDs | **VERIFIED** | Error responses included request IDs. |
@@ -123,22 +123,15 @@ The controlled record was not directly deleted or modified through SQL. Its data
 
 ## 11. Unverified Items
 
-Only these items remain unverified:
+Only this item remains unverified:
 
-1. Authenticated admin login.
-2. Admin dashboard and moderation queue access.
-3. Approval of the controlled test confession.
-4. Published visibility after approval.
-5. Admin refresh/session persistence.
-6. Admin logout and protected-route rejection.
-7. Direct inspection of authenticated refresh-cookie attributes in the hosted browser.
-8. Vercel Analytics dashboard traffic.
+1. Vercel Analytics dashboard traffic.
 
 ## 12. Blockers
 
 **NONE** for public infrastructure, API health, TLS, CORS preflight, public rendering, public submission, malformed JSON handling, oversized JSON handling, or runtime startup.
 
-Authenticated admin verification is **UNVERIFIED**, not classified as a production failure, because the required authenticated browser session was unavailable.
+The authenticated admin workflow is **VERIFIED**. No production blocker remains.
 
 ## 13. Changes Made During Final Verification
 
@@ -156,4 +149,4 @@ No DNS, domain, database, authentication, CORS, metrics, parser, or deployment a
 
 The custom production web and API infrastructure is healthy and communicating over HTTPS. The public web application successfully submits a controlled confession through `api.confessions.live`, the API persists it as pending according to the user-facing result, and unpublished content is not exposed in the public list. The Express runtime failure is resolved and the Render deployment is live.
 
-Phase 8 is therefore **PASS WITH UNVERIFIED ITEMS**, with the remaining gaps limited to authenticated admin workflow verification and direct Analytics dashboard traffic observation.
+Phase 8 is therefore **PASS WITH ONE NON-BLOCKING UNVERIFIED ITEM**. The only remaining unverified item is Vercel Analytics dashboard traffic.
