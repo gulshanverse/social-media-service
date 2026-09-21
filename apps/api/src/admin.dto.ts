@@ -61,6 +61,7 @@ export class UpdateProfileSettingsDto {
   @IsOptional() @IsIn(['/confessions']) communityPath?: '/confessions';
   @IsOptional() @IsString() @MinLength(1) @MaxLength(80) bottomButtonText?: string;
   @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' && !value.trim() ? undefined : value))
   @IsUrl({ protocols: ['https'], require_protocol: true })
   @MaxLength(1000)
   profileImageUrl?: string;
