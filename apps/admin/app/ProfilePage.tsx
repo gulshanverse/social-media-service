@@ -94,7 +94,14 @@ export default function ProfilePage() {
     setError('');
     try {
       const payload: Record<string, unknown> = {
-        ...settings,
+        handle: settings.handle,
+        headerMessage: settings.headerMessage,
+        defaultPrompt: settings.defaultPrompt,
+        communityButtonText: settings.communityButtonText,
+        communityPath: settings.communityPath,
+        bottomButtonText: settings.bottomButtonText,
+        profileImageUrl: settings.profileImageUrl,
+        themePreset: settings.themePreset,
         prompts: settings.prompts.filter((item) => item.trim()),
       };
       if (typeof payload.profileImageUrl === 'string' && !payload.profileImageUrl.trim()) {
