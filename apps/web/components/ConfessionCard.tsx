@@ -16,9 +16,11 @@ const categoryNames: Record<string, string> = {
 export function ConfessionCard({
   confession,
   detailed = false,
+  display,
 }: {
   confession: PublicConfession;
   detailed?: boolean;
+  display?: { cardTextSize: number; previewLines: number };
 }) {
   const theme = confession.theme;
   const content = (
@@ -28,6 +30,8 @@ export function ConfessionCard({
         background: theme?.gradient ?? '#151c2b',
         color: theme?.textColor ?? '#fff',
         borderRadius: theme?.radius ?? '28px',
+        ['--card-text-size' as string]: `${display?.cardTextSize ?? 16}px`,
+        ['--preview-lines' as string]: display?.previewLines ?? 5,
       }}
     >
       <div className="confession-card__top">

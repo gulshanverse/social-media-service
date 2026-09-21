@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { appConfig } from '@ggv/config';
 import { createConfession } from '../../lib/api';
 
 const fallbackPrompts = [
@@ -16,9 +15,11 @@ const fallbackPrompts = [
 export default function CollegeConfessionComposer({
   defaultPrompt,
   prompts,
+  maxCharacters,
 }: {
   defaultPrompt: string;
   prompts: string[];
+  maxCharacters: number;
 }) {
   const safePrompts = prompts.length ? prompts : fallbackPrompts;
   const [prompt, setPrompt] = useState(defaultPrompt || safePrompts[0]);
@@ -40,8 +41,8 @@ export default function CollegeConfessionComposer({
       setError('Write something before sending.');
       return;
     }
-    if (trimmed.length > appConfig.maxConfessionLength) {
-      setError(`Keep it under ${appConfig.maxConfessionLength} characters.`);
+    if (trimmed.length > maxCharacters) {
+      setError(`Keep it under ${maxCharacters} characters.`);
       return;
     }
 
@@ -89,11 +90,9 @@ export default function CollegeConfessionComposer({
         <textarea
           id="college-confession-content"
           value={content}
-          onChange={(event) =>
-            setContent(event.target.value.slice(0, appConfig.maxConfessionLength))
-          }
+          onChange={(event) => setContent(event.target.value.slice(0, maxCharacters))}
           placeholder={prompt}
-          maxLength={appConfig.maxConfessionLength}
+          maxLength={maxCharacters}
           aria-describedby="college-confession-counter"
           required
         />
@@ -106,7 +105,7 @@ export default function CollegeConfessionComposer({
           🎲
         </button>
         <span className="college-counter" id="college-confession-counter">
-          {content.length}/{appConfig.maxConfessionLength}
+          {content.length}/{maxCharacters}
         </span>
       </div>
 

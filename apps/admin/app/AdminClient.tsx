@@ -42,7 +42,7 @@ async function refresh() {
 }
 export async function api(path: string, init: RequestInit = {}) {
   const headers = new Headers(init.headers);
-  headers.set('content-type', 'application/json');
+  if (!(init.body instanceof FormData)) headers.set('content-type', 'application/json');
   if (runtimeToken) headers.set('authorization', `Bearer ${runtimeToken}`);
   let response = await fetch(`${API}${path}`, { ...init, headers, credentials: 'include' });
   if (response.status === 401 && runtimeToken) {
@@ -149,7 +149,7 @@ function ThemePreview({
     </article>
   );
 }
-export function Nav({ admin }: { admin: Admin }) {
+export function Nav({ admin, onNavigate }: { admin: Admin; onNavigate?: () => void }) {
   const links: [string, string][] = [['/', 'Dashboard']];
   if (admin.role !== 'DESIGNER') links.push(['/confessions', 'Queue'], ['/reports', 'Reports']);
   if (admin.role === 'SUPER_ADMIN') links.push(['/audit-logs', 'Audit']);
@@ -159,7 +159,7 @@ export function Nav({ admin }: { admin: Admin }) {
   return (
     <nav className="admin-nav" aria-label="Admin navigation">
       {links.map(([href, label]) => (
-        <Link href={href} key={href}>
+        <Link href={href} key={href} onClick={onNavigate}>
           {label}
         </Link>
       ))}
@@ -175,9 +175,19 @@ function Shell({
   children: React.ReactNode;
   onLogout: () => void;
 }) {
+  const [menuOpen, setMenuOpen] = useState(false);
   return (
     <main className="admin-shell">
       <header className="admin-header">
+        <button
+          className="admin-menu-button"
+          type="button"
+          aria-label={menuOpen ? 'Close admin navigation' : 'Open admin navigation'}
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen((value) => !value)}
+        >
+          ☰
+        </button>
         <Link href="/" className="brand">
           <Logo />
           <span>COLLEGE CONFESSION · MODERATION</span>
@@ -199,7 +209,16 @@ function Shell({
           </button>
         </div>
       </header>
-      <Nav admin={admin} />
+      {menuOpen && (
+        <button
+          className="admin-nav-backdrop"
+          aria-label="Close admin navigation"
+          onClick={() => setMenuOpen(false)}
+        />
+      )}
+      <div className={menuOpen ? 'admin-nav-wrap admin-nav-wrap--open' : 'admin-nav-wrap'}>
+        <Nav admin={admin} onNavigate={() => setMenuOpen(false)} />
+      </div>
       {children}
     </main>
   );
@@ -865,6 +884,30 @@ function ConfessionDetail({ admin }: { admin: Admin }) {
           )}
         </aside>
       </div>
+      {canModerate && (
+        <div className="mobile-moderation-bar" aria-label="Quick moderation actions">
+          {item.status === 'PENDING' && (
+            <>
+              <button disabled={saving} onClick={() => act('approve')}>
+                Approve
+              </button>
+              <button className="danger" disabled={saving} onClick={() => act('reject')}>
+                Reject
+              </button>
+            </>
+          )}
+          {['PUBLISHED', 'REJECTED'].includes(item.status) && (
+            <button className="danger" disabled={saving} onClick={() => act('archive')}>
+              Archive
+            </button>
+          )}
+          {item.status === 'ARCHIVED' && (
+            <button disabled={saving} onClick={() => act('restore')}>
+              Restore
+            </button>
+          )}
+        </div>
+      )}
       {item.reports?.length > 0 && (
         <div className="panel report-context">
           <h2>Associated reports</h2>

@@ -24,16 +24,6 @@ export default function ConfessionsFeed({ page }: ConfessionsFeedProps) {
   }, [page]);
   return (
     <main className="site-shell">
-      <header className="site-header">
-        <Link href="/">
-          <span className="brand-mark">
-            ♛ <b>COLLEGE CONFESSION</b>
-          </span>
-        </Link>
-        <Link className="nav-cta" href="/send">
-          Send a confession 💌
-        </Link>
-      </header>
       <section className="feed-heading">
         <div>
           <p className="eyebrow">THE CAMPUS WALL</p>
@@ -72,7 +62,7 @@ export default function ConfessionsFeed({ page }: ConfessionsFeedProps) {
         <>
           <section className="card-grid">
             {data.items.map((item) => (
-              <ConfessionCard key={item.publicId} confession={item} />
+              <ConfessionCard key={item.publicId} confession={item} display={data.display} />
             ))}
           </section>
           {data.hasMore && (

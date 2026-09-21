@@ -32,6 +32,7 @@ export type PublicConfession = {
 };
 export type PublicConfessionPage = {
   items: PublicConfession[];
+  display?: { cardTextSize: number; previewLines: number };
   page: number;
   limit: number;
   total: number;

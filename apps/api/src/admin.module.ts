@@ -1,5 +1,6 @@
 import {
   Body,
+  BadRequestException,
   Controller,
   Delete,
   Get,
@@ -10,8 +11,13 @@ import {
   Post,
   Query,
   Req,
+  ServiceUnavailableException,
   UseGuards,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { put } from '@vercel/blob';
 import { AdminRole } from '@prisma/client';
 import { AdminAuthController } from './admin.controller';
 import { AdminService } from './admin.service';
@@ -144,6 +150,37 @@ export class AdminController {
     @Req() req: { user?: ReturnType<typeof requireUser> },
   ) {
     return this.service.updateProfileSettings(body, requireUser(req));
+  }
+  @Post('profile-image')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.DESIGNER)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 5 * 1024 * 1024 },
+      fileFilter: (_request, file, callback) => {
+        callback(null, ['image/png', 'image/jpeg', 'image/webp'].includes(file.mimetype));
+      },
+    }),
+  )
+  async uploadProfileImage(
+    @UploadedFile()
+    file: { buffer: Buffer; mimetype: string; size: number; originalname: string } | undefined,
+  ) {
+    if (!file) throw new BadRequestException('Choose an image to upload.');
+    const allowed = new Set(['image/png', 'image/jpeg', 'image/webp']);
+    if (!allowed.has(file.mimetype))
+      throw new BadRequestException('Use a PNG, JPG, or WEBP image.');
+    if (file.size > 5 * 1024 * 1024)
+      throw new BadRequestException('Images must be 5 MB or smaller.');
+    if (!process.env.BLOB_READ_WRITE_TOKEN)
+      throw new ServiceUnavailableException('Image uploads are not configured yet.');
+    const extension =
+      file.mimetype === 'image/png' ? 'png' : file.mimetype === 'image/webp' ? 'webp' : 'jpg';
+    const blob = await put(`college-confession/profile-${Date.now()}.${extension}`, file.buffer, {
+      access: 'public',
+      contentType: file.mimetype,
+      token: process.env.BLOB_READ_WRITE_TOKEN,
+    });
+    return { url: blob.url, filename: file.originalname, size: file.size };
   }
 }
 @Module({

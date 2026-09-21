@@ -21,6 +21,22 @@ export const getConfessions = (page = 1) =>
   request<PublicConfessionPage>(`/confessions?page=${page}&limit=12`, { cache: 'no-store' });
 export const getConfession = (publicId: string) =>
   request<PublicConfession>(`/confessions/${encodeURIComponent(publicId)}`, { cache: 'no-store' });
+export type PublicProfileSettings = {
+  handle: string;
+  headerMessage: string;
+  defaultPrompt: string;
+  communityButtonText: string;
+  communityPath: '/confessions';
+  bottomButtonText: string;
+  profileImageUrl: string | null;
+  themePreset: string;
+  maxCharacters: number;
+  cardTextSize: number;
+  previewLines: number;
+  prompts: string[];
+};
+export const getProfileSettings = () =>
+  request<PublicProfileSettings>('/confessions/profile-settings', { cache: 'no-store' });
 export const reportConfession = (publicId: string, reason: string) =>
   request<{ status: string; message: string }>(
     `/confessions/${encodeURIComponent(publicId)}/report`,

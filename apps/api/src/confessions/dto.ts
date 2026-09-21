@@ -1,10 +1,9 @@
 import { IsEnum, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
-import { appConfig } from '@ggv/config';
 import { confessionCategories } from '@ggv/types';
 
 export class CreateConfessionDto {
   @IsString()
-  @MaxLength(appConfig.maxConfessionLength)
+  @MaxLength(5000)
   content!: string;
 
   @IsOptional()

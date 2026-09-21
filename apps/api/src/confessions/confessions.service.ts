@@ -8,7 +8,6 @@ import {
 } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { ConfessionStatus } from '@prisma/client';
-import { appConfig } from '@ggv/config';
 import { themes } from '@ggv/themes';
 import type { PublicConfession, PublicConfessionPage, SubmissionResult } from '@ggv/types';
 import { CreateConfessionDto, ListConfessionsQueryDto } from './dto';
@@ -38,6 +37,21 @@ type ConfessionRecord = {
 };
 
 export type ConfessionsPrisma = {
+  collegeConfessionProfileSettings?: {
+    findUnique(args: { where: { id: string }; select?: Record<string, boolean> }): Promise<{
+      maxCharacters?: number;
+      cardTextSize?: number;
+      previewLines?: number;
+      handle?: string;
+      headerMessage?: string;
+      defaultPrompt?: string;
+      communityButtonText?: string;
+      bottomButtonText?: string;
+      profileImageUrl?: string | null;
+      themePreset?: string;
+      prompts?: unknown;
+    } | null>;
+  };
   theme: {
     findUnique(args: { where: { id: string } }): Promise<ThemeRecord | null>;
   };
@@ -138,6 +152,9 @@ export class ConfessionsService {
       bottomButtonText: settings?.bottomButtonText ?? 'Get your own messages!',
       profileImageUrl: settings?.profileImageUrl ?? null,
       themePreset: settings?.themePreset ?? 'sunset',
+      maxCharacters: settings?.maxCharacters ?? 1000,
+      cardTextSize: settings?.cardTextSize ?? 16,
+      previewLines: settings?.previewLines ?? 5,
       prompts: prompts.length ? prompts : ['Are u talking to anyone??'],
     };
   }
@@ -145,10 +162,13 @@ export class ConfessionsService {
   async create(dto: CreateConfessionDto, clientKey: string): Promise<SubmissionResult> {
     const content = dto.content?.trim();
     if (!content) throw new BadRequestException('Confession content is required.');
-    if (content.length > appConfig.maxConfessionLength)
-      throw new BadRequestException(
-        `Confession must be ${appConfig.maxConfessionLength} characters or fewer.`,
-      );
+    const profile = await this.database.collegeConfessionProfileSettings?.findUnique({
+      where: { id: 'default' },
+      select: { maxCharacters: true },
+    });
+    const maxCharacters = profile?.maxCharacters ?? 1000;
+    if (content.length > maxCharacters)
+      throw new BadRequestException(`Confession must be ${maxCharacters} characters or fewer.`);
     const rate = this.submissions.check(
       clientKey,
       Number(process.env.SUBMISSION_RATE_LIMIT ?? 5),
@@ -189,7 +209,7 @@ export class ConfessionsService {
     const page = Math.min(100, Math.max(1, query.page ?? 1));
     const limit = Math.min(50, Math.max(1, query.limit ?? 12));
     const where = { status: ConfessionStatus.PUBLISHED };
-    const [items, total] = await Promise.all([
+    const [items, total, profile] = await Promise.all([
       this.database.confession.findMany({
         where,
         orderBy: { publishedAt: 'desc' },
@@ -215,9 +235,17 @@ export class ConfessionsService {
         },
       }),
       this.database.confession.count({ where }),
+      this.database.collegeConfessionProfileSettings?.findUnique({
+        where: { id: 'default' },
+        select: { cardTextSize: true, previewLines: true },
+      }),
     ]);
     return {
       items: items.map(toPublicConfession),
+      display: {
+        cardTextSize: profile?.cardTextSize ?? 16,
+        previewLines: profile?.previewLines ?? 5,
+      },
       page,
       limit,
       total,

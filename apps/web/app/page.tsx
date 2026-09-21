@@ -3,17 +3,6 @@ import Link from 'next/link';
 export default function Home() {
   return (
     <main className="site-shell">
-      <header className="site-header">
-        <Link href="/" className="brand-mark">
-          ♛ <b>COLLEGE CONFESSION</b>
-        </Link>
-        <nav>
-          <Link href="/confessions">Community</Link>
-          <Link className="nav-cta" href="/send">
-            Send one 💌
-          </Link>
-        </nav>
-      </header>
       <section className="hero">
         <div className="hero-copy">
           <p className="eyebrow">COLLEGE CONFESSION · YOUR CAMPUS, UNFILTERED</p>

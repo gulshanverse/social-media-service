@@ -23,6 +23,9 @@ export type ProfileSettings = {
   bottomButtonText: string;
   profileImageUrl: string | null;
   themePreset: string;
+  maxCharacters: number;
+  cardTextSize: number;
+  previewLines: number;
   prompts: string[];
 };
 
@@ -35,6 +38,9 @@ const fallbackSettings: ProfileSettings = {
   bottomButtonText: 'Get your own messages!',
   profileImageUrl: null,
   themePreset: 'sunset',
+  maxCharacters: 1000,
+  cardTextSize: 16,
+  previewLines: 5,
   prompts: [
     'Are u talking to anyone??',
     'Who is your current college crush?',
@@ -80,6 +86,7 @@ export default async function CollegeConfessionPage() {
         <CollegeConfessionComposer
           defaultPrompt={settings.defaultPrompt}
           prompts={settings.prompts}
+          maxCharacters={settings.maxCharacters}
         />
 
         <section className="college-community-note" aria-label="Community invitation">

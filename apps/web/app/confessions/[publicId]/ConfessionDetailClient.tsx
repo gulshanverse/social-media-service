@@ -19,15 +19,10 @@ export default function ConfessionDetailClient({ publicId }: { publicId: string 
   }, [publicId]);
   return (
     <main className="site-shell">
-      <header className="site-header">
-        <Link href="/" className="brand-mark">
-          ♛ <b>COLLEGE CONFESSION</b>
-        </Link>
+      <section className="detail-page">
         <Link className="back-link" href="/confessions">
           ← Back to community
         </Link>
-      </header>
-      <section className="detail-page">
         {error ? (
           <section className="state-panel">
             <div className="empty-orb">?</div>

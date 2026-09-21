@@ -151,7 +151,7 @@ async function run() {
   );
   assert.ok(invalidCategory.some((error) => error.property === 'category'));
   const oversized = await import('class-validator').then(({ validate }) =>
-    validate(plainToInstance(CreateConfessionDto, { content: 'x'.repeat(1001) })),
+    validate(plainToInstance(CreateConfessionDto, { content: 'x'.repeat(5001) })),
   );
   assert.ok(oversized.some((error) => error.property === 'content'));
 

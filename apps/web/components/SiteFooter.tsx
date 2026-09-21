@@ -34,14 +34,6 @@ export function LegalPage({
 }) {
   return (
     <main className="site-shell">
-      <header className="site-header">
-        <Link href="/" className="brand-mark">
-          ♛ <b>COLLEGE CONFESSION</b>
-        </Link>
-        <Link className="nav-cta" href="/send">
-          Send a confession
-        </Link>
-      </header>
       <article className="legal-page">
         <p className="eyebrow">{eyebrow}</p>
         <h1>{title}</h1>

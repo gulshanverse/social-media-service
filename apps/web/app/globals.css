@@ -1062,3 +1062,245 @@ body:has(.college-profile-page) > .site-footer {
 .college-theme-midnight {
   background: linear-gradient(145deg, #171642 0%, #472b72 55%, #be3c7e 100%);
 }
+
+/* Shared public navigation */
+.public-header {
+  position: relative;
+  z-index: 30;
+  max-width: 1240px;
+  margin: 0 auto;
+  min-height: 72px;
+  padding: 14px 5vw;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border-bottom: 1px solid #1a2232;
+}
+.public-header-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.public-header-mark {
+  color: #ffd54a;
+  font-size: 1.4rem;
+}
+.public-header-cta {
+  margin-left: auto;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 15px;
+  border: 1px solid #2b3750;
+  border-radius: 999px;
+  background: #151c2b;
+}
+.public-menu-button {
+  display: none;
+  width: 44px;
+  height: 44px;
+  padding: 10px;
+  border: 0;
+  background: transparent;
+}
+.public-menu-button span {
+  display: block;
+  width: 22px;
+  height: 2px;
+  margin: 5px auto;
+  background: #fff;
+}
+.public-drawer,
+.public-menu-backdrop {
+  display: none;
+}
+.public-header + .college-profile-page {
+  padding-top: 0;
+}
+body:has(.college-profile-page) .public-header {
+  display: none;
+}
+
+.confession-card {
+  min-height: 0;
+  padding: 20px;
+}
+.confession-card__content {
+  margin: 18px 0;
+  font-size: var(--card-text-size, 16px);
+  line-height: 1.5;
+  letter-spacing: -0.015em;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: var(--preview-lines, 5);
+  overflow: hidden;
+}
+.confession-card--detailed {
+  min-height: 0;
+  padding: clamp(24px, 5vw, 48px);
+}
+.confession-card--detailed .confession-card__content {
+  display: block;
+  overflow: visible;
+  font-size: clamp(1.2rem, 3vw, 1.85rem);
+  line-height: 1.55;
+  letter-spacing: -0.02em;
+}
+.card-grid {
+  align-items: start;
+}
+
+.profile-upload-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px;
+  border: 1px solid #26334d;
+  border-radius: 12px;
+}
+.profile-upload-avatar,
+.profile-upload-avatar img {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(145deg, #ff2d75, #ff7a00);
+  color: #fff;
+  font-size: 2rem;
+}
+.profile-upload-row small {
+  display: block;
+  margin-top: 8px;
+  color: #94a3b8;
+}
+.profile-remove {
+  margin-left: 8px;
+}
+.profile-save-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.save-state {
+  color: #86efac;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-align: right;
+}
+.save-state--dirty {
+  color: #fde68a;
+}
+.profile-preview-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.profile-preview-counter {
+  text-align: right;
+  color: #756b72;
+  font-size: 0.68rem;
+  padding: 0 18px;
+}
+
+@media (max-width: 620px) {
+  .public-header {
+    min-height: 64px;
+    padding: 10px 16px;
+  }
+  .public-menu-button {
+    display: block;
+    flex: 0 0 44px;
+  }
+  .public-header-brand {
+    font-size: 0.95rem;
+  }
+  .public-header-cta {
+    font-size: 0.78rem;
+    padding-inline: 11px;
+  }
+  .public-menu-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 35;
+    border: 0;
+    background: #0008;
+  }
+  .public-drawer {
+    display: grid;
+    position: fixed;
+    z-index: 40;
+    inset: 0 auto 0 0;
+    width: min(86vw, 340px);
+    padding: 20px;
+    align-content: start;
+    gap: 4px;
+    background: #101522;
+    transform: translateX(-105%);
+    transition: transform 0.22s ease;
+    box-shadow: 20px 0 60px #0008;
+  }
+  .public-drawer--open {
+    transform: translateX(0);
+  }
+  .public-drawer-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 18px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid #2b3750;
+  }
+  .public-drawer-heading button {
+    width: 44px;
+    height: 44px;
+    border: 0;
+    background: transparent;
+    color: #fff;
+    font-size: 1.8rem;
+  }
+  .public-drawer a {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    padding: 10px 12px;
+    border-radius: 10px;
+    color: #c8d0df;
+  }
+  .public-drawer a:hover,
+  .public-drawer a:focus-visible {
+    background: #1a263b;
+    color: #fff;
+  }
+  .site-shell {
+    overflow: clip;
+  }
+  .feed-heading,
+  .detail-page {
+    padding-top: 38px;
+  }
+  .card-grid {
+    padding-inline: 16px;
+    gap: 14px;
+  }
+  .confession-card {
+    padding: 18px;
+  }
+  .profile-upload-row {
+    align-items: flex-start;
+  }
+  .profile-remove {
+    margin: 8px 0 0;
+    display: block;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .public-drawer {
+    transition: none;
+  }
+}

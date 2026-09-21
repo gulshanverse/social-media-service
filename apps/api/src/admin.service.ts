@@ -9,7 +9,6 @@ import {
   UpdateConfessionDto,
   UpdateThemeDto,
 } from './admin.dto';
-import { appConfig } from '@ggv/config';
 import { increment } from './observability';
 
 export function assertOpenReportTransition(status: ReportStatus, action: 'resolve' | 'dismiss') {
@@ -113,10 +112,25 @@ export class AdminService {
     } = { editorId: actor.id };
     if (body.content !== undefined) {
       const content = body.content.trim();
-      if (!content || content.length > appConfig.maxConfessionLength)
-        throw new BadRequestException(
-          `Content must be between 1 and ${appConfig.maxConfessionLength} characters.`,
-        );
+      const profileSettings = (
+        prisma as unknown as {
+          collegeConfessionProfileSettings?: {
+            findUnique(args: {
+              where: { id: string };
+              select: { maxCharacters: boolean };
+            }): Promise<{ maxCharacters: number } | null>;
+          };
+        }
+      ).collegeConfessionProfileSettings;
+      const profile = profileSettings
+        ? await profileSettings.findUnique({
+            where: { id: 'default' },
+            select: { maxCharacters: true },
+          })
+        : null;
+      const maxCharacters = profile?.maxCharacters ?? 1000;
+      if (!content || content.length > maxCharacters)
+        throw new BadRequestException(`Content must be between 1 and ${maxCharacters} characters.`);
       data.content = content;
     }
     if (body.category !== undefined) data.category = body.category;

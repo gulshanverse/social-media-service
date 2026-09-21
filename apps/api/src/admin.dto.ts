@@ -18,7 +18,6 @@ import {
   validateSync,
 } from 'class-validator';
 import { ConfessionCategory, ConfessionStatus, ReportStatus } from '@prisma/client';
-import { appConfig } from '@ggv/config';
 
 export class LoginDto {
   @IsEmail() email!: string;
@@ -29,7 +28,6 @@ export class UpdateConfessionDto {
   @IsString()
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @MinLength(1)
-  @MaxLength(appConfig.maxConfessionLength)
   content?: string;
   @IsOptional() @IsEnum(ConfessionCategory) category?: ConfessionCategory;
   @IsOptional() @IsString() @MaxLength(100) themeId?: string;
@@ -66,6 +64,9 @@ export class UpdateProfileSettingsDto {
   @MaxLength(1000)
   profileImageUrl?: string;
   @IsOptional() @IsIn(['sunset', 'pink-flame', 'coral', 'ocean', 'midnight']) themePreset?: string;
+  @IsOptional() @IsInt() @Min(100) @Max(5000) maxCharacters?: number;
+  @IsOptional() @IsInt() @Min(14) @Max(20) cardTextSize?: number;
+  @IsOptional() @IsInt() @Min(3) @Max(6) previewLines?: number;
   @IsOptional() @IsArray() @ArrayMaxSize(20) @IsString({ each: true }) prompts?: string[];
 }
 export class RefreshDto {}

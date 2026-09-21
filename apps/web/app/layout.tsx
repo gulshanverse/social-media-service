@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import '@ggv/ui/src/styles.css';
 import './globals.css';
 import { SiteFooter } from '../components/SiteFooter';
+import { PublicHeader } from '../components/PublicHeader';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://www.confessions.live'),
@@ -30,6 +31,7 @@ export default function Layout({ children }: Readonly<{ children: React.ReactNod
   return (
     <html lang="en">
       <body>
+        <PublicHeader />
         {children}
         <SiteFooter />
         <Analytics />

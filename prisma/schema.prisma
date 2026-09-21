@@ -156,6 +156,9 @@ model CollegeConfessionProfileSettings {
   bottomButtonText    String   @default("Get your own messages!")
   profileImageUrl     String?
   themePreset         String   @default("sunset")
+  maxCharacters       Int      @default(1000)
+  cardTextSize        Int      @default(16)
+  previewLines        Int      @default(5)
   prompts             Json
   updatedAt           DateTime @updatedAt
   updatedBy           String?
