@@ -172,10 +172,24 @@ button:disabled {
   margin: 36px 0;
 }
 .metric {
+  display: grid;
+  text-decoration: none;
   background: #111827;
   border: 1px solid #26334d;
   border-radius: 15px;
   padding: 18px;
+}
+.metric:hover,
+.metric:focus-visible {
+  border-color: #ff9a3c;
+  background: #162238;
+  transform: translateY(-2px);
+  outline: none;
+}
+.metric small {
+  color: #ffb05f;
+  margin-top: 14px;
+  font-size: 0.75rem;
 }
 .metric span {
   display: block;
@@ -192,6 +206,76 @@ button:disabled {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 14px;
+}
+.quick-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: end;
+  margin: 42px 0 24px;
+  padding: 24px;
+  background: linear-gradient(135deg, #151d2e, #101827);
+  border: 1px solid #26334d;
+  border-radius: 16px;
+}
+.quick-actions h2 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+.quick-action-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: end;
+  gap: 8px;
+}
+.quick-action-links a,
+.detail-toolbar a,
+.visit-community {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: 9px;
+  color: #dbe7f5;
+  text-decoration: none;
+  border: 1px solid #34435e;
+}
+.quick-action-links a:hover,
+.quick-action-links a:focus-visible,
+.detail-toolbar a:hover {
+  border-color: #ff9a3c;
+  outline: none;
+}
+.activity-panel {
+  margin-top: 24px;
+}
+.activity-list {
+  display: grid;
+}
+.activity-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 13px 0;
+  border-top: 1px solid #26334d;
+}
+.activity-row p {
+  margin: 3px 0 0;
+  color: #94a3b8;
+  font-size: 0.8rem;
+}
+.activity-dot {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #ff9a3c;
+  box-shadow: 0 0 0 5px #ff9a3c18;
+}
+.detail-toolbar {
+  display: flex;
+  justify-content: end;
+  margin: -8px 0 16px;
 }
 .panel-link {
   display: grid;
@@ -503,6 +587,20 @@ button:disabled {
   .theme-list,
   .form-grid {
     grid-template-columns: 1fr;
+  }
+  .quick-actions {
+    display: block;
+  }
+  .quick-action-links {
+    justify-content: start;
+    margin-top: 18px;
+  }
+  .admin-user {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .visit-community {
+    order: -1;
   }
   .filters {
     grid-template-columns: 1fr;

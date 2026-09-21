@@ -1,6 +1,6 @@
 import { TermsPage } from '../legal-pages';
 export const metadata = {
-  title: 'Terms of Service | GGV Confessions',
-  description: 'The rules for using GGV Confessions.',
+  title: 'Terms of Service | College Confession',
+  description: 'The rules for using College Confession.',
 };
 export default TermsPage;

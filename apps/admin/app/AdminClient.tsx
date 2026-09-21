@@ -137,7 +137,7 @@ function ThemePreview({
       }}
     >
       <div className="preview-top">
-        <strong>GGV CONFESSIONS</strong>
+        <strong>COLLEGE CONFESSION</strong>
         <span>ANONYMOUS</span>
       </div>
       <p>“{label} — a safe place for campus thoughts.”</p>
@@ -177,9 +177,17 @@ function Shell({
       <header className="admin-header">
         <Link href="/" className="brand">
           <Logo />
-          <span>MODERATION CONSOLE</span>
+          <span>COLLEGE CONFESSION · MODERATION</span>
         </Link>
         <div className="admin-user">
+          <a
+            className="secondary visit-community"
+            href="https://www.confessions.live/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Visit Community ↗
+          </a>
           <span>
             {admin.name || admin.email} · {admin.role}
           </span>
@@ -247,7 +255,7 @@ function Login({ onLogin }: { onLogin: (session: Session) => void }) {
   );
 }
 export function Dashboard({ admin }: { admin: Admin }) {
-  const [stats, setStats] = useState<Record<string, number> | null>(null);
+  const [stats, setStats] = useState<any>(null);
   const [error, setError] = useState('');
   useEffect(() => {
     api('/admin/dashboard')
@@ -255,13 +263,14 @@ export function Dashboard({ admin }: { admin: Admin }) {
       .catch((e) => setError(e.message));
   }, []);
   const cards = [
-    ['Pending confessions', 'pendingConfessions'],
-    ['Published', 'publishedConfessions'],
-    ['Rejected', 'rejectedConfessions'],
-    ['Open reports', 'openReports'],
-    ['Resolved reports', 'resolvedReports'],
-    ['Total confessions', 'totalConfessions'],
-    ['Active themes', 'activeThemes'],
+    ['Pending confessions', 'pendingConfessions', '/confessions?status=PENDING'],
+    ['Published', 'publishedConfessions', '/confessions?status=PUBLISHED'],
+    ['Rejected', 'rejectedConfessions', '/confessions?status=REJECTED'],
+    ['Archived', 'archivedConfessions', '/confessions?status=ARCHIVED'],
+    ['Open reports', 'openReports', '/reports?status=OPEN'],
+    ['Resolved reports', 'resolvedReports', '/reports?status=RESOLVED'],
+    ['Total confessions', 'totalConfessions', '/confessions'],
+    ['Active themes', 'activeThemes', '/themes'],
   ];
   return (
     <section>
@@ -270,13 +279,56 @@ export function Dashboard({ admin }: { admin: Admin }) {
       <p className="muted">A focused view of the work waiting for your team.</p>
       <Notice error={error} />
       <div className="stats">
-        {cards.map(([label, key]) => (
-          <article className="metric" key={key}>
+        {cards.map(([label, key, href]) => (
+          <Link className="metric" href={href} key={key}>
             <span>{label}</span>
             <strong>{stats ? (stats[key] ?? 0) : '—'}</strong>
-          </article>
+            <small>Open workspace →</small>
+          </Link>
         ))}
       </div>
+      <div className="quick-actions">
+        <div>
+          <p className="eyebrow">QUICK ACTIONS</p>
+          <h2>Keep the wall moving.</h2>
+        </div>
+        <div className="quick-action-links">
+          {admin.role !== 'DESIGNER' && (
+            <Link href="/confessions?status=PENDING">Open pending queue</Link>
+          )}
+          {admin.role !== 'DESIGNER' && <Link href="/reports?status=OPEN">Open reports queue</Link>}
+          <Link href="/confessions?status=PUBLISHED">View published</Link>
+          <Link href="/confessions?status=REJECTED">View rejected</Link>
+          <Link href="/themes">Manage themes</Link>
+          {admin.role === 'SUPER_ADMIN' && <Link href="/audit-logs">Audit activity</Link>}
+        </div>
+      </div>
+      {stats?.recentActivity?.length > 0 && (
+        <div className="panel activity-panel">
+          <div className="form-heading">
+            <div>
+              <p className="eyebrow">RECENT ACTIVITY</p>
+              <h2>What changed lately</h2>
+            </div>
+            <Link className="inline-link" href="/audit-logs">
+              View audit
+            </Link>
+          </div>
+          <div className="activity-list">
+            {stats.recentActivity.map((activity: any) => (
+              <div className="activity-row" key={activity.id}>
+                <span className="activity-dot" />
+                <div>
+                  <strong>{activity.action.replaceAll('_', ' ')}</strong>
+                  <p>
+                    {activity.actor?.email || 'System'} · {formatDate(activity.createdAt)}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="workspace-links">
         {admin.role !== 'DESIGNER' && (
           <>
@@ -305,7 +357,9 @@ export function Confessions() {
   const [status, setStatus] = useState(() =>
     typeof window === 'undefined'
       ? 'PENDING'
-      : localStorage.getItem('admin.queue.status') || 'PENDING',
+      : new URLSearchParams(window.location.search).get('status') ||
+        localStorage.getItem('admin.queue.status') ||
+        'PENDING',
   );
   const [category, setCategory] = useState(() =>
     typeof window === 'undefined' ? '' : localStorage.getItem('admin.queue.category') || '',
@@ -339,6 +393,16 @@ export function Confessions() {
     localStorage.setItem('admin.queue.theme', theme);
     localStorage.setItem('admin.queue.order', order);
   }, [status, category, theme, order]);
+  useEffect(() => {
+    const query = new URLSearchParams();
+    if (status && status !== 'PENDING') query.set('status', status);
+    if (category) query.set('category', category);
+    if (theme) query.set('theme', theme);
+    if (search) query.set('search', search);
+    if (order !== 'newest') query.set('order', order);
+    if (typeof window !== 'undefined')
+      window.history.replaceState(null, '', `/confessions${query.toString() ? `?${query}` : ''}`);
+  }, [status, category, theme, search, order]);
   useEffect(() => {
     load();
     setSelected([]);
@@ -602,6 +666,7 @@ function ConfessionDetail({ admin }: { admin: Admin }) {
         approve: 'Confession approved successfully.',
         reject: 'Confession rejected successfully.',
         archive: 'Confession archived successfully.',
+        restore: 'Confession restored to the public feed.',
       };
       setMessage(messages[action] ?? 'Moderation action completed successfully.');
     } catch (e) {
@@ -649,6 +714,18 @@ function ConfessionDetail({ admin }: { admin: Admin }) {
         <Status value={item.status} />
       </div>
       <Notice error={error} message={message} />
+      {item.status === 'PUBLISHED' && (
+        <div className="detail-toolbar">
+          <a
+            className="secondary"
+            href={`https://www.confessions.live/confessions/${item.publicId}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            View Public ↗
+          </a>
+        </div>
+      )}
       <div className="detail-grid">
         <article className="panel">
           <h2>Confession content</h2>
@@ -747,6 +824,39 @@ function ConfessionDetail({ admin }: { admin: Admin }) {
                 <button className="danger" disabled={saving} onClick={() => act('archive')}>
                   Archive
                 </button>
+              )}
+              {item.status === 'ARCHIVED' && (
+                <>
+                  <button disabled={saving} onClick={() => act('restore')}>
+                    {saving ? 'Restoring…' : 'Restore to published'}
+                  </button>
+                  {admin.role === 'SUPER_ADMIN' && (
+                    <button
+                      className="danger"
+                      disabled={saving}
+                      onClick={async () => {
+                        if (
+                          !confirm(
+                            'Delete this archived confession permanently? This cannot be undone.',
+                          )
+                        )
+                          return;
+                        setSaving(true);
+                        try {
+                          await api(`/admin/confessions/${id}`, { method: 'DELETE' });
+                          window.location.href = '/confessions?status=ARCHIVED';
+                        } catch (e) {
+                          setError(
+                            e instanceof Error ? e.message : 'Confession could not be deleted.',
+                          );
+                          setSaving(false);
+                        }
+                      }}
+                    >
+                      {saving ? 'Deleting…' : 'Delete permanently'}
+                    </button>
+                  )}
+                </>
               )}
             </div>
           )}

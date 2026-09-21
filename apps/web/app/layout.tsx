@@ -7,22 +7,22 @@ import { SiteFooter } from '../components/SiteFooter';
 export const metadata: Metadata = {
   metadataBase: new URL('https://www.confessions.live'),
   title: {
-    default: 'GGV Confessions | Anonymous campus stories',
-    template: '%s | GGV Confessions',
+    default: 'College Confession | Anonymous campus stories',
+    template: '%s | College Confession',
   },
   description:
     'A moderated anonymous corner of campus for honest thoughts, stories, and conversation.',
   alternates: { canonical: 'https://www.confessions.live' },
   openGraph: {
     type: 'website',
-    siteName: 'GGV Confessions',
-    title: 'GGV Confessions',
+    siteName: 'College Confession',
+    title: 'College Confession',
     description: 'Anonymous campus stories, reviewed before publishing.',
     url: 'https://www.confessions.live',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'GGV Confessions',
+    title: 'College Confession',
     description: 'Anonymous campus stories, reviewed before publishing.',
   },
 };

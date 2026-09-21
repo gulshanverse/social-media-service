@@ -10,6 +10,8 @@ The public experience now has a shared launch footer linking to the community, s
 
 The platform now has launch-facing About, Privacy Policy, Terms of Service, Community Guidelines, Contact, and Report Content pages. The report page includes an actionable form. Published confession detail pages link directly to the report flow. Reports are accepted only for published confessions, validated against the approved reason set, hashed by request key before persistence, deduplicated while open for the same reporter key, counted, and surfaced through the existing admin reports workflow. Pending submissions remain pending and are never published automatically.
 
+The follow-up operations pass adds clickable dashboard deep links, archived-confession counts, recent moderation activity, an explicit `PUBLISHED → ARCHIVED → RESTORE / PERMANENT DELETE` lifecycle, a published-only `View Public` action, URL-backed queue filters, responsive quick actions, and a platform-safe public sharing menu with native share, copy link, WhatsApp, Facebook, Telegram, and Instagram copy-link fallback. Published detail pages now generate canonical social metadata and a dynamic Open Graph preview image; unpublished states remain non-public and non-indexable.
+
 The existing submission, moderation, rate limiting, authentication, health, metrics, and Vercel Analytics implementations were retained.
 
 ## Files changed

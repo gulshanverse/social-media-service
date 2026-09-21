@@ -1,6 +1,6 @@
 import { ContactPage } from '../legal-pages';
 export const metadata = {
-  title: 'Contact | GGV Confessions',
-  description: 'Contact the GGV Confessions community team.',
+  title: 'Contact | College Confession',
+  description: 'Contact the College Confession community team.',
 };
 export default ContactPage;

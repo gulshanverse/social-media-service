@@ -496,6 +496,55 @@ a:hover .confession-card {
   color: #78859a;
   font-size: 0.78rem;
 }
+.share-menu {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.share-popover {
+  position: absolute;
+  z-index: 10;
+  right: 0;
+  top: calc(100% + 10px);
+  width: 210px;
+  padding: 12px;
+  display: grid;
+  gap: 6px;
+  background: #101522;
+  border: 1px solid #2b3750;
+  border-radius: 16px;
+  box-shadow: 0 18px 55px #0008;
+}
+.share-popover strong {
+  padding: 6px 8px 10px;
+  color: #fff;
+  font-size: 0.85rem;
+}
+.share-popover button,
+.share-popover a {
+  min-height: 42px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 0;
+  background: transparent;
+  color: #c8d0df;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.share-popover button:hover,
+.share-popover a:hover,
+.share-popover button:focus-visible,
+.share-popover a:focus-visible {
+  background: #1a263b;
+  color: #fff;
+  outline: none;
+}
+.share-feedback {
+  color: #c8ff00;
+  font-size: 0.8rem;
+}
 .detail-cta {
   max-width: 720px;
   margin: 100px auto 30px;

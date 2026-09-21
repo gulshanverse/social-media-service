@@ -7,7 +7,7 @@ export function AboutPage() {
     <LegalPage
       eyebrow="ABOUT THE WALL"
       title="A safer place to say the quiet part out loud."
-      intro="GGV Confessions is an anonymous community space built around honest campus stories, thoughtful conversation, and accountable moderation."
+      intro="College Confession is an anonymous community space built around honest campus stories, thoughtful conversation, and accountable moderation."
     >
       <LegalSection title="How it works">
         <LegalParagraph>
@@ -31,7 +31,7 @@ export function PrivacyPage() {
     <LegalPage
       eyebrow="YOUR PRIVACY"
       title="Privacy Policy"
-      intro="This plain-language policy explains what GGV Confessions collects and how it is used."
+      intro="This plain-language policy explains what College Confession collects and how it is used."
     >
       <LegalSection title="Information we receive">
         <LegalParagraph>
@@ -69,7 +69,7 @@ export function TermsPage() {
     <LegalPage
       eyebrow="THE RULES"
       title="Terms of Service"
-      intro="By using GGV Confessions, you agree to use the service responsibly and follow these rules."
+      intro="By using College Confession, you agree to use the service responsibly and follow these rules."
     >
       <LegalSection title="Acceptable use">
         <LegalParagraph>
@@ -169,8 +169,8 @@ export function ReportPage() {
       </LegalSection>
       <LegalSection title="Need immediate help?">
         <LegalParagraph>
-          If someone is in immediate danger, contact local emergency services first. GGV Confessions
-          is not an emergency response service.
+          If someone is in immediate danger, contact local emergency services first. College
+          Confession is not an emergency response service.
         </LegalParagraph>
       </LegalSection>
     </LegalPage>

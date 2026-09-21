@@ -1,6 +1,6 @@
 import { AboutPage } from '../legal-pages';
 export const metadata = {
-  title: 'About | GGV Confessions',
-  description: 'Learn how GGV Confessions works.',
+  title: 'About | College Confession',
+  description: 'Learn how College Confession works.',
 };
 export default AboutPage;

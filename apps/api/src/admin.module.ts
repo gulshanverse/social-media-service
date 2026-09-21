@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Inject,
   Module,
@@ -32,7 +33,7 @@ import {
 export class AdminController {
   constructor(@Inject(AdminService) private readonly service: AdminService) {}
   @Get('dashboard') dashboard() {
-    return this.service.dashboard();
+    return this.service.dashboardExtended();
   }
   @Get('confessions') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) queue(
     @Query() query: AdminQueueQueryDto,
@@ -68,6 +69,18 @@ export class AdminController {
     @Req() req: { user?: ReturnType<typeof requireUser> },
   ) {
     return this.service.transition(id, 'archive', requireUser(req));
+  }
+  @Post('confessions/:id/restore') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) restore(
+    @Param('id') id: string,
+    @Req() req: { user?: ReturnType<typeof requireUser> },
+  ) {
+    return this.service.restore(id, requireUser(req));
+  }
+  @Delete('confessions/:id') @Roles(AdminRole.SUPER_ADMIN) async permanentlyDelete(
+    @Param('id') id: string,
+    @Req() req: { user?: ReturnType<typeof requireUser> },
+  ) {
+    return this.service.permanentlyDelete(id, requireUser(req));
   }
   @Post('confessions/bulk') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) bulk(
     @Body(new BulkModerationPipe()) body: BulkModerationDto,

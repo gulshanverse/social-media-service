@@ -4,8 +4,8 @@ export function SiteFooter() {
   return (
     <footer className="site-footer">
       <div>
-        <strong>GGV Confessions</strong>
-        <p>A moderated, anonymous corner of campus for honest thoughts.</p>
+        <strong>College Confession</strong>
+        <p>Share it. Read it. Keep it anonymous.</p>
       </div>
       <nav aria-label="Footer navigation">
         <Link href="/confessions">Community</Link>
@@ -36,7 +36,7 @@ export function LegalPage({
     <main className="site-shell">
       <header className="site-header">
         <Link href="/" className="brand-mark">
-          ♛ <b>GGV</b>
+          ♛ <b>COLLEGE CONFESSION</b>
         </Link>
         <Link className="nav-cta" href="/send">
           Send a confession

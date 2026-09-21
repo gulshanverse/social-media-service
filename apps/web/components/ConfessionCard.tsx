@@ -31,7 +31,7 @@ export function ConfessionCard({
       }}
     >
       <div className="confession-card__top">
-        <span>♛ GGV CONFESSIONS</span>
+        <span>♛ COLLEGE CONFESSION</span>
         <span>ANONYMOUS</span>
       </div>
       <p className="confession-card__content">“{confession.content}”</p>

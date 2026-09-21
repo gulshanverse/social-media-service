@@ -229,6 +229,33 @@ export class AdminService {
     });
     return { requested: body.ids.length, processed, skipped: body.ids.length - processed, results };
   }
+  async restore(id: string, actor: AdminIdentity) {
+    const current = await prisma.confession.findUnique({ where: { id }, select: { status: true } });
+    if (!current) throw new NotFoundException('Confession not found.');
+    if (current.status !== ConfessionStatus.ARCHIVED)
+      throw new BadRequestException('Only archived confessions can be restored.');
+    const item = await prisma.confession.update({
+      where: { id },
+      data: { status: ConfessionStatus.PUBLISHED, publishedAt: new Date() },
+      select: { id: true, publicId: true, status: true, publishedAt: true },
+    });
+    await recordAudit(actor.id, 'RESTORE', 'CONFESSION', id);
+    increment('moderation_actions_total');
+    return item;
+  }
+  async permanentlyDelete(id: string, actor: AdminIdentity) {
+    const current = await prisma.confession.findUnique({ where: { id }, select: { status: true } });
+    if (!current) throw new NotFoundException('Confession not found.');
+    if (current.status !== ConfessionStatus.ARCHIVED)
+      throw new BadRequestException('Only archived confessions can be permanently deleted.');
+    await prisma.$transaction([
+      prisma.report.deleteMany({ where: { confessionId: id } }),
+      prisma.confession.delete({ where: { id } }),
+    ]);
+    await recordAudit(actor.id, 'DELETE', 'CONFESSION', id);
+    increment('moderation_actions_total');
+    return { id, deleted: true };
+  }
   async reports(query: {
     page?: number;
     limit?: number;
@@ -411,5 +438,30 @@ export class AdminService {
       totalConfessions,
       activeThemes,
     };
+  }
+  async dashboardExtended() {
+    const [base, archived, recentActivity] = await Promise.all([
+      this.dashboard(),
+      prisma.confession.count({ where: { status: 'ARCHIVED' } }),
+      prisma.auditLog.findMany({
+        where: {
+          entity: { in: ['CONFESSION', 'REPORT'] },
+          action: {
+            in: ['APPROVE', 'REJECT', 'ARCHIVE', 'RESTORE', 'REPORT_RESOLVE', 'REPORT_DISMISS'],
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 6,
+        select: {
+          id: true,
+          action: true,
+          entity: true,
+          entityId: true,
+          createdAt: true,
+          actor: { select: { email: true } },
+        },
+      }),
+    ]);
+    return { ...base, archivedConfessions: archived, recentActivity };
   }
 }
