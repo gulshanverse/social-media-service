@@ -4,7 +4,7 @@
 
 **PASS WITH UNVERIFIED ITEMS.** The production-hardening audit identified two concrete gaps and addressed both without reopening verified Phase 6 work. The API now enforces a bounded JSON request size, returns safe structured responses for malformed or oversized JSON, assigns request IDs before parsing, and exposes metrics at the documented `/metrics` endpoint while preserving `/health/metrics`. Local formatting, type checking, tests, lint, and production builds pass.
 
-Hosted deployment verification, live Render database readiness, backup restoration, and authenticated browser workflows remain unverified in this sandbox.
+Implementation and local validation are verified. CI is verified by run `35566560035`. Hosted deployment/runtime behavior, live Render database readiness, backup restoration, authenticated browser workflows, and live Vercel Analytics dashboard traffic remain unverified in this sandbox.
 
 ## 2. Changes Implemented
 
@@ -60,26 +60,30 @@ Important scenarios covered by the existing and new tests include authentication
 
 ## 7. Deployment
 
-The implementation is pushed to the `main` branch so the repository's existing deployment integrations can build from the resulting commit. Vercel and Render hosted deployment completion and timestamps were not independently verified in this sandbox. No platform, service, database, environment variable, or migration configuration was changed.
+The implementation and formatting fix are pushed to the `main` branch so the repository's existing deployment integrations can build from commit `2941467353a37ac2fc2b0caa24988c421fc40952`. Vercel and Render hosted deployment completion and timestamps were not independently verified in this sandbox. No platform, service, database, environment variable, or migration configuration was changed.
 
 ## 8. Production Verification
 
-| Check          | Result                        | Evidence                                                                                                                   |
-| -------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Web            | UNVERIFIED                    | Existing Phase 6 verification is recorded in the supplied project notes; no new hosted browser run was performed.          |
-| Admin          | UNVERIFIED                    | Existing Phase 6 verification is recorded in the supplied project notes; no credentialed hosted browser run was performed. |
-| API            | PASS (local)                  | API typecheck, test suite, lint, and build pass.                                                                           |
-| Database       | UNVERIFIED                    | No live Render database credentials or restore environment were available.                                                 |
-| Authentication | PASS (local)                  | Existing auth/session/RBAC tests pass; credentialed hosted logout/re-login remains unverified as previously documented.    |
-| Moderation     | PASS (local)                  | Existing moderation and audit tests pass.                                                                                  |
-| CORS           | UNVERIFIED (hosted)           | Exact-origin source configuration was reviewed; real-origin hosted checks were not rerun.                                  |
-| Health         | PASS (local)                  | Live/readiness/version tests pass, including simulated database outage behavior.                                           |
-| Metrics        | PASS (local)                  | `/health/metrics` and new `/metrics` HTTP tests pass.                                                                      |
-| CI             | UNVERIFIED at report creation | Local gates pass; the post-push GitHub Actions run must be checked separately.                                             |
+| Check                       | Result              | Evidence                                                                                                                        |
+| --------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Web                         | UNVERIFIED          | Existing Phase 6 verification is recorded in the supplied project notes; no new hosted browser run was performed.               |
+| Admin                       | UNVERIFIED          | Existing Phase 6 verification is recorded in the supplied project notes; no credentialed hosted browser run was performed.      |
+| API                         | PASS (local)        | API typecheck, test suite, lint, and build pass.                                                                                |
+| Database                    | UNVERIFIED          | No live Render database credentials or restore environment were available.                                                      |
+| Authentication              | PASS (local)        | Existing auth/session/RBAC tests pass; credentialed hosted logout/re-login remains unverified as previously documented.         |
+| Moderation                  | PASS (local)        | Existing moderation and audit tests pass.                                                                                       |
+| CORS                        | UNVERIFIED (hosted) | Exact-origin source configuration was reviewed; real-origin hosted checks were not rerun.                                       |
+| Health                      | PASS (local)        | Live/readiness/version tests pass, including simulated database outage behavior.                                                |
+| Metrics                     | PASS (local)        | `/health/metrics` and new `/metrics` HTTP tests pass.                                                                           |
+| Implementation              | VERIFIED            | `@vercel/analytics@^2.0.1` is installed and `Analytics` is rendered from `apps/web/app/layout.tsx` using the App Router import. |
+| Local validation            | VERIFIED            | Frozen install, format check, lint, typecheck, tests, and production build all pass locally.                                    |
+| CI                          | VERIFIED            | GitHub Actions run `35566560035` completed successfully, including every quality step.                                          |
+| Hosted runtime              | UNVERIFIED          | Hosted Vercel/Render smoke verification was not performed in this evidence update.                                              |
+| Analytics dashboard traffic | UNVERIFIED          | Live Vercel Analytics dashboard traffic was not independently observed.                                                         |
 
 ## 9. Unverified Items
 
-The following remain genuinely unverified: live Render rate-limit environment values; authenticated hosted logout, protected-request rejection, and re-login; hosted Web/Admin/API browser verification; real-origin hosted CORS and network-loop checks; live Render migration status; Render PostgreSQL backup/PITR configuration and restore test; and the final conclusion of the post-push GitHub Actions run, which was queued at the final check.
+The following remain genuinely unverified: live Render rate-limit environment values; authenticated hosted logout, protected-request rejection, and re-login; hosted Web/Admin/API browser verification; real-origin hosted CORS and network-loop checks; live Render migration status; Render PostgreSQL backup/PITR configuration and restore test; hosted Vercel/Render runtime behavior; and live Vercel Analytics dashboard traffic.
 
 ## 10. Risks / Recommendations
 
@@ -87,10 +91,9 @@ Before a production launch, attach evidence for a provider backup and isolated r
 
 ## 11. Git
 
-- Implementation commit SHA: `cd68eb67c7a0f5ea8ffac398050fad3d006322bc`
-- Report commit SHA: `6af97f8`
-- Commit message: `fix(api): harden payload handling and metrics endpoint`
+- Analytics/formatting commit SHA: `2941467353a37ac2fc2b0caa24988c421fc40952`
+- Commit message: `fix: format analytics dependency changes`
 - Branch: `main`
 - Working tree status: verified clean after commit/push
 
-> Post-push CI run `35545539227` was observed in `queued` state for this SHA; it was not falsely marked as passed.
+> CI run `35566560035` completed with status **PASS**. Hosted runtime and dashboard traffic remain explicitly unverified.
