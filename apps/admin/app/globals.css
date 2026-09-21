@@ -685,3 +685,213 @@ button:disabled {
     flex: 1 1 42%;
   }
 }
+
+.profile-settings-page {
+  max-width: 1240px;
+}
+.profile-settings-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: end;
+  margin-bottom: 28px;
+}
+.profile-settings-heading h1 {
+  margin-bottom: 8px;
+}
+.profile-public-link {
+  display: inline-block;
+  margin-top: 10px;
+  color: #8ec5ff;
+  overflow-wrap: anywhere;
+}
+.profile-heading-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: end;
+}
+.profile-heading-actions a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  text-decoration: none;
+}
+.profile-settings-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 24px;
+  align-items: start;
+}
+.profile-settings-form {
+  display: grid;
+  gap: 15px;
+}
+.profile-settings-form h2 {
+  margin: 12px 0 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #26334d;
+  color: #fff;
+}
+.profile-settings-form small {
+  color: #94a3b8;
+  font-weight: 500;
+  text-align: right;
+}
+.profile-settings-form label .muted {
+  font-size: 0.76rem;
+  font-weight: 500;
+}
+.profile-prompts-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+}
+.profile-prompts-heading h2 {
+  flex: 1;
+}
+.profile-prompts-list {
+  display: grid;
+  gap: 8px;
+}
+.profile-prompt-row {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+.profile-prompt-row > span {
+  color: #94a3b8;
+  font-size: 1.4rem;
+  text-align: center;
+}
+.profile-prompt-row .danger {
+  padding: 10px 12px;
+}
+.profile-save {
+  min-height: 48px;
+  margin-top: 8px;
+}
+.profile-preview-column {
+  position: sticky;
+  top: 20px;
+}
+.profile-phone-preview {
+  width: 100%;
+  max-width: 360px;
+  min-height: 640px;
+  margin: auto;
+  padding: 18px 12px;
+  overflow: hidden;
+  border: 8px solid #020617;
+  border-radius: 34px;
+  background: linear-gradient(145deg, #ef177e, #ff475f 48%, #ff9d1d);
+  box-shadow: 0 24px 60px #0006;
+}
+.profile-preview-card {
+  overflow: hidden;
+  border-radius: 24px;
+  color: #17131d;
+  background: #fff;
+}
+.profile-preview-header {
+  min-height: 114px;
+  padding: 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.profile-preview-avatar {
+  width: 52px;
+  height: 52px;
+  flex: 0 0 52px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: linear-gradient(145deg, #ff2d75, #ff7a00);
+  font-size: 1.5rem;
+}
+.profile-preview-header strong,
+.profile-preview-header span {
+  display: block;
+}
+.profile-preview-header strong {
+  font-size: 0.86rem;
+  overflow-wrap: anywhere;
+}
+.profile-preview-header span {
+  margin-top: 4px;
+  color: #736c76;
+  font-size: 0.72rem;
+  line-height: 1.25;
+}
+.profile-preview-message {
+  min-height: 142px;
+  padding: 20px 16px;
+  color: #5b3548;
+  background: linear-gradient(145deg, #ff658b, #ff8268);
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+.profile-preview-anonymous {
+  padding: 14px 12px;
+  color: #736e76;
+  font-size: 0.75rem;
+  text-align: center;
+}
+.profile-preview-send,
+.profile-preview-bottom {
+  margin: 0 12px 14px;
+  padding: 14px;
+  border-radius: 999px;
+  color: #fff;
+  background: #17131d;
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-align: center;
+}
+.profile-preview-card > p {
+  padding: 8px 14px 0;
+  color: #e05d27;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-align: center;
+}
+.profile-preview-bottom {
+  margin-top: 10px;
+}
+@media (max-width: 900px) {
+  .profile-settings-layout {
+    grid-template-columns: 1fr;
+  }
+  .profile-preview-column {
+    position: static;
+    order: 2;
+  }
+}
+@media (max-width: 620px) {
+  .profile-settings-heading {
+    display: grid;
+    align-items: start;
+  }
+  .profile-heading-actions {
+    justify-content: stretch;
+  }
+  .profile-heading-actions a {
+    flex: 1;
+    justify-content: center;
+  }
+  .profile-settings-layout {
+    gap: 18px;
+  }
+  .profile-prompt-row {
+    grid-template-columns: 16px minmax(0, 1fr);
+  }
+  .profile-prompt-row .danger {
+    grid-column: 2;
+    justify-self: start;
+  }
+}

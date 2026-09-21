@@ -1033,3 +1033,32 @@ body:has(.college-profile-page) > .site-footer {
   white-space: nowrap;
   border: 0;
 }
+
+.college-community-button {
+  width: 100%;
+  min-height: 48px;
+  margin-bottom: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid rgba(255, 255, 255, 0.86);
+  border-radius: 999px;
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+.college-community-button:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+.college-theme-pink-flame {
+  background: linear-gradient(145deg, #ec0a73 0%, #ff4275 52%, #ff8b16 100%);
+}
+.college-theme-coral {
+  background: linear-gradient(145deg, #ef426f 0%, #ff6b57 52%, #ff9c2d 100%);
+}
+.college-theme-ocean {
+  background: linear-gradient(145deg, #005bea 0%, #00c6fb 55%, #63e6be 100%);
+}
+.college-theme-midnight {
+  background: linear-gradient(145deg, #171642 0%, #472b72 55%, #be3c7e 100%);
+}

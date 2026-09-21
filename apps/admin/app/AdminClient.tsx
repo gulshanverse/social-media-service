@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { appConfig } from '@ggv/config';
 import { Logo } from '@ggv/ui';
+import ProfilePage from './ProfilePage';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 type Role = 'SUPER_ADMIN' | 'MODERATOR' | 'DESIGNER';
@@ -39,7 +40,7 @@ async function refresh() {
   runtimeToken = result.accessToken;
   return runtimeToken;
 }
-async function api(path: string, init: RequestInit = {}) {
+export async function api(path: string, init: RequestInit = {}) {
   const headers = new Headers(init.headers);
   headers.set('content-type', 'application/json');
   if (runtimeToken) headers.set('authorization', `Bearer ${runtimeToken}`);
@@ -153,6 +154,8 @@ export function Nav({ admin }: { admin: Admin }) {
   if (admin.role !== 'DESIGNER') links.push(['/confessions', 'Queue'], ['/reports', 'Reports']);
   if (admin.role === 'SUPER_ADMIN') links.push(['/audit-logs', 'Audit']);
   links.push(['/themes', 'Themes']);
+  if (admin.role === 'SUPER_ADMIN' || admin.role === 'DESIGNER')
+    links.push(['/profile-page', 'Profile Page']);
   return (
     <nav className="admin-nav" aria-label="Admin navigation">
       {links.map(([href, label]) => (
@@ -1270,6 +1273,8 @@ export default function AdminClient() {
       <AuditLogs />
     ) : pathname === '/themes' ? (
       <Themes admin={admin} />
+    ) : pathname === '/profile-page' ? (
+      <ProfilePage />
     ) : (
       <Dashboard admin={admin} />
     );

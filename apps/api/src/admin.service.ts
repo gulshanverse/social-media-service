@@ -5,6 +5,7 @@ import {
   AdminQueueQueryDto,
   BulkModerationDto,
   CreateThemeDto,
+  UpdateProfileSettingsDto,
   UpdateConfessionDto,
   UpdateThemeDto,
 } from './admin.dto';
@@ -409,6 +410,47 @@ export class AdminService {
     const item = await prisma.theme.update({ where: { id }, data });
     await recordAudit(actor.id, 'THEME_UPDATE', 'THEME', id, { changedFields: Object.keys(data) });
     increment('theme_mutations_total');
+    return item;
+  }
+  async profileSettings() {
+    const settings = await prisma.collegeConfessionProfileSettings.findUnique({
+      where: { id: 'default' },
+    });
+    if (!settings) throw new NotFoundException('Profile settings are not initialized.');
+    return settings;
+  }
+  async updateProfileSettings(body: UpdateProfileSettingsDto, actor: AdminIdentity) {
+    const data = Object.fromEntries(
+      Object.entries(body)
+        .filter(([, value]) => value !== undefined)
+        .map(([key, value]) => [
+          key,
+          key === 'prompts'
+            ? (value as string[]).map((item) => item.trim()).filter(Boolean)
+            : value,
+        ]),
+    );
+    if (data.prompts && (data.prompts as string[]).length === 0)
+      throw new BadRequestException('Keep at least one prompt enabled.');
+    const item = await prisma.collegeConfessionProfileSettings.upsert({
+      where: { id: 'default' },
+      create: {
+        id: 'default',
+        prompts: (data.prompts as string[] | undefined) ?? [],
+        updatedBy: actor.id,
+        ...data,
+      },
+      update: { ...data, updatedBy: actor.id },
+    });
+    await recordAudit(
+      actor.id,
+      'PROFILE_SETTINGS_UPDATE',
+      'COLLEGE_CONFESSION_PROFILE',
+      'default',
+      {
+        changedFields: Object.keys(data),
+      },
+    );
     return item;
   }
   async dashboard() {

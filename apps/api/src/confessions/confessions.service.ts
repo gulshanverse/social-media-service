@@ -120,6 +120,28 @@ export class ConfessionsService {
     private readonly submissions: RateLimiter = rateLimiter,
   ) {}
 
+  async profileSettings() {
+    const settings = await sharedPrisma.collegeConfessionProfileSettings.findUnique({
+      where: { id: 'default' },
+    });
+    const prompts = Array.isArray(settings?.prompts)
+      ? settings.prompts.filter(
+          (item): item is string => typeof item === 'string' && item.trim().length > 0,
+        )
+      : [];
+    return {
+      handle: settings?.handle ?? '@college.confession.ggv',
+      headerMessage: settings?.headerMessage ?? 'send me anonymous weekly Confession!',
+      defaultPrompt: settings?.defaultPrompt ?? 'Are u talking to anyone??',
+      communityButtonText: settings?.communityButtonText ?? 'Visit Community',
+      communityPath: '/confessions',
+      bottomButtonText: settings?.bottomButtonText ?? 'Get your own messages!',
+      profileImageUrl: settings?.profileImageUrl ?? null,
+      themePreset: settings?.themePreset ?? 'sunset',
+      prompts: prompts.length ? prompts : ['Are u talking to anyone??'],
+    };
+  }
+
   async create(dto: CreateConfessionDto, clientKey: string): Promise<SubmissionResult> {
     const content = dto.content?.trim();
     if (!content) throw new BadRequestException('Confession content is required.');

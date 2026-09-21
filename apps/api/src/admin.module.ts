@@ -25,6 +25,7 @@ import {
   CreateThemeDto,
   ListQueryDto,
   UpdateConfessionDto,
+  UpdateProfileSettingsDto,
   UpdateThemeDto,
 } from './admin.dto';
 
@@ -132,6 +133,17 @@ export class AdminController {
     @Req() req: { user?: ReturnType<typeof requireUser> },
   ) {
     return this.service.updateTheme(id, body, requireUser(req));
+  }
+  @Get('profile-settings') @Roles(AdminRole.SUPER_ADMIN, AdminRole.DESIGNER) profileSettings() {
+    return this.service.profileSettings();
+  }
+  @Patch('profile-settings')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.DESIGNER)
+  updateProfileSettings(
+    @Body() body: UpdateProfileSettingsDto,
+    @Req() req: { user?: ReturnType<typeof requireUser> },
+  ) {
+    return this.service.updateProfileSettings(body, requireUser(req));
   }
 }
 @Module({

@@ -31,6 +31,11 @@ export class ConfessionsController {
     return this.confessions.list({ page: page ?? 1, limit: limit ?? 12 });
   }
 
+  @Get('profile-settings')
+  profileSettings() {
+    return this.confessions.profileSettings();
+  }
+
   @Get(':publicId')
   findOne(@Param('publicId') publicId: string) {
     return this.confessions.findPublished(publicId);

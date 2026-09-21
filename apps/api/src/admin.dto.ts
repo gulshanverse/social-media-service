@@ -14,8 +14,9 @@ import {
   IsArray,
   ArrayNotEmpty,
   ArrayMaxSize,
+  IsUrl,
+  validateSync,
 } from 'class-validator';
-import { validateSync } from 'class-validator';
 import { ConfessionCategory, ConfessionStatus, ReportStatus } from '@prisma/client';
 import { appConfig } from '@ggv/config';
 
@@ -52,6 +53,20 @@ export class UpdateThemeDto {
   @IsOptional() @IsString() @MinLength(1) @MaxLength(120) fontFamily?: string;
   @IsOptional() @IsInt() @Min(0) @Max(100) radius?: number;
 }
+export class UpdateProfileSettingsDto {
+  @IsOptional() @IsString() @MinLength(1) @MaxLength(80) handle?: string;
+  @IsOptional() @IsString() @MinLength(1) @MaxLength(120) headerMessage?: string;
+  @IsOptional() @IsString() @MinLength(1) @MaxLength(120) defaultPrompt?: string;
+  @IsOptional() @IsString() @MinLength(1) @MaxLength(80) communityButtonText?: string;
+  @IsOptional() @IsIn(['/confessions']) communityPath?: '/confessions';
+  @IsOptional() @IsString() @MinLength(1) @MaxLength(80) bottomButtonText?: string;
+  @IsOptional()
+  @IsUrl({ protocols: ['https'], require_protocol: true })
+  @MaxLength(1000)
+  profileImageUrl?: string;
+  @IsOptional() @IsIn(['sunset', 'pink-flame', 'coral', 'ocean', 'midnight']) themePreset?: string;
+  @IsOptional() @IsArray() @ArrayMaxSize(20) @IsString({ each: true }) prompts?: string[];
+}
 export class RefreshDto {}
 export class ListQueryDto {
   @IsOptional() @Transform(({ value }) => Number(value)) @IsInt() @Min(1) page = 1;
@@ -77,7 +92,6 @@ export class BulkModerationDto {
   @IsArray() @ArrayNotEmpty() @ArrayMaxSize(100) @IsString({ each: true }) ids!: string[];
   @IsIn(['approve', 'reject', 'archive']) action!: 'approve' | 'reject' | 'archive';
 }
-
 export class BulkModerationPipe implements PipeTransform {
   transform(value: unknown) {
     const dto = plainToInstance(BulkModerationDto, value);

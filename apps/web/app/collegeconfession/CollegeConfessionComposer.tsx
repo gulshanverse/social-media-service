@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { appConfig } from '@ggv/config';
 import { createConfession } from '../../lib/api';
 
-const prompts = [
+const fallbackPrompts = [
   'Are u talking to anyone??',
   'Who is your current college crush?',
   "What is something you've never told anyone?",
@@ -13,16 +13,23 @@ const prompts = [
   "What's your funniest college memory?",
 ];
 
-export default function CollegeConfessionComposer() {
-  const [prompt, setPrompt] = useState(prompts[0]);
+export default function CollegeConfessionComposer({
+  defaultPrompt,
+  prompts,
+}: {
+  defaultPrompt: string;
+  prompts: string[];
+}) {
+  const safePrompts = prompts.length ? prompts : fallbackPrompts;
+  const [prompt, setPrompt] = useState(defaultPrompt || safePrompts[0]);
   const [content, setContent] = useState('');
   const [state, setState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [error, setError] = useState('');
 
   function pickPrompt() {
     setPrompt((current) => {
-      const choices = prompts.filter((item) => item !== current);
-      return choices[Math.floor(Math.random() * choices.length)] ?? prompts[0];
+      const choices = safePrompts.filter((item) => item !== current);
+      return choices[Math.floor(Math.random() * choices.length)] ?? safePrompts[0];
     });
   }
 

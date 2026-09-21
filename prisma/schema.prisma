@@ -71,22 +71,22 @@ model AdminSession {
 }
 
 model Theme {
-  id              String       @id @default(cuid())
-  slug            String       @unique
-  name            String
-  background      String
-  gradient        String
-  textColor       String
-  accentColor     String
-  fontFamily      String
-  borderStyle     String       @default("solid")
-  radius          Int          @default(28)
-  logoVisibility  Boolean      @default(true)
-  handleVisibility Boolean     @default(true)
-  layoutVariant   String       @default("classic")
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-  confessions     Confession[]
+  id               String       @id @default(cuid())
+  slug             String       @unique
+  name             String
+  background       String
+  gradient         String
+  textColor        String
+  accentColor      String
+  fontFamily       String
+  borderStyle      String       @default("solid")
+  radius           Int          @default(28)
+  logoVisibility   Boolean      @default(true)
+  handleVisibility Boolean      @default(true)
+  layoutVariant    String       @default("classic")
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  confessions      Confession[]
 }
 
 model Confession {
@@ -144,4 +144,21 @@ model AuditLog {
   @@index([action, createdAt])
   @@index([entity, createdAt])
   @@index([entityId])
+}
+
+model CollegeConfessionProfileSettings {
+  id                  String   @id @default("default")
+  handle              String   @default("@college.confession.ggv")
+  headerMessage       String   @default("send me anonymous weekly Confession!")
+  defaultPrompt       String   @default("Are u talking to anyone??")
+  communityButtonText String   @default("Visit Community")
+  communityPath       String   @default("/confessions")
+  bottomButtonText    String   @default("Get your own messages!")
+  profileImageUrl     String?
+  themePreset         String   @default("sunset")
+  prompts             Json
+  updatedAt           DateTime @updatedAt
+  updatedBy           String?
+
+  @@index([updatedAt])
 }
