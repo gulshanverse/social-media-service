@@ -14,17 +14,15 @@ The Published metric card was clicked through its full card element and reached 
 
 ## B. Mobile admin QA
 
-A full 360×800, 375×812, 390×844, and 412×915 interactive browser pass could not be completed in the connected browser. Later dynamic browser inspection and click calls timed out. No mobile pass result is claimed for login, moderation buttons, reports, themes, or logout.
-
-The source contains responsive admin layout rules and 44px-or-larger touch controls, but this is not a substitute for production device verification.
+This pass focused on the deployed public site and share flows. A production admin mobile interaction pass was not run with the headless public-site harness; no mobile admin result is claimed for login, moderation buttons, reports, themes, or logout.
 
 ## C. Public mobile QA
 
-A complete production mobile viewport pass could not be completed because the connected browser timed out while waiting for dynamic public pages. No mobile visual pass is claimed.
+The deployed homepage, confession feed, send page, and published confession detail were tested at **360×800, 375×812, 390×844, and 412×915** using headless Chromium with real mobile viewport sizes. All 16 page/viewport combinations matched their requested viewport width, had no horizontal overflow, and produced no 404 responses. The pages rendered without clipping in the captured 360px homepage and detail screenshots; the share popover remained within the 360px viewport.
 
 ## D. Send Confession hitbox result
 
-The public homepage loaded and exposed the Send a confession route. A full browser click verification of the CTA could not be completed because the connected browser timed out during the click operation. Therefore the entire hitbox is **not marked verified** in this report.
+The primary **Send a Confession** CTA was clicked at both left and right edges at all four widths and navigated to `/send` successfully. The full primary CTA hitbox therefore passes the mobile test. The lower-page “Send your confession” footer CTA was not used for this edge test because it is below the initial viewport and the test harness intentionally did not scroll it into view.
 
 ## E. Mobile Publish result
 
@@ -48,7 +46,7 @@ The published confession page `https://www.confessions.live/confessions/mub7my21
 - `og:image`: dynamic `/opengraph-image` URL
 - Twitter summary-large-image metadata
 
-The page HTML includes the Share control. Individual Copy Link, Native Share, WhatsApp, Facebook, and Telegram interactions were not completed because the connected browser timed out on dynamic page inspection. No claim of successful platform-share interaction is made.
+The Share menu was opened at all four widths. Copy Link was clicked and returned `Link copied!` at all four widths. The menu stayed within the viewport at 360px. WhatsApp, Facebook, and Telegram links were inspected and all pointed to the clean canonical URL `https://www.confessions.live/confessions/mub7my21-60dbef49`. Native Share was not available in headless Chromium (`navigator.share` was false), so the OS share sheet was not testable in this environment. Instagram correctly uses the copy-link fallback.
 
 ## I. Branding result
 
@@ -58,7 +56,7 @@ The smallest targeted fix changed only those three public headers. Commit `0c5e6
 
 ## J. Regressions
 
-No regression was observed in the desktop admin dashboard load, authenticated session, dashboard data rendering, Published card navigation, public homepage rendering, public feed response, or published confession metadata. Full mobile and interactive share regression coverage remains outstanding because of browser timeouts.
+No regression was observed in the desktop admin dashboard load, authenticated session, dashboard data rendering, Published card navigation, public homepage rendering, public feed response, published confession metadata, mobile page widths, CTA hitboxes, or copy/platform share URL generation. The homepage emitted one non-blocking missing `/favicon.ico` 404 in the 360px diagnostic; this is unrelated to layout or share behavior and was not changed under the focused QA scope.
 
 ## K. Fixes made
 
@@ -78,6 +76,9 @@ No database schema, authentication, hosting, DNS, analytics, or infrastructure c
 - Vercel deployment inspection — web deployment for `0c5e672` reported `READY`
 - Production HTML checks for `/`, `/confessions`, and `/send` — completed
 - Production published confession metadata check — completed
+- Headless Chromium mobile QA at 360×800, 375×812, 390×844, and 412×915 — passed for public pages
+- Primary Send a Confession left/right edge hitbox checks at all four widths — passed
+- Share menu, Copy Link feedback, and WhatsApp/Facebook/Telegram canonical URL checks at all four widths — passed
 
 The web build emitted existing non-blocking CSS autoprefixer and Edge-runtime warnings.
 
@@ -89,4 +90,4 @@ Deployment was required because a genuine public branding defect was found. The 
 
 `0c5e672` — `fix: align public headers with college confession branding`
 
-> **QA conclusion:** Partial production QA completed with one genuine branding defect fixed and deployed. Mobile interaction, CTA hitbox, moderation transition, and platform-share interactions remain unverified rather than being reported as passed because the connected browser timed out.
+> **QA conclusion:** Public mobile layout and share-flow QA passed at all four requested viewport sizes. The primary Send a Confession CTA passed left/right edge hitbox checks. Native OS Share was unavailable in headless Chromium, and mobile admin moderation flows were outside this public-site harness pass.
