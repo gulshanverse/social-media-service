@@ -1,5 +1,6 @@
 import { Analytics } from '@vercel/analytics/next';
 import type { Metadata } from 'next';
+import Script from 'next/script';
 import '@ggv/ui/src/styles.css';
 import './globals.css';
 import { SiteFooter } from '../components/SiteFooter';
@@ -30,6 +31,14 @@ export const metadata: Metadata = {
 export default function Layout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
+      <head>
+        <Script
+          async
+          strategy="beforeInteractive"
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8185076856023549"
+          crossOrigin="anonymous"
+        />
+      </head>
       <body>
         <PublicHeader />
         {children}
