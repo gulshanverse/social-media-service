@@ -99,8 +99,9 @@ The existing working domains remain available. If a future custom-domain rollout
 ## 14. Git
 
 - Commit SHA before this report update: `1e73333` (`docs: add phase 8 domain launch evidence`)
-- Commit message for this report update: to be recorded after commit
+- Commit SHA for this report update: `cef4e93`
+- Commit message: `docs: finalize phase 8 launch evidence`
 - Branch: `main`
-- Working tree: report update pending commit
+- Working tree: clean after push
 
 No production source, authentication, CORS, database migration, or deployment configuration files were modified.
