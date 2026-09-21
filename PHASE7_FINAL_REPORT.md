@@ -8,29 +8,29 @@ Hosted deployment verification, live Render database readiness, backup restorati
 
 ## 2. Changes Implemented
 
-| File | What changed | Why | Security/reliability impact |
-|---|---|---|---|
-| `apps/api/src/main.ts` | Disabled Nest's default body parser, installed Express JSON parsing with a `32kb` limit, and moved request-ID middleware before parsing. | The previous parser had no repository-level bounded payload policy, and parser failures could bypass request correlation. | Limits oversized payload abuse and ensures parser failures retain an `X-Request-ID` for incident diagnosis. |
-| `apps/api/src/api-errors.ts` | Normalized body-parser errors and malformed JSON into safe `400`/`413` responses without exposing parser internals. | Malformed JSON was returned with an implementation-specific message; oversized payload errors were not consistently classified. | Prevents internal parser details from reaching clients and preserves structured error semantics. |
-| `apps/api/src/module.ts` | Added root `GET /metrics` using the existing process-local metrics snapshot. | Phase 7 operational requirements and runbook refer to `/metrics`; only `/health/metrics` existed. | Makes the documented observability contract available without changing existing health behavior. |
-| `apps/api/src/phase5-http.test.ts` | Added regression tests for root metrics, malformed JSON, and oversized JSON payloads. | Locks in the production-hardening behavior with meaningful HTTP-level coverage. | Prevents regressions in safe error handling and operational endpoints. |
-| `PHASE7_FINAL_REPORT.md` | Added this audit and validation record. | Required Phase 7 deliverable. | Records evidence and avoids false claims about unavailable hosted checks. |
+| File                               | What changed                                                                                                                             | Why                                                                                                                             | Security/reliability impact                                                                                 |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `apps/api/src/main.ts`             | Disabled Nest's default body parser, installed Express JSON parsing with a `32kb` limit, and moved request-ID middleware before parsing. | The previous parser had no repository-level bounded payload policy, and parser failures could bypass request correlation.       | Limits oversized payload abuse and ensures parser failures retain an `X-Request-ID` for incident diagnosis. |
+| `apps/api/src/api-errors.ts`       | Normalized body-parser errors and malformed JSON into safe `400`/`413` responses without exposing parser internals.                      | Malformed JSON was returned with an implementation-specific message; oversized payload errors were not consistently classified. | Prevents internal parser details from reaching clients and preserves structured error semantics.            |
+| `apps/api/src/module.ts`           | Added root `GET /metrics` using the existing process-local metrics snapshot.                                                             | Phase 7 operational requirements and runbook refer to `/metrics`; only `/health/metrics` existed.                               | Makes the documented observability contract available without changing existing health behavior.            |
+| `apps/api/src/phase5-http.test.ts` | Added regression tests for root metrics, malformed JSON, and oversized JSON payloads.                                                    | Locks in the production-hardening behavior with meaningful HTTP-level coverage.                                                 | Prevents regressions in safe error handling and operational endpoints.                                      |
+| `PHASE7_FINAL_REPORT.md`           | Added this audit and validation record.                                                                                                  | Required Phase 7 deliverable.                                                                                                   | Records evidence and avoids false claims about unavailable hosted checks.                                   |
 
 ## 3. Security Audit
 
-| Area | Result | Evidence |
-|---|---|---|
-| Authentication | PASS | Existing JWT access/refresh, session rotation, revocation, logout, and auth tests were preserved; API suite passes. |
-| Authorization | PASS | Backend guards and role tests remain in place; HTTP RBAC tests pass. |
-| Cookies | PASS | Existing production HttpOnly/Secure/SameSite=None cross-site refresh-cookie behavior was not changed. |
-| CORS | PASS | Existing exact-origin credentialed CORS configuration was not changed. |
-| CSRF | PASS | Refresh credentials remain cookie-bound and scoped by existing auth behavior; no wildcard CORS introduced. |
-| Input validation | PASS | Existing DTO whitelist/forbid-non-whitelisted validation remains; new 32 KB JSON parser bound and parser tests pass. |
-| Rate limiting | PASS | Existing public submission, login, refresh, and proxy-aware limiter implementation/tests were not changed; live values remain unverified. |
-| Secrets | PASS | No secrets, credentials, tokens, or database URLs were added; structured logging filters sensitive field names. |
-| Error handling | PASS | Safe exception filter now returns generic structured responses for malformed JSON and oversized payloads; HTTP tests pass. |
-| Headers | PASS | Existing Helmet middleware remains enabled. |
-| Logging | PASS | Request IDs are assigned before body parsing and existing structured request logs remain content-free. |
+| Area             | Result | Evidence                                                                                                                                  |
+| ---------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Authentication   | PASS   | Existing JWT access/refresh, session rotation, revocation, logout, and auth tests were preserved; API suite passes.                       |
+| Authorization    | PASS   | Backend guards and role tests remain in place; HTTP RBAC tests pass.                                                                      |
+| Cookies          | PASS   | Existing production HttpOnly/Secure/SameSite=None cross-site refresh-cookie behavior was not changed.                                     |
+| CORS             | PASS   | Existing exact-origin credentialed CORS configuration was not changed.                                                                    |
+| CSRF             | PASS   | Refresh credentials remain cookie-bound and scoped by existing auth behavior; no wildcard CORS introduced.                                |
+| Input validation | PASS   | Existing DTO whitelist/forbid-non-whitelisted validation remains; new 32 KB JSON parser bound and parser tests pass.                      |
+| Rate limiting    | PASS   | Existing public submission, login, refresh, and proxy-aware limiter implementation/tests were not changed; live values remain unverified. |
+| Secrets          | PASS   | No secrets, credentials, tokens, or database URLs were added; structured logging filters sensitive field names.                           |
+| Error handling   | PASS   | Safe exception filter now returns generic structured responses for malformed JSON and oversized payloads; HTTP tests pass.                |
+| Headers          | PASS   | Existing Helmet middleware remains enabled.                                                                                               |
+| Logging          | PASS   | Request IDs are assigned before body parsing and existing structured request logs remain content-free.                                    |
 
 ## 4. Observability
 
@@ -64,18 +64,18 @@ The implementation is pushed to the `main` branch so the repository's existing d
 
 ## 8. Production Verification
 
-| Check | Result | Evidence |
-|---|---|---|
-| Web | UNVERIFIED | Existing Phase 6 verification is recorded in the supplied project notes; no new hosted browser run was performed. |
-| Admin | UNVERIFIED | Existing Phase 6 verification is recorded in the supplied project notes; no credentialed hosted browser run was performed. |
-| API | PASS (local) | API typecheck, test suite, lint, and build pass. |
-| Database | UNVERIFIED | No live Render database credentials or restore environment were available. |
-| Authentication | PASS (local) | Existing auth/session/RBAC tests pass; credentialed hosted logout/re-login remains unverified as previously documented. |
-| Moderation | PASS (local) | Existing moderation and audit tests pass. |
-| CORS | UNVERIFIED (hosted) | Exact-origin source configuration was reviewed; real-origin hosted checks were not rerun. |
-| Health | PASS (local) | Live/readiness/version tests pass, including simulated database outage behavior. |
-| Metrics | PASS (local) | `/health/metrics` and new `/metrics` HTTP tests pass. |
-| CI | UNVERIFIED at report creation | Local gates pass; the post-push GitHub Actions run must be checked separately. |
+| Check          | Result                        | Evidence                                                                                                                   |
+| -------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Web            | UNVERIFIED                    | Existing Phase 6 verification is recorded in the supplied project notes; no new hosted browser run was performed.          |
+| Admin          | UNVERIFIED                    | Existing Phase 6 verification is recorded in the supplied project notes; no credentialed hosted browser run was performed. |
+| API            | PASS (local)                  | API typecheck, test suite, lint, and build pass.                                                                           |
+| Database       | UNVERIFIED                    | No live Render database credentials or restore environment were available.                                                 |
+| Authentication | PASS (local)                  | Existing auth/session/RBAC tests pass; credentialed hosted logout/re-login remains unverified as previously documented.    |
+| Moderation     | PASS (local)                  | Existing moderation and audit tests pass.                                                                                  |
+| CORS           | UNVERIFIED (hosted)           | Exact-origin source configuration was reviewed; real-origin hosted checks were not rerun.                                  |
+| Health         | PASS (local)                  | Live/readiness/version tests pass, including simulated database outage behavior.                                           |
+| Metrics        | PASS (local)                  | `/health/metrics` and new `/metrics` HTTP tests pass.                                                                      |
+| CI             | UNVERIFIED at report creation | Local gates pass; the post-push GitHub Actions run must be checked separately.                                             |
 
 ## 9. Unverified Items
 
