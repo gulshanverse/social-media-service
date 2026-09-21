@@ -93,12 +93,16 @@ export default function ProfilePage() {
     setNotice('');
     setError('');
     try {
+      const payload: Record<string, unknown> = {
+        ...settings,
+        prompts: settings.prompts.filter((item) => item.trim()),
+      };
+      if (typeof payload.profileImageUrl === 'string' && !payload.profileImageUrl.trim()) {
+        delete payload.profileImageUrl;
+      }
       const saved = await api('/admin/profile-settings', {
         method: 'PATCH',
-        body: JSON.stringify({
-          ...settings,
-          prompts: settings.prompts.filter((item) => item.trim()),
-        }),
+        body: JSON.stringify(payload),
       });
       setSettings({ ...defaults, ...saved });
       setNotice('Profile page changes saved successfully.');
