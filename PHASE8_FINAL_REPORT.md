@@ -10,21 +10,21 @@ The API custom hostname `api.confessions.live` is not currently verified as atta
 
 ## 2. Final Architecture
 
-| Component | Target architecture | Verified state |
-| --- | --- | --- |
-| Public Web | `https://confessions.live` with Vercel project `social-media-service-staging-web` | Vercel association and domain verification PASS; live HTTPS request from this sandbox UNVERIFIED. Provider canonical redirect is to `https://www.confessions.live`. |
-| API | `https://api.confessions.live` on existing Render service `social-media-service-staging-api` | UNVERIFIED; custom hostname was not reachable and was not present in returned Render service metadata. |
-| Admin | `https://smsccadmin.vercel.app` on existing Vercel project `social-media-service-admin` | Existing domain association PASS; no Phase 8 change made. Authenticated browser workflow UNVERIFIED. |
-| Database | Existing Render PostgreSQL `social-media-service-staging-db` | Instance exists and was reported `available`; no database change made. |
+| Component  | Target architecture                                                                          | Verified state                                                                                                                                                      |
+| ---------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Public Web | `https://confessions.live` with Vercel project `social-media-service-staging-web`            | Vercel association and domain verification PASS; live HTTPS request from this sandbox UNVERIFIED. Provider canonical redirect is to `https://www.confessions.live`. |
+| API        | `https://api.confessions.live` on existing Render service `social-media-service-staging-api` | UNVERIFIED; custom hostname was not reachable and was not present in returned Render service metadata.                                                              |
+| Admin      | `https://smsccadmin.vercel.app` on existing Vercel project `social-media-service-admin`      | Existing domain association PASS; no Phase 8 change made. Authenticated browser workflow UNVERIFIED.                                                                |
+| Database   | Existing Render PostgreSQL `social-media-service-staging-db`                                 | Instance exists and was reported `available`; no database change made.                                                                                              |
 
 ## 3. Domain Configuration
 
-| Component | Old URL | New URL | Status | Evidence |
-| --- | --- | --- | --- | --- |
-| Public Web | `https://collegeconfession.vercel.app` | `https://confessions.live` | PASS provider association / UNVERIFIED live HTTPS | Vercel reported both domains on `social-media-service-staging-web` with `verified: true`; the old alias remains attached. |
-| Web canonical | N/A | `https://www.confessions.live` | PASS provider configuration / UNVERIFIED live HTTPS | Vercel reported `confessions.live` redirecting to `www.confessions.live` with status `308`. |
-| API | `https://social-media-service-staging-api.onrender.com` | `https://api.confessions.live` | UNVERIFIED | Render reported the existing `onrender.com` URL only; the custom hostname returned no successful HTTPS response. |
-| Admin | `https://smsccadmin.vercel.app` | unchanged | PASS association / UNVERIFIED authenticated flow | Vercel reported the domain verified on `social-media-service-admin`; no admin domain change was made. |
+| Component     | Old URL                                                 | New URL                        | Status                                              | Evidence                                                                                                                  |
+| ------------- | ------------------------------------------------------- | ------------------------------ | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Public Web    | `https://collegeconfession.vercel.app`                  | `https://confessions.live`     | PASS provider association / UNVERIFIED live HTTPS   | Vercel reported both domains on `social-media-service-staging-web` with `verified: true`; the old alias remains attached. |
+| Web canonical | N/A                                                     | `https://www.confessions.live` | PASS provider configuration / UNVERIFIED live HTTPS | Vercel reported `confessions.live` redirecting to `www.confessions.live` with status `308`.                               |
+| API           | `https://social-media-service-staging-api.onrender.com` | `https://api.confessions.live` | UNVERIFIED                                          | Render reported the existing `onrender.com` URL only; the custom hostname returned no successful HTTPS response.          |
+| Admin         | `https://smsccadmin.vercel.app`                         | unchanged                      | PASS association / UNVERIFIED authenticated flow    | Vercel reported the domain verified on `social-media-service-admin`; no admin domain change was made.                     |
 
 ## 4. DNS / TLS
 
@@ -36,11 +36,11 @@ The API hostname `api.confessions.live` did not complete HTTPS requests for `/he
 
 No production environment changes were made because the custom API domain was not confirmed healthy first.
 
-| Variable | Current evidence | Phase 8 status |
-| --- | --- | --- |
-| `NEXT_PUBLIC_API_URL` | Production value on both Vercel web and admin projects is `https://social-media-service-staging-api.onrender.com`. | Target `https://api.confessions.live` NOT APPLIED; safe rollback preserved. |
-| `WEB_ORIGIN` | Render environment values were not decrypted or printed. Repository configuration requires an explicit origin. | Target `https://confessions.live` NOT APPLIED pending API-domain verification. |
-| `ADMIN_ORIGIN` | Required existing admin origin is `https://smsccadmin.vercel.app`. | Unchanged; no wildcard origin introduced. |
+| Variable              | Current evidence                                                                                                   | Phase 8 status                                                                 |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
+| `NEXT_PUBLIC_API_URL` | Production value on both Vercel web and admin projects is `https://social-media-service-staging-api.onrender.com`. | Target `https://api.confessions.live` NOT APPLIED; safe rollback preserved.    |
+| `WEB_ORIGIN`          | Render environment values were not decrypted or printed. Repository configuration requires an explicit origin.     | Target `https://confessions.live` NOT APPLIED pending API-domain verification. |
+| `ADMIN_ORIGIN`        | Required existing admin origin is `https://smsccadmin.vercel.app`.                                                 | Unchanged; no wildcard origin introduced.                                      |
 
 No secret values were read, printed, committed, or changed.
 
@@ -54,17 +54,17 @@ No authentication code or configuration was changed. The previously implemented 
 
 ## 8. Production Smoke Test
 
-| Check | Result | Evidence |
-| --- | --- | --- |
-| Existing web homepage | PASS | `https://collegeconfession.vercel.app` returned HTTP 200. |
-| Custom web homepage | UNVERIFIED | `https://confessions.live` did not complete a successful HTTPS request from this sandbox. |
-| Existing API live health | PASS | `https://social-media-service-staging-api.onrender.com/health/live` returned HTTP 200 and `{"status":"ok","service":"social-media-service-api"}`. |
-| Custom API live health | UNVERIFIED | `https://api.confessions.live/health/live` did not complete HTTPS. |
-| Custom API readiness/version/metrics | UNVERIFIED | Target hostname was not reachable. |
-| Public submission | UNVERIFIED | No production record was created while the target API was unverified. |
-| Moderation and admin | UNVERIFIED | No authenticated hosted browser session was available; no credentials were exposed. |
-| Published/rejected visibility | UNVERIFIED | No production test record was created or moderated. |
-| Admin refresh/session persistence | UNVERIFIED | Requires authenticated browser verification. |
+| Check                                | Result     | Evidence                                                                                                                                          |
+| ------------------------------------ | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Existing web homepage                | PASS       | `https://collegeconfession.vercel.app` returned HTTP 200.                                                                                         |
+| Custom web homepage                  | UNVERIFIED | `https://confessions.live` did not complete a successful HTTPS request from this sandbox.                                                         |
+| Existing API live health             | PASS       | `https://social-media-service-staging-api.onrender.com/health/live` returned HTTP 200 and `{"status":"ok","service":"social-media-service-api"}`. |
+| Custom API live health               | UNVERIFIED | `https://api.confessions.live/health/live` did not complete HTTPS.                                                                                |
+| Custom API readiness/version/metrics | UNVERIFIED | Target hostname was not reachable.                                                                                                                |
+| Public submission                    | UNVERIFIED | No production record was created while the target API was unverified.                                                                             |
+| Moderation and admin                 | UNVERIFIED | No authenticated hosted browser session was available; no credentials were exposed.                                                               |
+| Published/rejected visibility        | UNVERIFIED | No production test record was created or moderated.                                                                                               |
+| Admin refresh/session persistence    | UNVERIFIED | Requires authenticated browser verification.                                                                                                      |
 
 ## 9. Analytics
 
@@ -78,15 +78,15 @@ The latest GitHub Actions CI run observed for `main` was `35571160035` with resu
 
 ## 11. Security
 
-| Area | Result | Evidence |
-| --- | --- | --- |
-| HTTPS | UNVERIFIED for target live endpoints | Vercel provider verification exists, but target live web/API TLS requests did not both complete successfully. |
-| CORS | UNVERIFIED for target domains | Exact-origin behavior remains; custom-domain browser requests were not verified. |
-| Cookies | PASS implementation unchanged / hosted verification UNVERIFIED | No cookie code or configuration was changed; target authenticated flow was not available. |
-| Secrets | PASS | No secret values were read, printed, committed, or changed. |
-| Mixed content | UNVERIFIED | No successful target-domain browser session was available. |
-| Redirect behavior | PASS provider configuration / live behavior UNVERIFIED | Vercel reported apex-to-`www` 308; live redirect completion was not observed. |
-| Database exposure | PASS no change | Existing Render PostgreSQL was retained; no migration, `db push`, or exposure change was made. |
+| Area              | Result                                                         | Evidence                                                                                                      |
+| ----------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| HTTPS             | UNVERIFIED for target live endpoints                           | Vercel provider verification exists, but target live web/API TLS requests did not both complete successfully. |
+| CORS              | UNVERIFIED for target domains                                  | Exact-origin behavior remains; custom-domain browser requests were not verified.                              |
+| Cookies           | PASS implementation unchanged / hosted verification UNVERIFIED | No cookie code or configuration was changed; target authenticated flow was not available.                     |
+| Secrets           | PASS                                                           | No secret values were read, printed, committed, or changed.                                                   |
+| Mixed content     | UNVERIFIED                                                     | No successful target-domain browser session was available.                                                    |
+| Redirect behavior | PASS provider configuration / live behavior UNVERIFIED         | Vercel reported apex-to-`www` 308; live redirect completion was not observed.                                 |
+| Database exposure | PASS no change                                                 | Existing Render PostgreSQL was retained; no migration, `db push`, or exposure change was made.                |
 
 ## 12. Remaining Unverified Items
 
