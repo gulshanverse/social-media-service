@@ -32,23 +32,23 @@ The existing database and service architecture were unchanged.
 
 ## 3. Domain Verification
 
-| Domain | Result | Evidence |
-| --- | --- | --- |
-| `https://confessions.live` | **VERIFIED** | HTTP 308 redirect to `https://www.confessions.live/`; Vercel serves the redirect. |
-| `https://www.confessions.live` | **VERIFIED** | HTTP 200; production page rendered with CSS, JavaScript, navigation, submission, and community controls. |
-| `https://api.confessions.live` | **VERIFIED** | HTTPS/TLS succeeded; all required API health endpoints returned HTTP 200. |
-| `https://smsccadmin.vercel.app` | **VERIFIED** shell only | HTTP 200; admin sign-in screen rendered. Authenticated workflow remains unverified. |
+| Domain                          | Result                  | Evidence                                                                                                 |
+| ------------------------------- | ----------------------- | -------------------------------------------------------------------------------------------------------- |
+| `https://confessions.live`      | **VERIFIED**            | HTTP 308 redirect to `https://www.confessions.live/`; Vercel serves the redirect.                        |
+| `https://www.confessions.live`  | **VERIFIED**            | HTTP 200; production page rendered with CSS, JavaScript, navigation, submission, and community controls. |
+| `https://api.confessions.live`  | **VERIFIED**            | HTTPS/TLS succeeded; all required API health endpoints returned HTTP 200.                                |
+| `https://smsccadmin.vercel.app` | **VERIFIED** shell only | HTTP 200; admin sign-in screen rendered. Authenticated workflow remains unverified.                      |
 
 The old `collegeconfession.vercel.app` alias remains available.
 
 ## 4. API Health
 
-| Endpoint | HTTP status | Safe response summary |
-| --- | ---: | --- |
-| `/health/live` | **200** | API status `ok`. |
-| `/health/ready` | **200** | Database status `ok`. |
-| `/health/version` | **200** | Service version metadata returned safely; the manually configured commit field is stale, while the Render deployment record is the authoritative deployment evidence. |
-| `/metrics` | **200** | Metrics JSON returned successfully. |
+| Endpoint          | HTTP status | Safe response summary                                                                                                                                                 |
+| ----------------- | ----------: | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/health/live`    |     **200** | API status `ok`.                                                                                                                                                      |
+| `/health/ready`   |     **200** | Database status `ok`.                                                                                                                                                 |
+| `/health/version` |     **200** | Service version metadata returned safely; the manually configured commit field is stale, while the Render deployment record is the authoritative deployment evidence. |
+| `/metrics`        |     **200** | Metrics JSON returned successfully.                                                                                                                                   |
 
 Render confirms deployment `dep-daodum7f3r2c73eoojg0` is **live** for commit `3153c73716bcb78760e7a0dff9c30a0476a58bb1`, `fix(api): include express runtime dependency`. No startup crash or `Cannot find module 'express'` failure was observed after deployment.
 
@@ -65,16 +65,16 @@ The browser-rendered application uses the custom API target. Repository producti
 
 ## 6. Admin
 
-| Check | Result | Evidence |
-| --- | --- | --- |
-| Admin page shell | **VERIFIED** | `https://smsccadmin.vercel.app` returned HTTP 200 and rendered the sign-in form. |
-| Admin-origin API reachability | **VERIFIED** | Browser-origin fetch from the admin origin to the custom API health endpoint returned HTTP 200. |
-| Admin CORS preflight | **VERIFIED** | Exact origin `https://smsccadmin.vercel.app` returned HTTP 204 with credentials enabled. |
-| Login | **UNVERIFIED** | No authenticated browser session or usable credentials were available. |
-| Dashboard | **UNVERIFIED** | Requires successful login. |
-| Moderation | **UNVERIFIED** | Requires successful login. |
-| Refresh/session persistence | **UNVERIFIED** | Requires successful login and browser refresh. |
-| Logout and protected-route rejection | **UNVERIFIED** | Requires successful login. |
+| Check                                | Result         | Evidence                                                                                        |
+| ------------------------------------ | -------------- | ----------------------------------------------------------------------------------------------- |
+| Admin page shell                     | **VERIFIED**   | `https://smsccadmin.vercel.app` returned HTTP 200 and rendered the sign-in form.                |
+| Admin-origin API reachability        | **VERIFIED**   | Browser-origin fetch from the admin origin to the custom API health endpoint returned HTTP 200. |
+| Admin CORS preflight                 | **VERIFIED**   | Exact origin `https://smsccadmin.vercel.app` returned HTTP 204 with credentials enabled.        |
+| Login                                | **UNVERIFIED** | No authenticated browser session or usable credentials were available.                          |
+| Dashboard                            | **UNVERIFIED** | Requires successful login.                                                                      |
+| Moderation                           | **UNVERIFIED** | Requires successful login.                                                                      |
+| Refresh/session persistence          | **UNVERIFIED** | Requires successful login and browser refresh.                                                  |
+| Logout and protected-route rejection | **UNVERIFIED** | Requires successful login.                                                                      |
 
 No admin account was created, rotated, or modified.
 
@@ -94,16 +94,16 @@ The controlled record was not directly deleted or modified through SQL. Its data
 
 ## 8. Security Verification
 
-| Area | Result | Evidence |
-| --- | --- | --- |
-| HTTPS/TLS | **VERIFIED** | Custom web and API URLs completed HTTPS successfully with valid provider responses. |
-| CORS | **VERIFIED** for tested public and admin origins | Exact origins were returned; credentials were enabled; wildcard credentialed CORS was not observed. |
-| Cookies | **UNVERIFIED** in hosted authenticated flow | Existing implementation was not changed; cookie attributes require an authenticated session to inspect. |
-| Body-size limit | **VERIFIED** | Oversized JSON request returned HTTP 413 with `PAYLOAD_TOO_LARGE`. |
-| Malformed JSON | **VERIFIED** | Malformed JSON returned HTTP 400 with `VALIDATION_ERROR` and a request ID. |
-| Request IDs | **VERIFIED** | Error responses included request IDs. |
-| Secrets | **VERIFIED** | No passwords, tokens, database URLs, or secret values were printed or committed. |
-| Database safety | **VERIFIED** | Existing PostgreSQL was retained; no reset, `db push`, destructive SQL, or migration changes were performed. |
+| Area            | Result                                           | Evidence                                                                                                     |
+| --------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| HTTPS/TLS       | **VERIFIED**                                     | Custom web and API URLs completed HTTPS successfully with valid provider responses.                          |
+| CORS            | **VERIFIED** for tested public and admin origins | Exact origins were returned; credentials were enabled; wildcard credentialed CORS was not observed.          |
+| Cookies         | **UNVERIFIED** in hosted authenticated flow      | Existing implementation was not changed; cookie attributes require an authenticated session to inspect.      |
+| Body-size limit | **VERIFIED**                                     | Oversized JSON request returned HTTP 413 with `PAYLOAD_TOO_LARGE`.                                           |
+| Malformed JSON  | **VERIFIED**                                     | Malformed JSON returned HTTP 400 with `VALIDATION_ERROR` and a request ID.                                   |
+| Request IDs     | **VERIFIED**                                     | Error responses included request IDs.                                                                        |
+| Secrets         | **VERIFIED**                                     | No passwords, tokens, database URLs, or secret values were printed or committed.                             |
+| Database safety | **VERIFIED**                                     | Existing PostgreSQL was retained; no reset, `db push`, destructive SQL, or migration changes were performed. |
 
 ## 9. Analytics
 
@@ -112,14 +112,14 @@ The controlled record was not directly deleted or modified through SQL. Its data
 
 ## 10. Deployment
 
-| Item | Result |
-| --- | --- |
-| Git commit | **VERIFIED**: `3153c73716bcb78760e7a0dff9c30a0476a58bb1` |
-| Render deployment | **VERIFIED LIVE**: deployment `dep-daodum7f3r2c73eoojg0` |
-| Vercel Web deployment | **VERIFIED READY**: latest production deployment reported `READY` |
+| Item                    | Result                                                            |
+| ----------------------- | ----------------------------------------------------------------- |
+| Git commit              | **VERIFIED**: `3153c73716bcb78760e7a0dff9c30a0476a58bb1`          |
+| Render deployment       | **VERIFIED LIVE**: deployment `dep-daodum7f3r2c73eoojg0`          |
+| Vercel Web deployment   | **VERIFIED READY**: latest production deployment reported `READY` |
 | Vercel Admin deployment | **VERIFIED READY**: latest production deployment reported `READY` |
-| GitHub Actions CI | **VERIFIED PASS** for the Express-fix commit |
-| Working tree | **VERIFIED CLEAN** on `main`, synchronized with `origin/main` |
+| GitHub Actions CI       | **VERIFIED PASS** for the Express-fix commit                      |
+| Working tree            | **VERIFIED CLEAN** on `main`, synchronized with `origin/main`     |
 
 ## 11. Unverified Items
 
