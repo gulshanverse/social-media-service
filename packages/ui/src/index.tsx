@@ -1,4 +1,6 @@
 import type { ButtonHTMLAttributes, PropsWithChildren } from 'react';
+export { ConfessionCard } from './ConfessionCard';
+
 export function Button({
   children,
   className = '',

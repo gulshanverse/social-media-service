@@ -10,6 +10,7 @@
     "test": "node -e \"console.log('ui: no runtime tests')\""
   },
   "dependencies": {
+    "@ggv/types": "workspace:*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

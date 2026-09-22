@@ -554,6 +554,43 @@ button:disabled {
   padding-top: 14px;
   border-top: 1px solid color-mix(in srgb, currentColor 22%, transparent);
 }
+.theme-preview .confession-card__top,
+.theme-preview .confession-card__bottom {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: color-mix(in srgb, currentColor 72%, transparent);
+  font-size: 0.68rem;
+  line-height: 1.3;
+  letter-spacing: 0.1em;
+}
+.theme-preview .confession-card__brand,
+.theme-preview .confession-card__category {
+  color: var(--card-accent, currentColor);
+  font-weight: 800;
+}
+.theme-preview .confession-card__bottom {
+  padding-top: 14px;
+  border-top: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+}
+.live-preview-panel {
+  margin-top: 16px;
+}
+.live-preview-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 18px;
+}
+.live-preview-heading h2 {
+  margin: 0;
+}
+.moderation-live-preview {
+  width: min(100%, 720px);
+  min-height: 260px;
+  margin: 0 auto;
+}
 .theme-form {
   max-width: 760px;
   display: grid;
@@ -601,6 +638,13 @@ button:disabled {
 @media (max-width: 620px) {
   .admin-shell {
     padding: 20px 16px 50px;
+  }
+  .live-preview-heading {
+    display: block;
+  }
+  .live-preview-heading .muted {
+    display: block;
+    margin-top: 6px;
   }
   .admin-header {
     align-items: flex-start;

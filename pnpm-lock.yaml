@@ -34,6 +34,9 @@ importers:
       '@ggv/config':
         specifier: workspace:^
         version: link:../../packages/config
+      '@ggv/types':
+        specifier: workspace:*
+        version: link:../../packages/types
       '@ggv/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -220,6 +223,9 @@ importers:
 
   packages/ui:
     dependencies:
+      '@ggv/types':
+        specifier: workspace:*
+        version: link:../../packages/types
       react:
         specifier: ^19.0.0
         version: 19.3.0

@@ -4,7 +4,8 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { appConfig } from '@ggv/config';
-import { Logo } from '@ggv/ui';
+import type { PublicConfession, PublicTheme } from '@ggv/types';
+import { ConfessionCard as SharedConfessionCard, Logo } from '@ggv/ui';
 import ProfilePage from './ProfilePage';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
@@ -127,28 +128,28 @@ function ThemePreview({
   theme: Partial<Theme>;
   label?: string;
 }) {
-  return (
-    <article
-      className="theme-preview"
-      style={{
-        background: theme.gradient || theme.background || '#151c2b',
-        color: theme.textColor || '#fff',
-        borderRadius: `${theme.radius ?? 28}px`,
-        fontFamily: theme.fontFamily || 'Inter',
-        ['--card-accent' as string]: theme.accentColor || '#00b8ff',
-      }}
-    >
-      <div className="confession-card__top preview-top">
-        <strong className="confession-card__brand">♛ COLLEGE CONFESSION</strong>
-        <span>ANONYMOUS</span>
-      </div>
-      <p className="confession-card__content">“{label} — a safe place for campus thoughts.”</p>
-      <div className="confession-card__bottom preview-bottom">
-        <span className="confession-card__category">Campus thoughts</span>
-        <span>Preview</span>
-      </div>
-    </article>
-  );
+  const previewTheme = asPublicTheme(theme)!;
+  const previewConfession: PublicConfession = {
+    publicId: 'theme-preview',
+    content: label,
+    category: 'COLLEGE_LIFE',
+    theme: previewTheme,
+    publishedAt: new Date(0).toISOString(),
+  };
+  return <SharedConfessionCard confession={previewConfession} className="theme-preview" />;
+}
+function asPublicTheme(theme: Partial<Theme> | null | undefined): PublicTheme | null {
+  if (!theme) return null;
+  return {
+    id: theme.id || 'preview',
+    name: theme.name || 'Preview',
+    background: theme.background || '#151c2b',
+    gradient: theme.gradient || theme.background || '#151c2b',
+    textColor: theme.textColor || '#fff',
+    accentColor: theme.accentColor || '#00b8ff',
+    fontFamily: theme.fontFamily || 'Inter',
+    radius: `${theme.radius ?? 28}px`,
+  };
 }
 export function Nav({ admin, onNavigate }: { admin: Admin; onNavigate?: () => void }) {
   const links: [string, string][] = [['/', 'Dashboard']];
@@ -721,6 +722,17 @@ function ConfessionDetail({ admin }: { admin: Admin }) {
     );
   const editable = item.status === 'PENDING' && admin.role !== 'DESIGNER';
   const canModerate = admin.role !== 'DESIGNER';
+  const draftTheme = form.themeId
+    ? (themes.find((theme) => theme.id === form.themeId) ??
+      (item.theme?.id === form.themeId ? item.theme : null))
+    : null;
+  const previewConfession: PublicConfession = {
+    publicId: item.publicId,
+    content: form.content.trim() || 'Preview your confession here.',
+    category: form.category ? (form.category as PublicConfession['category']) : null,
+    theme: asPublicTheme(draftTheme),
+    publishedAt: item.publishedAt || item.createdAt || new Date().toISOString(),
+  };
   return (
     <section>
       <Link href="/confessions" className="back-link">
@@ -885,6 +897,16 @@ function ConfessionDetail({ admin }: { admin: Admin }) {
           )}
         </aside>
       </div>
+      <section className="panel live-preview-panel" aria-labelledby="moderation-live-preview">
+        <div className="live-preview-heading">
+          <div>
+            <p className="eyebrow">LIVE PREVIEW</p>
+            <h2 id="moderation-live-preview">Unsaved confession card</h2>
+          </div>
+          <span className="muted">Updates instantly as you edit</span>
+        </div>
+        <SharedConfessionCard confession={previewConfession} className="moderation-live-preview" />
+      </section>
       {canModerate && (
         <div className="mobile-moderation-bar" aria-label="Quick moderation actions">
           {item.status === 'PENDING' && (

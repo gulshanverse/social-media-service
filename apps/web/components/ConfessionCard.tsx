@@ -1,17 +1,6 @@
 import Link from 'next/link';
 import type { PublicConfession } from '@ggv/types';
-
-const categoryNames: Record<string, string> = {
-  COLLEGE_LIFE: 'College Life',
-  CRUSH: 'Crush',
-  RELATIONSHIP: 'Relationship',
-  FRIENDSHIP: 'Friendship',
-  FUNNY: 'Funny',
-  ADVICE: 'Advice',
-  APPRECIATION: 'Appreciation',
-  RANT: 'Rant',
-  OTHER: 'Other',
-};
+import { ConfessionCard as SharedConfessionCard } from '@ggv/ui';
 
 export function ConfessionCard({
   confession,
@@ -22,41 +11,18 @@ export function ConfessionCard({
   detailed?: boolean;
   display?: { cardTextSize: number; previewLines: number };
 }) {
-  const theme = confession.theme;
-  const content = (
-    <article
-      className={`confession-card ${detailed ? 'confession-card--detailed' : ''}`}
-      style={{
-        background: theme?.gradient ?? '#151c2b',
-        color: theme?.textColor ?? '#fff',
-        borderRadius: theme?.radius ?? '28px',
-        fontFamily: theme?.fontFamily ?? 'inherit',
-        ['--card-accent' as string]: theme?.accentColor ?? '#00b8ff',
-        ['--card-text-size' as string]: `${display?.cardTextSize ?? 16}px`,
-        ['--preview-lines' as string]: display?.previewLines ?? 5,
-      }}
-    >
-      <div className="confession-card__top">
-        <span className="confession-card__brand">♛ COLLEGE CONFESSION</span>
-        <span>ANONYMOUS</span>
-      </div>
-      <p className="confession-card__content">“{confession.content}”</p>
-      <div className="confession-card__bottom">
-        <span className="confession-card__category">
-          {confession.category ? categoryNames[confession.category] : 'Campus thoughts'}
-        </span>
-        <span>{new Date(confession.publishedAt).toLocaleDateString()}</span>
-      </div>
-    </article>
+  const card = (
+    <SharedConfessionCard confession={confession} detailed={detailed} display={display} />
   );
+
   return detailed ? (
-    content
+    card
   ) : (
     <Link
       href={`/confessions/${confession.publicId}`}
       aria-label={`Read confession ${confession.publicId}`}
     >
-      {content}
+      {card}
     </Link>
   );
 }
