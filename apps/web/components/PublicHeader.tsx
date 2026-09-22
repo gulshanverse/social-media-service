@@ -50,6 +50,7 @@ export function PublicHeader() {
         className={`public-drawer ${open ? 'public-drawer--open' : ''}`}
         aria-label="Public navigation"
         aria-hidden={!open}
+        inert={!open}
       >
         <div className="public-drawer-heading">
           <strong>College Confession</strong>
