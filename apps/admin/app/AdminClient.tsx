@@ -135,15 +135,16 @@ function ThemePreview({
         color: theme.textColor || '#fff',
         borderRadius: `${theme.radius ?? 28}px`,
         fontFamily: theme.fontFamily || 'Inter',
+        ['--card-accent' as string]: theme.accentColor || '#00b8ff',
       }}
     >
-      <div className="preview-top">
-        <strong>COLLEGE CONFESSION</strong>
+      <div className="confession-card__top preview-top">
+        <strong className="confession-card__brand">♛ COLLEGE CONFESSION</strong>
         <span>ANONYMOUS</span>
       </div>
-      <p>“{label} — a safe place for campus thoughts.”</p>
-      <div className="preview-bottom" style={{ color: theme.accentColor || '#00b8ff' }}>
-        <span>Campus thoughts</span>
+      <p className="confession-card__content">“{label} — a safe place for campus thoughts.”</p>
+      <div className="confession-card__bottom preview-bottom">
+        <span className="confession-card__category">Campus thoughts</span>
         <span>Preview</span>
       </div>
     </article>

@@ -505,23 +505,54 @@ button:disabled {
   margin-top: 14px;
 }
 .theme-preview {
-  min-height: 180px;
-  padding: 18px;
+  position: relative;
+  min-height: 220px;
+  padding: 22px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  box-shadow: inset 0 0 0 1px #ffffff22;
+  gap: 18px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--card-accent, #00b8ff) 28%, transparent);
+  box-shadow:
+    0 14px 30px rgba(0, 0, 0, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  isolation: isolate;
+}
+.theme-preview::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.1), transparent 38%);
 }
 .preview-top,
 .preview-bottom {
   display: flex;
   justify-content: space-between;
-  font-size: 0.7rem;
-  letter-spacing: 0.08em;
+  color: color-mix(in srgb, currentColor 72%, transparent);
+  font-size: 0.68rem;
+  line-height: 1.3;
+  letter-spacing: 0.1em;
+}
+.preview-top strong,
+.preview-bottom .confession-card__category {
+  color: var(--card-accent, currentColor);
+  font-weight: 800;
 }
 .theme-preview p {
-  font-size: 1.1rem;
-  line-height: 1.5;
+  max-width: 34ch;
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.58;
+  font-weight: 560;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+.preview-bottom {
+  padding-top: 14px;
+  border-top: 1px solid color-mix(in srgb, currentColor 22%, transparent);
 }
 .theme-form {
   max-width: 760px;

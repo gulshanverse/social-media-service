@@ -30,17 +30,21 @@ export function ConfessionCard({
         background: theme?.gradient ?? '#151c2b',
         color: theme?.textColor ?? '#fff',
         borderRadius: theme?.radius ?? '28px',
+        fontFamily: theme?.fontFamily ?? 'inherit',
+        ['--card-accent' as string]: theme?.accentColor ?? '#00b8ff',
         ['--card-text-size' as string]: `${display?.cardTextSize ?? 16}px`,
         ['--preview-lines' as string]: display?.previewLines ?? 5,
       }}
     >
       <div className="confession-card__top">
-        <span>♛ COLLEGE CONFESSION</span>
+        <span className="confession-card__brand">♛ COLLEGE CONFESSION</span>
         <span>ANONYMOUS</span>
       </div>
       <p className="confession-card__content">“{confession.content}”</p>
       <div className="confession-card__bottom">
-        <span>{confession.category ? categoryNames[confession.category] : 'Campus thoughts'}</span>
+        <span className="confession-card__category">
+          {confession.category ? categoryNames[confession.category] : 'Campus thoughts'}
+        </span>
         <span>{new Date(confession.publishedAt).toLocaleDateString()}</span>
       </div>
     </article>
