@@ -55,3 +55,4 @@ The final moderation workspace pass adds a backend-backed Theme selector to the 
 The platform now includes liveness/readiness/version/metrics endpoints, request correlation IDs, structured safe logs, normalized production errors, graceful API shutdown, safe administrator session visibility and logout-all, refresh throttling with `Retry-After`, query-backed database indexes, a non-root API container path, and CI Prisma validation. Moderators can select visible queue records and submit server-authoritative bulk approve/reject/archive actions with confirmations, partial-result reporting, stale-state protection, and audit events. Queue preferences are persisted locally without storing credentials or tokens.
 
 Operational deployment guidance, recovery expectations, security boundaries, API contracts, and runbooks are documented in `docs/deployment.md`, `docs/security.md`, `docs/operations.md`, and `docs/api.md`.
+Deployed and working.
