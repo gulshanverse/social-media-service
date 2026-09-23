@@ -103,7 +103,7 @@ Public clients receive only `PUBLISHED` records. Administrative actions are prot
 
 ### Published editing
 
-The edit contract operates on the existing database record. Authorized administrators can modify both `PENDING` and `PUBLISHED` records by changing content, category, or theme identity. The public identifier remains unchanged, the status remains `PUBLISHED` for a published record, `originalContent` remains preserved, and associated reports remain attached to the same record. No duplicate record is created. A published edit emits the `PUBLISHED_CONFESSION_EDITED` audit action. `REJECTED` and `ARCHIVED` records remain non-editable.
+The edit contract operates on the existing database record. Authorized administrators can modify both `PENDING` and `PUBLISHED` records by changing content, category, or theme identity. The public identifier remains unchanged, the status remains `PUBLISHED` for a published record, `originalContent` remains preserved, and associated reports remain attached to the same record. No duplicate record is created. A published edit emits the `PUBLISHED_CONTENT_RECORD_EDITED` audit action. `REJECTED` and `ARCHIVED` records remain non-editable.
 
 ### Reporting
 
@@ -258,7 +258,7 @@ Every response receives an `X-Request-ID`. A bounded incoming identifier is reus
 
 Public endpoints do not require authentication. Public reads return only records with `PUBLISHED` status. Public projections contain no editor, report, audit, administrator, password, session, or internal persistence fields.
 
-#### `POST /confessions`
+#### `POST /content-records`
 
 Creates an anonymous submission with `PENDING` status. The request is rate limited by the client IP and uses the configured profile character limit.
 
@@ -280,13 +280,13 @@ Response `201`:
 {
   "publicId": "m2abc123-4f8a1b2c",
   "status": "PENDING",
-  "message": "Your confession has been submitted for review."
+  "message": "Your submission has been accepted for review."
 }
 ```
 
 Possible responses include `400` for invalid content, category, or theme and `429` when the submission rate limit is exceeded. The rate-limit response contains `message` and `retryAfterSeconds`.
 
-#### `GET /confessions`
+#### `GET /content-records`
 
 Returns the newest published records and public display settings. Query parameters are optional: `page` defaults to `1` and `limit` defaults to `12`, with bounds of `1..100` for pages and `1..50` for page size.
 
@@ -320,21 +320,21 @@ Response `200`:
 }
 ```
 
-#### `GET /confessions/:publicId`
+#### `GET /content-records/:publicId`
 
 Returns one published record using its public identifier and increments its view counter. The response uses the same public item shape as the feed, without the `display` and pagination fields. A missing or non-published identifier returns `404`.
 
-#### `GET /confessions/profile-settings`
+#### `GET /content-records/profile-settings`
 
 Returns the public profile configuration used by the composer and profile page:
 
 ```json
 {
-  "handle": "@college.confession.ggv",
-  "headerMessage": "send me anonymous weekly Confession!",
+  "handle": "@anonymous.content.ggv",
+  "headerMessage": "send me anonymous weekly messages!",
   "defaultPrompt": "Are u talking to anyone??",
   "communityButtonText": "Visit Community",
-  "communityPath": "/confessions",
+  "communityPath": "/content-records",
   "bottomButtonText": "Get your own messages!",
   "profileImageUrl": null,
   "themePreset": "sunset",
@@ -345,7 +345,7 @@ Returns the public profile configuration used by the composer and profile page:
 }
 ```
 
-#### `POST /confessions/:publicId/report`
+#### `POST /content-records/:publicId/report`
 
 Creates a moderation report for a published record. The request is associated with a SHA-256 hash of the client IP rather than storing the raw address.
 
@@ -444,29 +444,29 @@ Returns aggregate operational counts and the six most recent relevant activity e
 
 ```json
 {
-  "pendingConfessions": 12,
-  "publishedConfessions": 84,
-  "rejectedConfessions": 4,
-  "archivedConfessions": 3,
+  "pendingRecords": 12,
+  "publishedRecords": 84,
+  "rejectedRecords": 4,
+  "archivedRecords": 3,
   "openReports": 2,
   "resolvedReports": 18,
-  "totalConfessions": 103,
+  "totalRecords": 103,
   "activeThemes": 5,
   "recentActivity": [
-    { "id": "audit-id", "action": "APPROVE", "entity": "CONFESSION", "entityId": "record-id", "createdAt": "2026-09-24T04:00:00.000Z", "actor": { "email": "moderator@example.com" } }
+    { "id": "audit-id", "action": "APPROVE", "entity": "CONTENT_RECORD", "entityId": "record-id", "createdAt": "2026-09-24T04:00:00.000Z", "actor": { "email": "moderator@example.com" } }
   ]
 }
 ```
 
-#### `GET /admin/confessions`
+#### `GET /admin/content-records`
 
 Returns the administrative queue. Query parameters are `page`, `limit` (`1..50`), `status` (`PENDING`, `PUBLISHED`, `REJECTED`, `ARCHIVED`), `category`, `theme` (database theme ID), `search` (public ID or content), and `order` (`newest` or `oldest`). Each item includes internal `id`, `publicId`, `content`, `originalContent`, `category`, `status`, timestamps, `publishedAt`, `reportCount`, selected theme identity, and selected editor identity.
 
-#### `GET /admin/confessions/:id`
+#### `GET /admin/content-records/:id`
 
 Returns one administrative record by database ID. The response includes the editable fields, lifecycle status, timestamps, report count, selected theme style properties, editor metadata, and associated report summaries.
 
-#### `PATCH /admin/confessions/:id`
+#### `PATCH /admin/content-records/:id`
 
 Edits an existing `PENDING` or `PUBLISHED` record in place. Request body fields are optional:
 
@@ -474,29 +474,29 @@ Edits an existing `PENDING` or `PUBLISHED` record in place. Request body fields 
 { "content": "Updated content", "category": "OTHER", "themeId": "theme-database-id" }
 ```
 
-`content` is trimmed and must be within the configured profile limit. `category` must be a valid enum value. `themeId` must identify an existing theme; an empty value clears the theme. The response includes `id`, unchanged `publicId`, updated content/category/theme, preserved `originalContent`, and the unchanged status. Published edits record `PUBLISHED_CONFESSION_EDITED`; pending edits record `EDIT`. Rejected and archived records return `400`.
+`content` is trimmed and must be within the configured profile limit. `category` must be a valid enum value. `themeId` must identify an existing theme; an empty value clears the theme. The response includes `id`, unchanged `publicId`, updated content/category/theme, preserved `originalContent`, and the unchanged status. Published edits record `PUBLISHED_CONTENT_RECORD_EDITED`; pending edits record `EDIT`. Rejected and archived records return `400`.
 
-#### `POST /admin/confessions/:id/approve`
+#### `POST /admin/content-records/:id/approve`
 
 Accepts a pending record and returns `{ "id", "publicId", "status": "PUBLISHED", "publishedAt" }`.
 
-#### `POST /admin/confessions/:id/reject`
+#### `POST /admin/content-records/:id/reject`
 
 Rejects a pending record and returns `{ "id", "publicId", "status": "REJECTED", "publishedAt": null }`.
 
-#### `POST /admin/confessions/:id/archive`
+#### `POST /admin/content-records/:id/archive`
 
 Archives a published or rejected record and returns `{ "id", "publicId", "status": "ARCHIVED", "publishedAt" }`.
 
-#### `POST /admin/confessions/:id/restore`
+#### `POST /admin/content-records/:id/restore`
 
 Restores an archived record to `PUBLISHED` and refreshes `publishedAt`. Only `SUPER_ADMIN` and `MODERATOR` may call this endpoint.
 
-#### `DELETE /admin/confessions/:id`
+#### `DELETE /admin/content-records/:id`
 
 Permanently deletes an archived record and its associated reports. This destructive operation is restricted to `SUPER_ADMIN` and returns `{ "id": "record-id", "deleted": true }`.
 
-#### `POST /admin/confessions/bulk`
+#### `POST /admin/content-records/bulk`
 
 Applies one action to up to 100 database IDs. Request body:
 
