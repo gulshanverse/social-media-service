@@ -429,10 +429,15 @@ async function testDtosAndServiceState() {
   assert.equal(edited.originalContent, 'original');
   assert.equal(audit.at(-1).action, 'EDIT');
   confessionStatus = ConfessionStatus.PUBLISHED;
-  await assert.rejects(
-    () => service.edit('c1', plainToInstance(UpdateConfessionDto, { content: 'x' }), admin),
-    /Cannot edit/,
+  const publishedEdit = await service.edit(
+    'c1',
+    plainToInstance(UpdateConfessionDto, { content: 'published correction' }),
+    admin,
   );
+  assert.equal(publishedEdit.status, ConfessionStatus.PUBLISHED);
+  assert.equal(updatedData.content, 'published correction');
+  assert.equal(audit.at(-1).action, 'PUBLISHED_CONFESSION_EDITED');
+  assert.deepEqual(audit.at(-1).metadata.changedFields, ['content']);
   for (const status of [ConfessionStatus.REJECTED, ConfessionStatus.ARCHIVED]) {
     confessionStatus = status;
     await assert.rejects(

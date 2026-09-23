@@ -21,6 +21,15 @@ export function assertPendingConfessionEdit(status: ConfessionStatus) {
     throw new BadRequestException(`Cannot edit a ${status.toLowerCase()} confession.`);
 }
 
+export function assertEditableConfession(status: ConfessionStatus) {
+  const editableStatuses: ConfessionStatus[] = [
+    ConfessionStatus.PENDING,
+    ConfessionStatus.PUBLISHED,
+  ];
+  if (!editableStatuses.includes(status))
+    throw new BadRequestException(`Cannot edit a ${status.toLowerCase()} confession.`);
+}
+
 @Injectable()
 export class AdminService {
   async queue(query: AdminQueueQueryDto) {
@@ -101,15 +110,18 @@ export class AdminService {
     return item;
   }
   async edit(id: string, body: UpdateConfessionDto, actor: AdminIdentity) {
-    const current = await prisma.confession.findUnique({ where: { id }, select: { status: true } });
+    const current = await prisma.confession.findUnique({
+      where: { id },
+      select: { status: true, content: true, category: true, themeId: true },
+    });
     if (!current) throw new NotFoundException('Confession not found.');
-    assertPendingConfessionEdit(current.status);
+    assertEditableConfession(current.status);
     const data: {
       content?: string;
       category?: ConfessionCategory;
-      themeId?: string;
-      editorId: string;
-    } = { editorId: actor.id };
+      themeId?: string | null;
+      editorId?: string;
+    } = {};
     if (body.content !== undefined) {
       const content = body.content.trim();
       const profileSettings = (
@@ -131,14 +143,34 @@ export class AdminService {
       const maxCharacters = profile?.maxCharacters ?? 1000;
       if (!content || content.length > maxCharacters)
         throw new BadRequestException(`Content must be between 1 and ${maxCharacters} characters.`);
-      data.content = content;
+      if (content !== current.content) data.content = content;
     }
-    if (body.category !== undefined) data.category = body.category;
+    if (body.category !== undefined && body.category !== current.category)
+      data.category = body.category;
     if (body.themeId !== undefined) {
-      const theme = await prisma.theme.findUnique({ where: { id: body.themeId } });
-      if (!theme) throw new BadRequestException('Invalid theme.');
-      data.themeId = theme.id;
+      if (!body.themeId) {
+        if (current.themeId !== null) data.themeId = null;
+      } else {
+        const theme = await prisma.theme.findUnique({ where: { id: body.themeId } });
+        if (!theme) throw new BadRequestException('Invalid theme.');
+        if (theme.id !== current.themeId) data.themeId = theme.id;
+      }
     }
+    const changedFields = Object.keys(data);
+    if (changedFields.length === 0)
+      return (await prisma.confession.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          publicId: true,
+          content: true,
+          originalContent: true,
+          category: true,
+          status: true,
+          theme: { select: { id: true, slug: true, name: true } },
+        },
+      }))!;
+    data.editorId = actor.id;
     const item = await prisma.confession.update({
       where: { id },
       data,
@@ -149,10 +181,16 @@ export class AdminService {
         originalContent: true,
         category: true,
         status: true,
-        theme: { select: { slug: true, name: true } },
+        theme: { select: { id: true, slug: true, name: true } },
       },
     });
-    await recordAudit(actor.id, 'EDIT', 'CONFESSION', id, { changedFields: Object.keys(data) });
+    await recordAudit(
+      actor.id,
+      current.status === ConfessionStatus.PUBLISHED ? 'PUBLISHED_CONFESSION_EDITED' : 'EDIT',
+      'CONFESSION',
+      id,
+      { changedFields },
+    );
     return item;
   }
   async transition(id: string, action: 'approve' | 'reject' | 'archive', actor: AdminIdentity) {

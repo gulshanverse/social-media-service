@@ -659,6 +659,7 @@ function ConfessionDetail({ admin }: { admin: Admin }) {
   const [item, setItem] = useState<any>(null);
   const [themes, setThemes] = useState<Theme[]>([]);
   const [form, setForm] = useState({ content: '', category: '', themeId: '' });
+  const [savedForm, setSavedForm] = useState({ content: '', category: '', themeId: '' });
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
@@ -666,11 +667,13 @@ function ConfessionDetail({ admin }: { admin: Admin }) {
     api(`/admin/confessions/${id}`)
       .then((value) => {
         setItem(value);
-        setForm({
+        const nextForm = {
           content: value.content,
           category: value.category || '',
           themeId: value.theme?.id || '',
-        });
+        };
+        setForm(nextForm);
+        setSavedForm(nextForm);
       })
       .catch((e) => setError(e.message));
   useEffect(() => {
@@ -679,6 +682,21 @@ function ConfessionDetail({ admin }: { admin: Admin }) {
       .then((value) => setThemes(value.items ?? []))
       .catch(() => undefined);
   }, [id]);
+  const dirty =
+    form.content !== savedForm.content ||
+    form.category !== savedForm.category ||
+    form.themeId !== savedForm.themeId;
+  const editable =
+    !!item && ['PENDING', 'PUBLISHED'].includes(item.status) && admin.role !== 'DESIGNER';
+  useEffect(() => {
+    if (!editable || !dirty) return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty, editable]);
   async function act(action: string) {
     if (!confirm(`Confirm ${action} for this confession?`)) return;
     setSaving(true);
@@ -720,7 +738,6 @@ function ConfessionDetail({ admin }: { admin: Admin }) {
         <div className="state">{error ? 'Unable to load confession.' : 'Loading confession…'}</div>
       </section>
     );
-  const editable = item.status === 'PENDING' && admin.role !== 'DESIGNER';
   const canModerate = admin.role !== 'DESIGNER';
   const draftTheme = form.themeId
     ? (themes.find((theme) => theme.id === form.themeId) ??
