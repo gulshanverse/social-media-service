@@ -2,7 +2,7 @@
 
 # Social Media Service
 
-**A moderation-first, anonymous publishing platform for campus communities.**
+**A moderation-first, message publishing platform for communities.**
 
 [![CI](https://github.com/gulshanverse/social-media-service/actions/workflows/ci.yml/badge.svg)](https://github.com/gulshanverse/social-media-service/actions/workflows/ci.yml)
 [![Next.js](https://img.shields.io/badge/Next.js-15-black)](https://nextjs.org/)
