@@ -1,10 +1,10 @@
 <div align="center">
 
-# College Confession
+# Social Media Service
 
-**Anonymous campus stories, thoughts, conversations, and confessions.**
+**A production-grade anonymous user-generated content platform for campus communities.**
 
-The `social-media-service` repository contains the production monorepo for College Confession: a moderation-first public web experience, administrative workspace, and NestJS API.
+The `social-media-service` repository contains the production monorepo for an anonymous content platform: a moderation-first public web experience, administrative workspace, and NestJS API.
 
 [![CI](https://github.com/gulshanverse/social-media-service/actions/workflows/ci.yml/badge.svg)](https://github.com/gulshanverse/social-media-service/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/gulshanverse/social-media-service/actions/workflows/codeql.yml/badge.svg)](https://github.com/gulshanverse/social-media-service/actions/workflows/codeql.yml)
@@ -24,9 +24,9 @@ The `social-media-service` repository contains the production monorepo for Colle
 The repository does not currently contain production screenshots. Do not substitute fabricated image URLs. Before the screenshot gallery is considered complete, capture and add the following real views from the deployed application:
 
 1. Public landing page
-2. College Confession composer
-3. Public confession feed
-4. Individual confession detail experience
+2. Anonymous content submission interface
+3. Public content feed
+4. Individual content detail view
 5. Admin moderation workspace
 6. Theme and live-preview workspace
 7. Profile editor
@@ -103,7 +103,7 @@ Public clients receive only `PUBLISHED` records. Administrative actions are prot
 
 ### Published editing
 
-The edit contract operates on the existing database record. Moderators can edit both `PENDING` and `PUBLISHED` records by changing content, category, or theme identity. The public identifier remains unchanged, the status remains `PUBLISHED` for a published record, `originalContent` remains preserved, and associated reports remain attached to the same record. No duplicate record is created. A published edit emits the `PUBLISHED_CONFESSION_EDITED` audit action. `REJECTED` and `ARCHIVED` records remain non-editable.
+The edit contract operates on the existing database record. Authorized administrators can modify both `PENDING` and `PUBLISHED` records by changing content, category, or theme identity. The public identifier remains unchanged, the status remains `PUBLISHED` for a published record, `originalContent` remains preserved, and associated reports remain attached to the same record. No duplicate record is created. A published edit emits the `PUBLISHED_CONFESSION_EDITED` audit action. `REJECTED` and `ARCHIVED` records remain non-editable.
 
 ### Reporting
 
