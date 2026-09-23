@@ -1,10 +1,14 @@
 <div align="center">
 
-# Social Media Service
+# College Confession
 
-**A moderation-first, message publishing platform for communities.**
+**Anonymous campus stories, thoughts, conversations, and confessions.**
+
+The `social-media-service` repository contains the production monorepo for College Confession: a moderation-first public web experience, administrative workspace, and NestJS API.
 
 [![CI](https://github.com/gulshanverse/social-media-service/actions/workflows/ci.yml/badge.svg)](https://github.com/gulshanverse/social-media-service/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/gulshanverse/social-media-service/actions/workflows/codeql.yml/badge.svg)](https://github.com/gulshanverse/social-media-service/actions/workflows/codeql.yml)
+[![Dependency Review](https://github.com/gulshanverse/social-media-service/actions/workflows/dependency-review.yml/badge.svg)](https://github.com/gulshanverse/social-media-service/actions/workflows/dependency-review.yml)
 [![Next.js](https://img.shields.io/badge/Next.js-15-black)](https://nextjs.org/)
 [![NestJS](https://img.shields.io/badge/NestJS-10-e0234e)](https://nestjs.com/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178c6)](https://www.typescriptlang.org/)
@@ -14,6 +18,18 @@
 </div>
 
 ---
+
+## Product preview
+
+The repository does not currently contain production screenshots. Do not substitute fabricated image URLs. Before the screenshot gallery is considered complete, capture and add the following real views from the deployed application:
+
+1. Public landing page
+2. College Confession composer
+3. Public confession feed
+4. Individual confession detail experience
+5. Admin moderation workspace
+6. Theme and live-preview workspace
+7. Profile editor
 
 ## Overview
 
@@ -27,7 +43,7 @@ The repository is structured as a pnpm monorepo. It separates the public Next.js
 | --- | --- |
 | Public experience | Anonymous submission, paginated feed, public record detail, category metadata, themed cards, responsive layouts, reporting, and share-oriented pages |
 | Profile surface | Configurable handle, header and composer copy, community links, profile image, theme preset, prompt collection, and mobile preview |
-| Moderation | Pending queue, server-side search and filters, sorting, pagination, approve/reject/archive actions, pending-record editing, bulk actions, and stale-state protection |
+| Moderation | Pending queue, server-side search and filters, sorting, pagination, approve/reject/archive actions, pending and published-record editing, bulk actions, and stale-state protection |
 | Administration | Dashboard metrics, report review and resolution, append-only audit activity, theme CRUD, live public-card preview, profile settings, session visibility, and logout-all |
 | Platform operations | Health, liveness, readiness, version, and metrics endpoints; request IDs; structured safe logging; normalized errors; graceful shutdown; and container health checks |
 | Delivery | Docker API image, local PostgreSQL Compose service, Prisma migration workflow, GitHub Actions quality pipeline, and separate Next.js deployment targets |
@@ -85,9 +101,9 @@ stateDiagram-v2
 
 Public clients receive only `PUBLISHED` records. Administrative actions are protected by authentication and role checks, and successful state changes generate audit activity where applicable.
 
-### Content editing
+### Published editing
 
-The current edit contract is intentionally narrow. Moderators can edit `PENDING` records in place by changing content, category, or theme identity. The original submitted value remains immutable, the public identifier is retained, and the current editor is recorded. Published, rejected, and archived records are not editable through the edit endpoint.
+The edit contract operates on the existing database record. Moderators can edit both `PENDING` and `PUBLISHED` records by changing content, category, or theme identity. The public identifier remains unchanged, the status remains `PUBLISHED` for a published record, `originalContent` remains preserved, and associated reports remain attached to the same record. No duplicate record is created. A published edit emits the `PUBLISHED_CONFESSION_EDITED` audit action. `REJECTED` and `ARCHIVED` records remain non-editable.
 
 ### Reporting
 
@@ -207,23 +223,383 @@ The following variables are defined by `.env.example` and are grouped by purpose
 
 Do not commit real credentials or production connection strings. Production authentication secrets are required; the API fails closed when they are missing.
 
-## API surface
+## API reference
 
-The API is served by NestJS on port `4000`. The main API areas are:
+The NestJS API listens on port `4000` by default. Unless otherwise noted, request and response bodies use `application/json`. The API applies strict global validation: unknown body fields are rejected, query values are transformed and validated, and malformed input returns a `400` response. Values shown in response examples are illustrative and do not represent production data or metrics.
 
-| Area | Responsibility |
+### Response conventions
+
+Administrative list endpoints return the following envelope:
+
+```json
+{
+  "items": [],
+  "page": 1,
+  "limit": 20,
+  "total": 0,
+  "hasMore": false
+}
+```
+
+Every response receives an `X-Request-ID`. A bounded incoming identifier is reused; otherwise the API generates one. Normalized production errors use this shape where applicable:
+
+```json
+{
+  "statusCode": 400,
+  "message": "Invalid request.",
+  "code": "BAD_REQUEST",
+  "requestId": "generated-or-forwarded-id"
+}
+```
+
+`429` responses may include `Retry-After`. Production error responses do not expose stack traces, SQL, filesystem paths, tokens, cookies, authorization headers, or database URLs.
+
+### Public endpoints
+
+Public endpoints do not require authentication. Public reads return only records with `PUBLISHED` status. Public projections contain no editor, report, audit, administrator, password, session, or internal persistence fields.
+
+#### `POST /confessions`
+
+Creates an anonymous submission with `PENDING` status. The request is rate limited by the client IP and uses the configured profile character limit.
+
+Request body:
+
+```json
+{
+  "content": "A campus message up to the configured character limit.",
+  "category": "ADVICE",
+  "themeId": "midnight"
+}
+```
+
+`content` is required and trimmed. `category` is optional and must be one of `CRUSH`, `RELATIONSHIP`, `FRIENDSHIP`, `FUNNY`, `COLLEGE_LIFE`, `ADVICE`, `APPRECIATION`, `RANT`, or `OTHER`. `themeId` is optional; the default is `midnight` and it must identify a valid seeded theme.
+
+Response `201`:
+
+```json
+{
+  "publicId": "m2abc123-4f8a1b2c",
+  "status": "PENDING",
+  "message": "Your confession has been submitted for review."
+}
+```
+
+Possible responses include `400` for invalid content, category, or theme and `429` when the submission rate limit is exceeded. The rate-limit response contains `message` and `retryAfterSeconds`.
+
+#### `GET /confessions`
+
+Returns the newest published records and public display settings. Query parameters are optional: `page` defaults to `1` and `limit` defaults to `12`, with bounds of `1..100` for pages and `1..50` for page size.
+
+Response `200`:
+
+```json
+{
+  "items": [
+    {
+      "publicId": "m2abc123-4f8a1b2c",
+      "content": "A published message.",
+      "category": "ADVICE",
+      "theme": {
+        "id": "midnight",
+        "name": "Midnight",
+        "background": "#10131f",
+        "gradient": "linear-gradient(...) ",
+        "textColor": "#ffffff",
+        "accentColor": "#8b5cf6",
+        "fontFamily": "Inter",
+        "radius": "28px"
+      },
+      "publishedAt": "2026-09-24T04:00:00.000Z"
+    }
+  ],
+  "display": { "cardTextSize": 16, "previewLines": 5 },
+  "page": 1,
+  "limit": 12,
+  "total": 1,
+  "hasMore": false
+}
+```
+
+#### `GET /confessions/:publicId`
+
+Returns one published record using its public identifier and increments its view counter. The response uses the same public item shape as the feed, without the `display` and pagination fields. A missing or non-published identifier returns `404`.
+
+#### `GET /confessions/profile-settings`
+
+Returns the public profile configuration used by the composer and profile page:
+
+```json
+{
+  "handle": "@college.confession.ggv",
+  "headerMessage": "send me anonymous weekly Confession!",
+  "defaultPrompt": "Are u talking to anyone??",
+  "communityButtonText": "Visit Community",
+  "communityPath": "/confessions",
+  "bottomButtonText": "Get your own messages!",
+  "profileImageUrl": null,
+  "themePreset": "sunset",
+  "maxCharacters": 1000,
+  "cardTextSize": 16,
+  "previewLines": 5,
+  "prompts": ["Are u talking to anyone??"]
+}
+```
+
+#### `POST /confessions/:publicId/report`
+
+Creates a moderation report for a published record. The request is associated with a SHA-256 hash of the client IP rather than storing the raw address.
+
+Request body:
+
+```json
+{ "reason": "SPAM" }
+```
+
+Allowed reasons are `HARASSMENT`, `HATE`, `SEXUAL_CONTENT`, `THREAT`, `SPAM`, `PERSONAL_INFORMATION`, and `OTHER`.
+
+Response `201`:
+
+```json
+{ "status": "RECEIVED", "message": "Thanks. The moderation team will review this report." }
+```
+
+An existing open report from the same client returns `200` with the same status and a message stating that the report is already with the moderation team.
+
+### Administrator authentication
+
+Administrative endpoints use a short-lived bearer access token in `Authorization: Bearer <accessToken>`. Login and refresh also manage the rotating `admin_refresh` HttpOnly cookie. Refresh credentials are never returned in JSON or stored raw in the database.
+
+#### `POST /admin/auth/login`
+
+Request body:
+
+```json
+{ "email": "admin@example.com", "password": "development-password" }
+```
+
+Response `200` sets the refresh cookie and returns:
+
+```json
+{
+  "admin": { "id": "admin-id", "email": "admin@example.com", "name": "Admin", "role": "SUPER_ADMIN", "isActive": true },
+  "accessToken": "short-lived-access-token"
+}
+```
+
+Invalid credentials return `401`. Login throttling returns `429` and a `Retry-After` header.
+
+#### `POST /admin/auth/refresh`
+
+Send the `admin_refresh` cookie. The JSON body may be empty (`{}`). On success, the server atomically rotates the refresh credential and returns:
+
+```json
+{ "accessToken": "new-short-lived-access-token" }
+```
+
+Invalid, expired, revoked, reused, or missing credentials return `401` and clear the cookie. Refresh throttling returns `429`.
+
+#### `POST /admin/auth/logout`
+
+Requires a bearer access token. Revokes the current database session, clears the refresh cookie, records a `LOGOUT` audit event, and returns:
+
+```json
+{ "success": true }
+```
+
+#### `GET /admin/auth/me`
+
+Requires a bearer token and returns the current safe administrator projection:
+
+```json
+{ "id": "admin-id", "email": "admin@example.com", "name": "Admin", "role": "MODERATOR", "isActive": true }
+```
+
+#### `GET /admin/auth/sessions`
+
+Requires a bearer token and returns active session metadata for the current administrator. Tokens and hashes are excluded:
+
+```json
+{
+  "items": [
+    { "id": "session-id", "createdAt": "2026-09-24T04:00:00.000Z", "lastUsedAt": null, "expiresAt": "2026-10-01T04:00:00.000Z", "revokedAt": null, "current": true }
+  ]
+}
+```
+
+#### `POST /admin/auth/logout-all`
+
+Requires a bearer token, revokes all active sessions for the current administrator, clears the current cookie, and returns:
+
+```json
+{ "success": true, "revoked": 2 }
+```
+
+### Administrative moderation
+
+All routes in this section require a bearer token and role authorization. `SUPER_ADMIN` and `MODERATOR` can operate moderation and report workflows. `DESIGNER` cannot access them.
+
+#### `GET /admin/dashboard`
+
+Returns aggregate operational counts and the six most recent relevant activity events:
+
+```json
+{
+  "pendingConfessions": 12,
+  "publishedConfessions": 84,
+  "rejectedConfessions": 4,
+  "archivedConfessions": 3,
+  "openReports": 2,
+  "resolvedReports": 18,
+  "totalConfessions": 103,
+  "activeThemes": 5,
+  "recentActivity": [
+    { "id": "audit-id", "action": "APPROVE", "entity": "CONFESSION", "entityId": "record-id", "createdAt": "2026-09-24T04:00:00.000Z", "actor": { "email": "moderator@example.com" } }
+  ]
+}
+```
+
+#### `GET /admin/confessions`
+
+Returns the administrative queue. Query parameters are `page`, `limit` (`1..50`), `status` (`PENDING`, `PUBLISHED`, `REJECTED`, `ARCHIVED`), `category`, `theme` (database theme ID), `search` (public ID or content), and `order` (`newest` or `oldest`). Each item includes internal `id`, `publicId`, `content`, `originalContent`, `category`, `status`, timestamps, `publishedAt`, `reportCount`, selected theme identity, and selected editor identity.
+
+#### `GET /admin/confessions/:id`
+
+Returns one administrative record by database ID. The response includes the editable fields, lifecycle status, timestamps, report count, selected theme style properties, editor metadata, and associated report summaries.
+
+#### `PATCH /admin/confessions/:id`
+
+Edits an existing `PENDING` or `PUBLISHED` record in place. Request body fields are optional:
+
+```json
+{ "content": "Updated content", "category": "OTHER", "themeId": "theme-database-id" }
+```
+
+`content` is trimmed and must be within the configured profile limit. `category` must be a valid enum value. `themeId` must identify an existing theme; an empty value clears the theme. The response includes `id`, unchanged `publicId`, updated content/category/theme, preserved `originalContent`, and the unchanged status. Published edits record `PUBLISHED_CONFESSION_EDITED`; pending edits record `EDIT`. Rejected and archived records return `400`.
+
+#### `POST /admin/confessions/:id/approve`
+
+Accepts a pending record and returns `{ "id", "publicId", "status": "PUBLISHED", "publishedAt" }`.
+
+#### `POST /admin/confessions/:id/reject`
+
+Rejects a pending record and returns `{ "id", "publicId", "status": "REJECTED", "publishedAt": null }`.
+
+#### `POST /admin/confessions/:id/archive`
+
+Archives a published or rejected record and returns `{ "id", "publicId", "status": "ARCHIVED", "publishedAt" }`.
+
+#### `POST /admin/confessions/:id/restore`
+
+Restores an archived record to `PUBLISHED` and refreshes `publishedAt`. Only `SUPER_ADMIN` and `MODERATOR` may call this endpoint.
+
+#### `DELETE /admin/confessions/:id`
+
+Permanently deletes an archived record and its associated reports. This destructive operation is restricted to `SUPER_ADMIN` and returns `{ "id": "record-id", "deleted": true }`.
+
+#### `POST /admin/confessions/bulk`
+
+Applies one action to up to 100 database IDs. Request body:
+
+```json
+{ "ids": ["record-id-1", "record-id-2"], "action": "approve" }
+```
+
+`action` is `approve`, `reject`, or `archive`. Each item is re-evaluated server-side. The response reports processed and skipped counts with per-ID outcomes such as `APPROVED`, `REJECTED`, `ARCHIVED`, `NOT_FOUND`, `SKIPPED_DUPLICATE`, `SKIPPED_INVALID_STATE`, or `SKIPPED_STALE_STATE`.
+
+### Reports and audit activity
+
+#### `GET /admin/reports`
+
+Supports `page`, `limit` (`1..50`), `status` (`OPEN`, `RESOLVED`, `DISMISSED`, `ARCHIVED`), `search` over report reason or public ID, and `order`. Returns a paginated list containing report status and timestamps, the related record summary, and reviewer metadata.
+
+#### `GET /admin/reports/:id`
+
+Returns one report with `id`, `reason`, `status`, `createdAt`, `resolvedAt`, related record summary, and reviewer metadata.
+
+#### `POST /admin/reports/:id/resolve`
+
+Transitions an `OPEN` report to `RESOLVED`, stores the reviewer and resolution time, records `REPORT_RESOLVE`, and returns `{ "id", "status": "RESOLVED", "resolvedAt" }`.
+
+#### `POST /admin/reports/:id/dismiss`
+
+Transitions an `OPEN` report to `DISMISSED`, stores the reviewer and resolution time, records `REPORT_DISMISS`, and returns `{ "id", "status": "DISMISSED", "resolvedAt" }`. Non-open reports cannot transition again.
+
+#### `GET /admin/audit` and `GET /admin/audit-logs`
+
+Both paths are aliases and are restricted to `SUPER_ADMIN`. Query parameters are `page`, `limit` (`1..100`), `action`, and `entity`. The paginated response contains `id`, `actorId`, `action`, `entity`, `entityId`, optional `metadata`, `createdAt`, and safe actor email/role fields. Audit records are append-only through the application API.
+
+### Themes and profile administration
+
+#### `GET /admin/themes`
+
+Available to all administrator roles. Supports `page` and `limit` (`1..100`) and returns paginated theme records with `id`, immutable `slug`, `name`, `background`, `gradient`, `textColor`, `accentColor`, `fontFamily`, and `radius`.
+
+#### `POST /admin/themes`
+
+Restricted to `SUPER_ADMIN` and `DESIGNER`. Request body:
+
+```json
+{
+  "slug": "midnight",
+  "name": "Midnight",
+  "background": "#10131f",
+  "gradient": "linear-gradient(...) ",
+  "textColor": "#ffffff",
+  "accentColor": "#8b5cf6",
+  "fontFamily": "Inter",
+  "radius": 28
+}
+```
+
+Fields have runtime length and radius bounds. The endpoint returns the created database theme record and records `THEME_CREATE`.
+
+#### `PATCH /admin/themes/:id`
+
+Restricted to `SUPER_ADMIN` and `DESIGNER`. Accepts any subset of `name`, `background`, `gradient`, `textColor`, `accentColor`, `fontFamily`, and `radius`. The slug is immutable. Returns the updated theme record and records `THEME_UPDATE` with changed fields.
+
+#### `GET /admin/profile-settings`
+
+Restricted to `SUPER_ADMIN` and `DESIGNER`. Returns the complete persisted profile settings record, including handle, messages, community path, image URL, preset, character limit, card text size, preview lines, prompts, timestamps, and updater identity.
+
+#### `PATCH /admin/profile-settings`
+
+Restricted to `SUPER_ADMIN` and `DESIGNER`. Accepts any subset of `handle`, `headerMessage`, `defaultPrompt`, `communityButtonText`, `communityPath`, `bottomButtonText`, `profileImageUrl`, `themePreset`, `maxCharacters`, `cardTextSize`, `previewLines`, and `prompts`. Profile image URLs must use HTTPS. The endpoint trims prompt values, requires at least one non-empty prompt, persists the update, and records `PROFILE_SETTINGS_UPDATE`.
+
+#### `POST /admin/profile-image`
+
+Restricted to `SUPER_ADMIN` and `DESIGNER`. Send `multipart/form-data` with a `file` field. Accepted MIME types are `image/png`, `image/jpeg`, and `image/webp`; the maximum size is 5 MB. When `BLOB_READ_WRITE_TOKEN` is configured, the response is:
+
+```json
+{ "url": "https://public-blob-url", "filename": "profile.webp", "size": 123456 }
+```
+
+Missing files, unsupported types, oversized files, or missing blob configuration return an appropriate `400` or `503` response.
+
+### Health and operational endpoints
+
+These endpoints do not require administrator authentication.
+
+| Method and path | Response |
 | --- | --- |
-| Public submission and feed resources | Create pending records, list approved records, return public detail, expose profile settings, and accept reports |
-| `/admin/auth/*` | Login, refresh, logout, current administrator, session listing, and logout-all |
-| `/admin/dashboard` | Aggregate operational counts |
-| `/admin/*` moderation resources | Queue search, filters, pagination, detail, edit, lifecycle actions, and bulk actions |
-| `/admin/reports/*` | Report listing, detail, resolve, and dismiss |
-| `/admin/audit` | Super-administrator audit activity |
-| `/admin/themes` | Theme listing, creation, updates, and preview data |
-| `/admin/profile-settings` | Protected profile configuration and image management |
-| `/health*` | Health, liveness, readiness, version, and metrics responses |
+| `GET /health` | `{ "status": "ok", "service": "social-media-service-api" }` |
+| `GET /health/live` | Same shape as `/health`; used for liveness and restart checks |
+| `GET /health/ready` | `{ "status": "ok", "database": "ok" }`; returns `503` with `{ "status": "not_ready", "database": "unavailable" }` when PostgreSQL is unavailable |
+| `GET /health/version` | `{ "service", "version", "commit", "environment" }` from safe runtime metadata |
+| `GET /health/metrics` | Lightweight operational counter snapshot |
+| `GET /metrics` | Alias for the metrics snapshot |
 
-All administrative list responses use a paginated contract where applicable: `{ items, page, limit, total, hasMore }`. Responses include a request identifier, and normalized errors use `{ statusCode, message, code, requestId }` where available.
+### Authorization summary
+
+| Route group | `SUPER_ADMIN` | `MODERATOR` | `DESIGNER` | Public |
+| --- | --- | --- | --- | --- |
+| Public submission/feed/report routes | — | — | — | Yes |
+| Dashboard | Yes | Yes | Yes | No |
+| Moderation and reports | Yes | Yes | No | No |
+| Themes read | Yes | Yes | Yes | No |
+| Themes create/update | Yes | No | Yes | No |
+| Audit activity | Yes | No | No | No |
+| Profile settings and image | Yes | No | Yes | No |
+| Authentication and own sessions | Own account | Own account | Own account | No |
 
 ## Observability
 
@@ -282,7 +658,7 @@ The test suite covers the API domain modules and HTTP behavior, administrative a
 
 ## Screenshots
 
-No screenshots are currently stored in the repository. This README intentionally does not reference fabricated image paths. Add captures from the deployed public interface and administrative workspace under a tracked assets directory when they are available.
+No screenshots are currently stored in the repository. The [Product preview](#product-preview) section identifies the real captures required for a complete gallery. Add them under a tracked assets directory only after capturing them from the deployed application.
 
 ## Documentation
 
@@ -296,6 +672,8 @@ No screenshots are currently stored in the repository. This README intentionally
 - [Design system](docs/design-system.md)
 
 ## Contributing
+
+Read the detailed [contributor guidelines](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md) before opening a pull request.
 
 1. Fork or clone the repository.
 2. Create a focused branch from `main`.
