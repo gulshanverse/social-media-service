@@ -497,6 +497,31 @@ export function Confessions() {
           </p>
         </div>
       </div>
+      <div
+        className="notice moderation-guidance"
+        role="note"
+        aria-labelledby="queue-review-checklist"
+      >
+        <strong id="queue-review-checklist">Review each confession for safety</strong>
+        <ul>
+          <li>
+            Check whether a person could be recognized from a name, handle, appearance, class,
+            place, or time clues combined.
+          </li>
+          <li>
+            Reject requests to identify, find, contact, follow, or reveal another person&apos;s
+            social account.
+          </li>
+          <li>
+            Check for harassment, threats, hate, sexual exploitation, private information, illegal
+            or dangerous content, scams, and malicious links.
+          </li>
+          <li>
+            Edit identifying detail only when the remaining post is safe; otherwise reject it.
+            Masked names can still be identifiable.
+          </li>
+        </ul>
+      </div>
       <form className="filters" onSubmit={submit}>
         <label>
           Search
@@ -848,6 +873,25 @@ function ConfessionDetail({ admin }: { admin: Admin }) {
         </article>
         <aside className="panel">
           <h2>Moderation</h2>
+          {item.status === 'PENDING' && canModerate && (
+            <div
+              className="notice moderation-guidance"
+              role="note"
+              aria-labelledby="detail-review-checklist"
+            >
+              <strong id="detail-review-checklist">Safety check before approval</strong>
+              <ul>
+                <li>Could someone be recognized or found from this text and its combined clues?</li>
+                <li>
+                  Does it ask readers to identify, locate, contact, follow, or reveal a
+                  person&apos;s account?
+                </li>
+                <li>
+                  Remove identifying detail only if the remaining post is safe; otherwise reject it.
+                </li>
+              </ul>
+            </div>
+          )}
           <dl className="facts">
             <dt>Category</dt>
             <dd>{item.category || 'Uncategorized'}</dd>

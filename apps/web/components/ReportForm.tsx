@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { reportConfession } from '../lib/api';
+import { parsePublicConfessionId } from '../lib/report-link';
 
 const reasons = [
   ['HARASSMENT', 'Harassment or targeted abuse'],
@@ -27,8 +28,11 @@ export function ReportForm() {
     setState('loading');
     setMessage('');
     try {
-      const value = publicId.trim().split('/').pop() || '';
-      const result = await reportConfession(value, reason);
+      const confessionId = parsePublicConfessionId(publicId);
+      if (!confessionId) {
+        throw new Error('Enter a valid College Confession link or public confession ID.');
+      }
+      const result = await reportConfession(confessionId, reason);
       setMessage(result.message);
       setState('success');
     } catch (error) {
@@ -69,9 +73,10 @@ export function ReportForm() {
             ? 'Send another report'
             : 'Submit report'}
       </button>
-      <p className="privacy-note">
-        Reports are reviewed by authorized moderators. Do not include passwords or private
-        credentials.
+      <p className="privacy-note" id="report-privacy-note">
+        Reports go to authorized moderators. Technical request information may be processed to
+        prevent abuse. See our <a href="/privacy">Privacy Policy</a>; do not include passwords or
+        private credentials.
       </p>
     </form>
   );

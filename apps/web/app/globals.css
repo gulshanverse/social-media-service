@@ -389,7 +389,7 @@ textarea::placeholder {
 .feed-heading {
   display: flex;
   justify-content: space-between;
-  align-items: end;
+  align-items: flex-end;
   gap: 30px;
 }
 .feed-heading h1 {
@@ -571,32 +571,145 @@ a:hover .confession-card {
   font-size: 0.9rem;
 }
 .site-footer {
-  max-width: 1240px;
-  margin: auto;
-  padding: 42px 5vw 56px;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 48px max(5vw, calc((100vw - 1240px) / 2)) 22px;
   border-top: 1px solid #1a2232;
-  display: flex;
-  justify-content: space-between;
-  gap: 32px;
+  display: block;
   color: #8792a8;
   font-size: 0.82rem;
 }
-.site-footer strong {
+.footer-main {
+  max-width: 1240px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(230px, 0.82fr) minmax(0, 1.18fr);
+  gap: 52px;
+}
+.footer-brand {
+  max-width: 380px;
+}
+.footer-brand-name {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #fff;
+  text-decoration: none;
+}
+.footer-brand-name span {
+  color: #c8ff00;
+  font-size: 1.4rem;
+}
+.footer-brand-name strong {
   color: #fff;
 }
 .site-footer p {
-  max-width: 260px;
   line-height: 1.5;
 }
-.site-footer nav {
+.footer-tagline {
+  margin: 14px 0 7px;
+  color: #d7dbea;
+  font-weight: 600;
+}
+.footer-description {
+  max-width: 360px;
+  margin: 0;
+}
+.footer-actions {
+  margin-top: 18px;
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px 18px;
-  max-width: 520px;
+  gap: 10px;
+}
+.footer-button {
+  min-height: 42px;
+  padding: 0 18px;
+  border: 1px solid #c8ff00;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #101510;
+  background: #c8ff00;
+  font-weight: 700;
+  text-decoration: none;
+}
+.footer-button--secondary {
+  color: #e9edf7;
+  border-color: #39455b;
+  background: transparent;
+}
+.footer-nav {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 20px;
+  max-width: none;
   align-content: start;
+  margin: 0;
+}
+.footer-nav-group {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+.footer-nav-group h2,
+.footer-connect h2 {
+  margin: 0 0 5px;
+  color: #f5f7ff;
+  font-size: 0.67rem;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+.footer-nav-group a {
+  min-height: 26px;
+  align-content: center;
+  color: #9aa5bc;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  text-decoration: none;
+}
+.footer-connect {
+  max-width: 1240px;
+  margin: 30px auto 0;
+  padding: 16px 0;
+  border-top: 1px solid #1a2232;
+  border-bottom: 1px solid #1a2232;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+.footer-connect h2 {
+  margin-bottom: 4px;
+}
+.footer-connect p {
+  margin: 0;
+}
+.footer-connect .footer-independent {
+  color: #c1c8d8;
+  font-size: 0.73rem;
+  font-weight: 600;
+}
+.footer-bottom {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding-top: 16px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: #77839a;
+  font-size: 0.72rem;
 }
 .site-footer a:hover {
   color: #fff;
+}
+.site-footer a:focus-visible {
+  outline: 2px solid #c8ff00;
+  outline-offset: 3px;
 }
 .legal-page {
   max-width: 860px;
@@ -661,6 +774,9 @@ a:hover .confession-card {
   background: rgba(200, 255, 0, 0.08);
 }
 @media (max-width: 800px) {
+  .site-footer {
+    padding: 28px 5vw 14px;
+  }
   .site-header nav a:not(.nav-cta) {
     display: none;
   }
@@ -693,11 +809,62 @@ a:hover .confession-card {
   .detail-cta .ggv-button {
     margin-top: 20px;
   }
-  .site-footer {
+  .footer-main {
+    grid-template-columns: 1fr;
+    gap: 22px;
+  }
+  .footer-brand {
+    max-width: none;
+    text-align: center;
+  }
+  .footer-brand-name {
+    justify-content: center;
+  }
+  .footer-description {
+    max-width: 440px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .footer-actions {
+    justify-content: center;
+  }
+  .footer-nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px 18px;
+  }
+  .footer-nav-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    gap: 4px 8px;
+  }
+  .footer-nav-group h2 {
+    flex: 0 0 100%;
+    margin-bottom: 0;
+  }
+  .footer-nav-group a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+  }
+  .footer-connect {
+    margin-top: 24px;
     display: block;
   }
-  .site-footer nav {
-    margin-top: 22px;
+  .footer-connect > div {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .footer-connect h2 {
+    margin-bottom: 0;
+  }
+  .footer-connect .footer-independent {
+    margin-top: 7px;
+  }
+  .footer-bottom {
+    flex-direction: column;
+    gap: 4px;
   }
 }
 @media (max-width: 520px) {

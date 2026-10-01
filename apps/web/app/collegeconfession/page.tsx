@@ -1,18 +1,14 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import CollegeConfessionComposer from './CollegeConfessionComposer';
+import { publicPageMetadata } from '../../lib/metadata';
 
-export const metadata: Metadata = {
-  title: 'College Confession',
-  description: 'Send an anonymous confession to the College Confession community.',
-  alternates: { canonical: 'https://www.confessions.live/collegeconfession' },
-  openGraph: {
-    title: 'College Confession',
-    description: 'Send an anonymous confession to the College Confession community.',
-    url: 'https://www.confessions.live/collegeconfession',
-    type: 'website',
-  },
-};
+export const metadata: Metadata = publicPageMetadata({
+  title: 'Create a Confession',
+  description: 'Send a confession to the College Confession community for human review.',
+  path: '/collegeconfession',
+  indexable: false,
+});
 
 export type ProfileSettings = {
   handle: string;

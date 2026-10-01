@@ -108,6 +108,47 @@ async function run() {
     else process.env.SUBMISSION_RATE_LIMIT = previousLimit;
   }
 
+  const previousReportLimit = process.env.REPORT_RATE_LIMIT;
+  const previousReportWindow = process.env.REPORT_RATE_WINDOW_SECONDS;
+  process.env.REPORT_RATE_LIMIT = '1';
+  process.env.REPORT_RATE_WINDOW_SECONDS = '3600';
+  let reportCalls = 0;
+  const reportController = new ConfessionsController({
+    report: async () => {
+      reportCalls += 1;
+      return { status: 'RECEIVED' };
+    },
+  } as unknown as ConfessionsService);
+  const reportHeaders: Record<string, string> = {};
+  const reportResponse = {
+    setHeader: (name: string, value: string) => (reportHeaders[name] = value),
+  };
+  try {
+    await reportController.report(
+      'published-1',
+      { reason: 'SPAM' } as any,
+      { ip: 'report-rate-limit-client' } as any,
+      reportResponse as any,
+    );
+    assert.throws(
+      () =>
+        reportController.report(
+          'published-1',
+          { reason: 'SPAM' } as any,
+          { ip: 'report-rate-limit-client' } as any,
+          reportResponse as any,
+        ),
+      (error: unknown) => error instanceof HttpException && error.getStatus() === 429,
+    );
+    assert.equal(reportCalls, 1);
+    assert.equal(reportHeaders['Retry-After'], '3600');
+  } finally {
+    if (previousReportLimit === undefined) delete process.env.REPORT_RATE_LIMIT;
+    else process.env.REPORT_RATE_LIMIT = previousReportLimit;
+    if (previousReportWindow === undefined) delete process.env.REPORT_RATE_WINDOW_SECONDS;
+    else process.env.REPORT_RATE_WINDOW_SECONDS = previousReportWindow;
+  }
+
   let receivedFeedStatus: ConfessionStatus | undefined;
   const feedDatabase = createDatabase({
     confession: {

@@ -27,7 +27,7 @@ export default function ConfessionsFeed({ page }: ConfessionsFeedProps) {
       <section className="feed-heading">
         <div>
           <p className="eyebrow">THE CAMPUS WALL</p>
-          <h1>
+          <h1 aria-label="Confessions from your people.">
             Confessions from
             <br />
             <span>your people.</span>

@@ -387,6 +387,19 @@ button:disabled {
   margin: 14px 0;
   font-size: 0.9rem;
 }
+.moderation-guidance {
+  color: #fef3c7;
+  background: #3d3219;
+  border: 1px solid #7a6327;
+  line-height: 1.5;
+}
+.moderation-guidance ul {
+  margin: 8px 0 0;
+  padding-left: 22px;
+}
+.moderation-guidance li + li {
+  margin-top: 5px;
+}
 .notice.error {
   background: #4c2030;
   color: #fecdd3;

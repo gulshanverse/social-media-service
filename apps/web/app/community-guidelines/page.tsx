@@ -1,6 +1,19 @@
+import type { Metadata } from 'next';
 import { GuidelinesPage } from '../legal-pages';
-export const metadata = {
-  title: 'Community Guidelines | College Confession',
-  description: 'Keep the anonymous campus wall safe and respectful.',
-};
-export default GuidelinesPage;
+import { AdSenseScript } from '../../components/AdSenseScript';
+import { publicPageMetadata } from '../../lib/metadata';
+
+export const metadata: Metadata = publicPageMetadata({
+  title: 'Community Guidelines',
+  description: 'Clear rules for safe, respectful campus stories and anonymous posts.',
+  path: '/community-guidelines',
+});
+
+export default function GuidelinesRoute() {
+  return (
+    <>
+      <AdSenseScript eligible />
+      <GuidelinesPage />
+    </>
+  );
+}

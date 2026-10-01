@@ -5,9 +5,11 @@ import { useEffect, useState } from 'react';
 
 const links = [
   ['/', 'Home'],
-  ['/confessions', 'Community'],
+  ['/confessions', 'Explore the community'],
   ['/send', 'Send a confession'],
   ['/about', 'About'],
+  ['/how-it-works', 'How it works'],
+  ['/faq', 'FAQ'],
   ['/community-guidelines', 'Community guidelines'],
   ['/privacy', 'Privacy'],
   ['/terms', 'Terms'],

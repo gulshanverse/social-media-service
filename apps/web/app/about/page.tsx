@@ -1,6 +1,19 @@
+import type { Metadata } from 'next';
 import { AboutPage } from '../legal-pages';
-export const metadata = {
-  title: 'About | College Confession',
-  description: 'Learn how College Confession works.',
-};
-export default AboutPage;
+import { AdSenseScript } from '../../components/AdSenseScript';
+import { publicPageMetadata } from '../../lib/metadata';
+
+export const metadata: Metadata = publicPageMetadata({
+  title: 'About',
+  description: 'What College Confession is, how anonymous sharing works, and how to stay safe.',
+  path: '/about',
+});
+
+export default function AboutRoute() {
+  return (
+    <>
+      <AdSenseScript eligible />
+      <AboutPage />
+    </>
+  );
+}

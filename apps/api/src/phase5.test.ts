@@ -68,12 +68,15 @@ async function run() {
     });
     process.env.APP_VERSION = 'test-version';
     process.env.GIT_COMMIT = 'test-sha';
+    process.env.RENDER_GIT_COMMIT = 'render-sha';
     assert.deepEqual(health.version(), {
       service: 'social-media-service-api',
       version: 'test-version',
-      commit: 'test-sha',
+      commit: 'render-sha',
       environment: process.env.NODE_ENV ?? 'development',
     });
+    delete process.env.RENDER_GIT_COMMIT;
+    assert.equal(health.version().commit, 'test-sha');
     assert.equal(typeof metricsSnapshot().counters.moderation_actions_total, 'number');
 
     process.env.PHASE5_RATE_LIMIT = '1';
@@ -114,6 +117,7 @@ async function run() {
   } finally {
     delete process.env.APP_VERSION;
     delete process.env.GIT_COMMIT;
+    delete process.env.RENDER_GIT_COMMIT;
     delete process.env.PHASE5_RATE_LIMIT;
     delete process.env.PHASE5_RATE_WINDOW;
     delete process.env.ADMIN_LOGIN_RATE_LIMIT;

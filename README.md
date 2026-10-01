@@ -39,28 +39,28 @@ The repository is structured as a pnpm monorepo. It separates the public Next.js
 
 ## Product capabilities
 
-| Area | Implemented capabilities |
-| --- | --- |
-| Public experience | Anonymous submission, paginated feed, public record detail, category metadata, themed cards, responsive layouts, reporting, and share-oriented pages |
-| Profile surface | Configurable handle, header and composer copy, community links, profile image, theme preset, prompt collection, and mobile preview |
-| Moderation | Pending queue, server-side search and filters, sorting, pagination, approve/reject/archive actions, pending and published-record editing, bulk actions, and stale-state protection |
-| Administration | Dashboard metrics, report review and resolution, append-only audit activity, theme CRUD, live public-card preview, profile settings, session visibility, and logout-all |
-| Platform operations | Health, liveness, readiness, version, and metrics endpoints; request IDs; structured safe logging; normalized errors; graceful shutdown; and container health checks |
-| Delivery | Docker API image, local PostgreSQL Compose service, Prisma migration workflow, GitHub Actions quality pipeline, and separate Next.js deployment targets |
+| Area                | Implemented capabilities                                                                                                                                                           |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Public experience   | Anonymous submission, paginated feed, public record detail, category metadata, themed cards, responsive layouts, reporting, and share-oriented pages                               |
+| Profile surface     | Configurable handle, header and composer copy, community links, profile image, theme preset, prompt collection, and mobile preview                                                 |
+| Moderation          | Pending queue, server-side search and filters, sorting, pagination, approve/reject/archive actions, pending and published-record editing, bulk actions, and stale-state protection |
+| Administration      | Dashboard metrics, report review and resolution, append-only audit activity, theme CRUD, live public-card preview, profile settings, session visibility, and logout-all            |
+| Platform operations | Health, liveness, readiness, version, and metrics endpoints; request IDs; structured safe logging; normalized errors; graceful shutdown; and container health checks               |
+| Delivery            | Docker API image, local PostgreSQL Compose service, Prisma migration workflow, GitHub Actions quality pipeline, and separate Next.js deployment targets                            |
 
 ## Technology stack
 
-| Layer | Technology |
-| --- | --- |
-| Public web | Next.js 15, React 19, TypeScript |
-| Admin web | Next.js 15, React 19, TypeScript |
-| API | NestJS 10, Express, TypeScript |
-| Persistence | PostgreSQL 16, Prisma 6 |
-| Shared packages | TypeScript domain types, configuration, theme definitions, and React UI primitives |
-| Validation | `class-validator`, `class-transformer`, strict whitelist validation |
-| Authentication | HMAC access tokens, database-backed sessions, rotating HttpOnly refresh cookies |
-| Observability | Request correlation IDs, structured logs, operational endpoints, Vercel Analytics, and Vercel Speed Insights |
-| Tooling | pnpm 9.15.4, ESLint, Prettier, TypeScript, Vitest, Docker, GitHub Actions |
+| Layer           | Technology                                                                                                   |
+| --------------- | ------------------------------------------------------------------------------------------------------------ |
+| Public web      | Next.js 15, React 19, TypeScript                                                                             |
+| Admin web       | Next.js 15, React 19, TypeScript                                                                             |
+| API             | NestJS 10, Express, TypeScript                                                                               |
+| Persistence     | PostgreSQL 16, Prisma 6                                                                                      |
+| Shared packages | TypeScript domain types, configuration, theme definitions, and React UI primitives                           |
+| Validation      | `class-validator`, `class-transformer`, strict whitelist validation                                          |
+| Authentication  | HMAC access tokens, database-backed sessions, rotating HttpOnly refresh cookies                              |
+| Observability   | Request correlation IDs, structured logs, operational endpoints, Vercel Analytics, and Vercel Speed Insights |
+| Tooling         | pnpm 9.15.4, ESLint, Prettier, TypeScript, Vitest, Docker, GitHub Actions                                    |
 
 ## Architecture
 
@@ -117,11 +117,11 @@ The protected profile editor controls the public handle, header message, compose
 
 ## Administrative roles
 
-| Role | Access boundary |
-| --- | --- |
+| Role          | Access boundary                                                                                                    |
+| ------------- | ------------------------------------------------------------------------------------------------------------------ |
 | `SUPER_ADMIN` | Full intended administrative access, including moderation, reports, themes, audit activity, and session operations |
-| `MODERATOR` | Moderation and report workflows; theme read access; no audit access or theme mutation |
-| `DESIGNER` | Theme read and mutation access; no moderation, report processing, or audit access |
+| `MODERATOR`   | Moderation and report workflows; theme read access; no audit access or theme mutation                              |
+| `DESIGNER`    | Theme read and mutation access; no moderation, report processing, or audit access                                  |
 
 The API loads the current administrator from the database on protected requests. Active status and the database role remain authoritative even when the client hides unavailable navigation items.
 
@@ -201,25 +201,25 @@ pnpm dev
 
 The development servers use these ports:
 
-| Application | Command | Port |
-| --- | --- | ---: |
-| Public web | `pnpm --filter @ggv/web dev` | 3000 |
-| Admin workspace | `pnpm --filter @ggv/admin dev` | 3001 |
-| API | `pnpm --filter @ggv/api dev` | 4000 |
-| All applications | `pnpm dev` | 3000, 3001, 4000 |
+| Application      | Command                        |             Port |
+| ---------------- | ------------------------------ | ---------------: |
+| Public web       | `pnpm --filter @ggv/web dev`   |             3000 |
+| Admin workspace  | `pnpm --filter @ggv/admin dev` |             3001 |
+| API              | `pnpm --filter @ggv/api dev`   |             4000 |
+| All applications | `pnpm dev`                     | 3000, 3001, 4000 |
 
 ## Environment variables
 
 The following variables are defined by `.env.example` and are grouped by purpose.
 
-| Variable group | Variables | Purpose |
-| --- | --- | --- |
-| Database and runtime | `DATABASE_URL`, `NODE_ENV`, `PORT` | PostgreSQL connection and API runtime |
-| Proxy and authentication | `TRUST_PROXY_HOPS`, `JWT_SECRET`, `JWT_REFRESH_SECRET` | Client IP resolution and token signing |
-| Administrator bootstrap | `ADMIN_SEED_EMAIL`, `ADMIN_SEED_PASSWORD` | Development-only initial administrator seed |
-| Rate limits | `ADMIN_LOGIN_RATE_LIMIT`, `ADMIN_LOGIN_RATE_WINDOW_SECONDS`, `ADMIN_REFRESH_RATE_LIMIT`, `ADMIN_REFRESH_RATE_WINDOW_SECONDS`, `SUBMISSION_RATE_LIMIT`, `SUBMISSION_RATE_WINDOW_SECONDS` | Process-local request throttling |
-| Browser origins | `NEXT_PUBLIC_API_URL`, `WEB_ORIGIN`, `ADMIN_ORIGIN` | API location and exact credentialed CORS origins |
-| Build metadata | `APP_VERSION`, `GIT_COMMIT` | Safe version and deployment metadata responses |
+| Variable group           | Variables                                                                                                                                                                               | Purpose                                          |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| Database and runtime     | `DATABASE_URL`, `NODE_ENV`, `PORT`                                                                                                                                                      | PostgreSQL connection and API runtime            |
+| Proxy and authentication | `TRUST_PROXY_HOPS`, `JWT_SECRET`, `JWT_REFRESH_SECRET`                                                                                                                                  | Client IP resolution and token signing           |
+| Administrator bootstrap  | `ADMIN_SEED_EMAIL`, `ADMIN_SEED_PASSWORD`                                                                                                                                               | Development-only initial administrator seed      |
+| Rate limits              | `ADMIN_LOGIN_RATE_LIMIT`, `ADMIN_LOGIN_RATE_WINDOW_SECONDS`, `ADMIN_REFRESH_RATE_LIMIT`, `ADMIN_REFRESH_RATE_WINDOW_SECONDS`, `SUBMISSION_RATE_LIMIT`, `SUBMISSION_RATE_WINDOW_SECONDS` | Process-local request throttling                 |
+| Browser origins          | `NEXT_PUBLIC_API_URL`, `WEB_ORIGIN`, `ADMIN_ORIGIN`                                                                                                                                     | API location and exact credentialed CORS origins |
+| Build metadata           | `APP_VERSION`, `GIT_COMMIT`                                                                                                                                                             | Safe version and deployment metadata responses   |
 
 Do not commit real credentials or production connection strings. Production authentication secrets are required; the API fails closed when they are missing.
 
@@ -381,7 +381,13 @@ Response `200` sets the refresh cookie and returns:
 
 ```json
 {
-  "admin": { "id": "admin-id", "email": "admin@example.com", "name": "Admin", "role": "SUPER_ADMIN", "isActive": true },
+  "admin": {
+    "id": "admin-id",
+    "email": "admin@example.com",
+    "name": "Admin",
+    "role": "SUPER_ADMIN",
+    "isActive": true
+  },
   "accessToken": "short-lived-access-token"
 }
 ```
@@ -411,7 +417,13 @@ Requires a bearer access token. Revokes the current database session, clears the
 Requires a bearer token and returns the current safe administrator projection:
 
 ```json
-{ "id": "admin-id", "email": "admin@example.com", "name": "Admin", "role": "MODERATOR", "isActive": true }
+{
+  "id": "admin-id",
+  "email": "admin@example.com",
+  "name": "Admin",
+  "role": "MODERATOR",
+  "isActive": true
+}
 ```
 
 #### `GET /admin/auth/sessions`
@@ -421,7 +433,14 @@ Requires a bearer token and returns active session metadata for the current admi
 ```json
 {
   "items": [
-    { "id": "session-id", "createdAt": "2026-09-24T04:00:00.000Z", "lastUsedAt": null, "expiresAt": "2026-10-01T04:00:00.000Z", "revokedAt": null, "current": true }
+    {
+      "id": "session-id",
+      "createdAt": "2026-09-24T04:00:00.000Z",
+      "lastUsedAt": null,
+      "expiresAt": "2026-10-01T04:00:00.000Z",
+      "revokedAt": null,
+      "current": true
+    }
   ]
 }
 ```
@@ -453,7 +472,14 @@ Returns aggregate operational counts and the six most recent relevant activity e
   "totalRecords": 103,
   "activeThemes": 5,
   "recentActivity": [
-    { "id": "audit-id", "action": "APPROVE", "entity": "CONTENT_RECORD", "entityId": "record-id", "createdAt": "2026-09-24T04:00:00.000Z", "actor": { "email": "moderator@example.com" } }
+    {
+      "id": "audit-id",
+      "action": "APPROVE",
+      "entity": "CONTENT_RECORD",
+      "entityId": "record-id",
+      "createdAt": "2026-09-24T04:00:00.000Z",
+      "actor": { "email": "moderator@example.com" }
+    }
   ]
 }
 ```
@@ -579,37 +605,37 @@ Missing files, unsupported types, oversized files, or missing blob configuration
 
 These endpoints do not require administrator authentication.
 
-| Method and path | Response |
-| --- | --- |
-| `GET /health` | `{ "status": "ok", "service": "social-media-service-api" }` |
-| `GET /health/live` | Same shape as `/health`; used for liveness and restart checks |
-| `GET /health/ready` | `{ "status": "ok", "database": "ok" }`; returns `503` with `{ "status": "not_ready", "database": "unavailable" }` when PostgreSQL is unavailable |
-| `GET /health/version` | `{ "service", "version", "commit", "environment" }` from safe runtime metadata |
-| `GET /health/metrics` | Lightweight operational counter snapshot |
-| `GET /metrics` | Alias for the metrics snapshot |
+| Method and path       | Response                                                                                                                                         |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GET /health`         | `{ "status": "ok", "service": "social-media-service-api" }`                                                                                      |
+| `GET /health/live`    | Same shape as `/health`; used for liveness and restart checks                                                                                    |
+| `GET /health/ready`   | `{ "status": "ok", "database": "ok" }`; returns `503` with `{ "status": "not_ready", "database": "unavailable" }` when PostgreSQL is unavailable |
+| `GET /health/version` | `{ "service", "version", "commit", "environment" }` from safe runtime metadata                                                                   |
+| `GET /health/metrics` | Lightweight operational counter snapshot                                                                                                         |
+| `GET /metrics`        | Alias for the metrics snapshot                                                                                                                   |
 
 ### Authorization summary
 
-| Route group | `SUPER_ADMIN` | `MODERATOR` | `DESIGNER` | Public |
-| --- | --- | --- | --- | --- |
-| Public submission/feed/report routes | — | — | — | Yes |
-| Dashboard | Yes | Yes | Yes | No |
-| Moderation and reports | Yes | Yes | No | No |
-| Themes read | Yes | Yes | Yes | No |
-| Themes create/update | Yes | No | Yes | No |
-| Audit activity | Yes | No | No | No |
-| Profile settings and image | Yes | No | Yes | No |
-| Authentication and own sessions | Own account | Own account | Own account | No |
+| Route group                          | `SUPER_ADMIN` | `MODERATOR` | `DESIGNER`  | Public |
+| ------------------------------------ | ------------- | ----------- | ----------- | ------ |
+| Public submission/feed/report routes | —             | —           | —           | Yes    |
+| Dashboard                            | Yes           | Yes         | Yes         | No     |
+| Moderation and reports               | Yes           | Yes         | No          | No     |
+| Themes read                          | Yes           | Yes         | Yes         | No     |
+| Themes create/update                 | Yes           | No          | Yes         | No     |
+| Audit activity                       | Yes           | No          | No          | No     |
+| Profile settings and image           | Yes           | No          | Yes         | No     |
+| Authentication and own sessions      | Own account   | Own account | Own account | No     |
 
 ## Observability
 
-| Endpoint | Purpose |
-| --- | --- |
-| `GET /health` | Basic application health |
-| `GET /health/live` | Liveness signal for restart checks |
-| `GET /health/ready` | PostgreSQL-backed readiness signal for traffic routing |
-| `GET /health/version` | Safe build and deployment metadata |
-| `GET /health/metrics` | Lightweight operational counters |
+| Endpoint              | Purpose                                                |
+| --------------------- | ------------------------------------------------------ |
+| `GET /health`         | Basic application health                               |
+| `GET /health/live`    | Liveness signal for restart checks                     |
+| `GET /health/ready`   | PostgreSQL-backed readiness signal for traffic routing |
+| `GET /health/version` | Safe build and deployment metadata                     |
+| `GET /health/metrics` | Lightweight operational counters                       |
 
 The API generates or validates `X-Request-ID` values, emits structured safe logs, normalizes production errors, and closes the Nest application and Prisma client during graceful shutdown.
 
@@ -687,14 +713,14 @@ Application code, database migrations, and deployment changes should remain cons
 
 ## Project status
 
-| Component | Status |
-| --- | --- |
-| Public web application | Implemented Next.js application |
-| Administrative workspace | Implemented role-aware Next.js application |
-| API | Implemented NestJS service with Prisma persistence |
-| Database | PostgreSQL schema with versioned migrations |
-| CI | GitHub Actions quality workflow configured |
-| Local infrastructure | Docker Compose PostgreSQL helper and production-oriented API Dockerfile |
+| Component                | Status                                                                  |
+| ------------------------ | ----------------------------------------------------------------------- |
+| Public web application   | Implemented Next.js application                                         |
+| Administrative workspace | Implemented role-aware Next.js application                              |
+| API                      | Implemented NestJS service with Prisma persistence                      |
+| Database                 | PostgreSQL schema with versioned migrations                             |
+| CI                       | GitHub Actions quality workflow configured                              |
+| Local infrastructure     | Docker Compose PostgreSQL helper and production-oriented API Dockerfile |
 
 ## License
 
@@ -703,3 +729,11 @@ License information is not currently specified in this repository.
 ## Maintainer
 
 The repository is maintained under the [gulshanverse GitHub account](https://github.com/gulshanverse).
+
+## AdSense and user-generated content safety
+
+The Google account-verification metadata remains in the public app, and the real seller declaration is served from `apps/web/public/ads.txt`. The AdSense serving script is **off by default**. To deliberately enable it after reviewing content, privacy notices, and applicable consent requirements, set `NEXT_PUBLIC_ADSENSE_INFO_PAGES_ENABLED=true` for the public web build. The script component is mounted only on the homepage, About, How It Works, FAQ, and Community Guidelines. It is not mounted on the confession feed or detail pages, report and submission flows, admin app, or privacy/terms pages. Keep it disabled until the site owner decides monetization is appropriate.
+
+The confession feed and individual user-submitted confession pages are public but `noindex` and excluded from the sitemap while the team reviews privacy and safety. The report and submission routes are also `noindex`; important informational and policy pages remain in the sitemap. The admin app is `noindex` and disallows crawlers. All new confessions remain pending for human approval. Moderator screens display a checklist for identifying details, requests to locate/contact people, harassment, and other safety issues.
+
+Public confession reports are limited per client IP in process memory and include a `Retry-After` response when throttled. This is a basic single-process abuse control, not a distributed limiter; if API traffic is scaled across multiple instances, use shared storage before relying on a global quota.

@@ -107,6 +107,13 @@ describe('admin workspace behavior', () => {
     expect(vi.mocked(confirm)).toHaveBeenCalledWith('Approve 1 selected confessions?');
   });
 
+  it('shows the privacy-aware review checklist for the pending queue', async () => {
+    render(<Confessions />);
+    await waitFor(() => expect(screen.getByText('GGV-1')).toBeInTheDocument());
+    expect(screen.getByText('Review each confession for safety')).toBeInTheDocument();
+    expect(screen.getByText(/masked names can still be identifiable/i)).toBeInTheDocument();
+  });
+
   it('handles queue filtering and clear selection controls', async () => {
     render(<Confessions />);
     await waitFor(() => expect(screen.getByText('GGV-1')).toBeInTheDocument());

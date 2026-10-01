@@ -27,7 +27,7 @@ export class HealthController {
     return {
       service: 'social-media-service-api',
       version: process.env.APP_VERSION ?? '0.1.0',
-      commit: process.env.GIT_COMMIT ?? 'development',
+      commit: process.env.RENDER_GIT_COMMIT ?? process.env.GIT_COMMIT ?? 'development',
       environment: process.env.NODE_ENV ?? 'development',
     };
   }

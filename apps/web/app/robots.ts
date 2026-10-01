@@ -9,6 +9,8 @@ export default function robots(): MetadataRoute.Robots {
           '/',
           '/confessions',
           '/about',
+          '/how-it-works',
+          '/faq',
           '/community-guidelines',
           '/privacy',
           '/terms',
