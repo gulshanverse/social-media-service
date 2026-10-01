@@ -304,6 +304,14 @@ export function HowItWorksPage() {
           reviewed by moderators but are not an emergency response service.
         </LegalParagraph>
       </LegalSection>
+      <LegalSection title="6. Moderator follow-up">
+        <LegalParagraph>
+          A moderator reviews reports in the private queue and decides what action is appropriate.
+          Depending on the context, a report may be dismissed, lead to an edit, or lead to content
+          being archived or removed. A report does not guarantee a particular outcome or response
+          time.
+        </LegalParagraph>
+      </LegalSection>
     </LegalPage>
   );
 }
@@ -336,6 +344,20 @@ export function FaqPage() {
           content.
         </LegalParagraph>
       </LegalSection>
+      <LegalSection title="What happens after I submit?">
+        <LegalParagraph>
+          The submission is placed in a pending queue and is not public while it waits for review.
+          An authorized moderator may approve it, edit it for safety, reject it, or take another
+          moderation action. Publication is not guaranteed.
+        </LegalParagraph>
+      </LegalSection>
+      <LegalSection title="Can a confession be rejected?">
+        <LegalParagraph>
+          Yes. A moderator may reject a submission when it conflicts with the{' '}
+          <Link href="/community-guidelines">Community Guidelines</Link>, creates an avoidable
+          safety or privacy risk, or otherwise is not suitable for the public wall.
+        </LegalParagraph>
+      </LegalSection>
       <LegalSection title="What should I not post?">
         <LegalParagraph>
           Do not share private identifiers or clues that could reveal, locate, or help contact
@@ -364,6 +386,13 @@ export function FaqPage() {
           The AdSense serving script is disabled by default. If explicitly enabled later, the
           current code allows it only on selected informational pages, not on the feed or individual
           confession, report, or submission pages.
+        </LegalParagraph>
+      </LegalSection>
+      <LegalSection title="Is this an official university service?">
+        <LegalParagraph>
+          No. College Confession is an independent community platform. Posts are user-submitted and
+          should not be treated as official university communications, verified facts, or
+          professional advice.
         </LegalParagraph>
       </LegalSection>
       <LegalSection title="How can I contact the team?">

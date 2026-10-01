@@ -251,6 +251,52 @@ select:focus-visible {
 .final-cta .ggv-button {
   margin-top: 30px;
 }
+.info-copy {
+  max-width: 680px;
+}
+.info-copy p,
+.info-panel li {
+  color: #a8afbf;
+  line-height: 1.7;
+}
+.info-copy p + p {
+  margin-top: 18px;
+}
+.info-copy a {
+  color: #c8ff00;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.info-section {
+  max-width: 1240px;
+  margin: auto;
+  padding: 20px 5vw 90px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 25px;
+}
+.info-panel {
+  padding: 30px;
+  border: 1px solid #202b40;
+  border-radius: 24px;
+  background: #101522;
+}
+.info-panel--warning {
+  background: linear-gradient(145deg, #171523, #101522);
+}
+.info-panel h2 {
+  font:
+    600 1.7rem/1.1 var(--font-space-grotesk),
+    sans-serif;
+  margin: 0 0 20px;
+}
+.info-panel ul {
+  margin: 0;
+  padding-left: 20px;
+}
+.info-panel li + li {
+  margin-top: 10px;
+}
 .form-page {
   max-width: 800px;
   margin: auto;
@@ -795,6 +841,9 @@ a:hover .confession-card {
   }
   .steps,
   .card-grid {
+    grid-template-columns: 1fr;
+  }
+  .info-section {
     grid-template-columns: 1fr;
   }
   .feed-heading {
