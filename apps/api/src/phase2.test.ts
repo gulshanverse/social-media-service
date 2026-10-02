@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { AdminQueueQueryDto, CreateThemeDto, UpdateThemeDto } from './admin.dto';
-import { exportPortableTheme, normalizeImportedTheme, normalizeTheme, themePresets, themeToCssVariables, validatePresets } from '@ggv/themes';
+import { analyzeThemeContrast, contrastRatio, evaluateContrast, exportPortableTheme, normalizeImportedTheme, normalizeTheme, themePresets, themeToCssVariables, validatePresets } from '@ggv/themes';
 
 async function run() {
   const scheduled = plainToInstance(CreateThemeDto, {
@@ -40,6 +40,12 @@ async function run() {
   assert.throws(() => normalizeImportedTheme({ ...portable, tokens: { ...portable.tokens, background: 'url(javascript:bad)' } }));
   assert.equal(new Set(themePresets.map((preset) => preset.slug)).size, 14);
   assert.equal(validatePresets().length, 14);
+  assert.equal(contrastRatio('#000', '#fff'), 21);
+  assert.equal(evaluateContrast('#000', '#fff')?.aaaNormal, true);
+  assert.equal(evaluateContrast('#777', '#fff')?.aaNormal, false);
+  assert.equal(contrastRatio('rgba(0,0,0,.5)', '#fff') !== null, true);
+  assert.equal(contrastRatio('rgba(0,0,0,.5)', 'rgba(255,255,255,.5)'), null);
+  assert.equal(analyzeThemeContrast({ ...normalized, tokens: { ...normalized.visualTokens, primaryText: '#fff' } }).length > 0, true);
   console.log('phase 2 lifecycle DTO and filter regression tests passed');
 }
 void run();

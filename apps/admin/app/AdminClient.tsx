@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { appConfig } from '@ggv/config';
 import type { PublicConfession, PublicTheme } from '@ggv/types';
-import { themePresets, themeToCssVariables } from '@ggv/themes';
+import { analyzeThemeContrast, themePresets, themeToCssVariables, type ContrastPair } from '@ggv/themes';
 import { ConfessionCard as SharedConfessionCard, Logo } from '@ggv/ui';
 import ProfilePage from './ProfilePage';
 
@@ -1302,6 +1302,14 @@ function ThemeWorkspacePreview({ theme, viewport, onViewport }: { theme: Partial
     </div>
   </section>;
 }
+function AccessibilityDashboard({ theme }: { theme: Partial<Theme> }) {
+  const pairs: ContrastPair[] = (() => { try { return analyzeThemeContrast(theme as any); } catch { return []; } })();
+  return <section className="accessibility-dashboard" aria-labelledby="accessibility-heading">
+    <div className="form-heading"><div><p className="eyebrow">WCAG CONTRAST</p><h2 id="accessibility-heading">Accessibility</h2><p className="muted">Live analysis of the current draft. Results are pair-specific, not a universal theme rating.</p></div><span className="status">{pairs.filter((pair) => pair.status === 'PASS').length}/{pairs.length} strong pairs</span></div>
+    <div className="contrast-grid">{pairs.map((pair) => <article className="contrast-card" key={pair.id}><div className="contrast-card-heading"><strong>{pair.label}</strong><span className={`contrast-status contrast-${pair.status.toLowerCase()}`}>{pair.status}</span></div><div className="contrast-ratio">{pair.ratio.toFixed(2)}:1</div><div className="wcag-levels"><span className={pair.aaNormal ? 'level-pass' : 'level-fail'}>AA normal {pair.aaNormal ? '✓' : '✕'}</span><span className={pair.aaLarge ? 'level-pass' : 'level-fail'}>AA large {pair.aaLarge ? '✓' : '✕'}</span><span className={pair.aaaNormal ? 'level-pass' : 'level-fail'}>AAA normal {pair.aaaNormal ? '✓' : '✕'}</span><span className={pair.aaaLarge ? 'level-pass' : 'level-fail'}>AAA large {pair.aaaLarge ? '✓' : '✕'}</span></div><div className="contrast-swatches"><span style={{ color: pair.foreground, background: pair.background }}>Aa</span><code>{pair.foreground} / {pair.background}</code></div></article>)}</div>
+    {pairs.length === 0 && <div className="state">No meaningful color pairs could be evaluated yet.</div>}
+  </section>;
+}
 const emptyTheme = {
   slug: '',
   name: '',
@@ -1444,10 +1452,12 @@ export function Themes({ admin }: { admin: Admin }) {
           <label>Use preset<select defaultValue="" onChange={(event) => { const preset = themePresets.find((item) => item.slug === event.target.value); if (preset) applyPreset(preset); event.target.value = ''; }}><option value="">Choose a named preset…</option>{themePresets.map((preset) => <option key={preset.slug} value={preset.slug}>{preset.name}</option>)}</select></label>
           <label>Import theme JSON<input ref={importFile} type="file" accept="application/json,.json" onChange={(event) => { const file = event.target.files?.[0]; if (file) inspectImport(file); }} /></label>
         </div>
+        <details className="preset-browser"><summary>Browse all named presets</summary><div className="preset-grid">{themePresets.map((preset) => <article className="preset-card" key={preset.slug}><ThemePreview theme={portableToForm(preset)} label={preset.name} /><h3>{preset.name}</h3><p className="muted">{preset.description}</p><small>{preset.category} · {preset.variant} · {preset.mode}</small><div className="actions"><button type="button" onClick={() => applyPreset(preset)}>Use preset</button><button type="button" className="secondary" onClick={() => { setImportPreview({ document: preset, proposedSlug: preset.slug }); }}>Preview</button></div></article>)}</div></details>
         {importError && <div className="notice error" role="alert">{importError}</div>}
         {importPreview && importedForm && <div className="import-preview">
           <div className="form-heading"><div><h3>Import preview</h3><p className="muted">Proposed slug: <strong>{importPreview.proposedSlug}</strong> · Draft only</p></div><div className="actions"><button type="button" onClick={confirmImport}>Confirm Import as Draft</button><button type="button" className="secondary" onClick={() => setImportPreview(null)}>Cancel</button></div></div>
           <ThemeWorkspacePreview theme={importedForm} viewport={viewport} onViewport={setViewport} />
+          <AccessibilityDashboard theme={importedForm} />
         </div>}
       </div>}
       {loading && <div className="state">Loading themes…</div>}
@@ -1587,6 +1597,7 @@ export function Themes({ admin }: { admin: Admin }) {
           </details>
           <div className="dirty-bar" role="status"><strong>{dirty ? 'Unsaved changes' : 'Saved snapshot'}</strong>{dirty && <button type="button" className="secondary" onClick={() => { setForm(savedForm); setAdvancedJson(JSON.stringify(savedForm.tokens || {}, null, 2)); setAdvancedError(''); }}>Discard changes</button>}</div>
           <ThemeWorkspacePreview theme={form} viewport={viewport} onViewport={setViewport} />
+          <AccessibilityDashboard theme={form} />
           <button disabled={!dirty}>Save Draft</button>
         </form>
       )}

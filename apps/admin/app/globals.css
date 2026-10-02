@@ -1158,3 +1158,20 @@ button:disabled {
 .import-preview { display:grid; gap:12px; padding-top:12px; border-top:1px solid #293751; }
 .import-preview .theme-workspace-preview { margin-top:0; }
 @media (max-width:620px) { .portable-tool-row { grid-template-columns:1fr; } }
+
+/* Phase 4B accessibility and preset library */
+.accessibility-dashboard { display:grid; gap:14px; padding:16px; border:1px solid #293751; border-radius:16px; background:#0d1524; }
+.contrast-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.contrast-card { display:grid; gap:9px; padding:13px; border:1px solid #293751; border-radius:12px; background:#111827; }
+.contrast-card-heading { display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
+.contrast-ratio { font-size:1.55rem; font-weight:900; letter-spacing:-.04em; }
+.contrast-status { border-radius:999px; padding:4px 7px; font-size:.64rem; font-weight:900; }
+.contrast-pass { color:#86efac; background:#123b2b; }
+.contrast-warning { color:#fde68a; background:#493615; }
+.contrast-fail { color:#fda4af; background:#452034; }
+.wcag-levels { display:grid; grid-template-columns:1fr 1fr; gap:5px; font-size:.7rem; }
+.level-pass { color:#86efac; }.level-fail { color:#fda4af; }
+.contrast-swatches { display:flex; gap:8px; align-items:center; min-width:0; }.contrast-swatches span { display:grid; place-items:center; width:34px; height:28px; border-radius:6px; font-weight:900; }.contrast-swatches code { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#94a3b8; font-size:.65rem; }
+.preset-browser { border-top:1px solid #293751; padding-top:12px; }.preset-browser summary { cursor:pointer; font-weight:800; }.preset-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-top:14px; }.preset-card { display:grid; gap:8px; padding:10px; border:1px solid #293751; border-radius:12px; background:#0d1524; }.preset-card .theme-preview { min-height:150px; padding:14px; }.preset-card h3,.preset-card p { margin:0; }.preset-card small { color:#94a3b8; }.preset-card .actions { margin-top:auto; }
+@media (max-width:900px) { .contrast-grid,.preset-grid { grid-template-columns:1fr 1fr; } }
+@media (max-width:620px) { .contrast-grid,.preset-grid { grid-template-columns:1fr; } }
