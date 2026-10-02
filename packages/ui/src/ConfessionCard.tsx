@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 import type { PublicConfession } from '@ggv/types';
+import { themeToCssVariables } from '@ggv/themes';
 
 const categoryNames: Record<string, string> = {
   COLLEGE_LIFE: 'College Life',
@@ -33,12 +34,15 @@ export function ConfessionCard({
   className = '',
 }: CardProps) {
   const theme = confession.theme;
+  const themeVariables = theme ? themeToCssVariables(theme) : {};
   const style: CardStyle = {
-    background: theme?.gradient ?? '#151c2b',
-    color: theme?.textColor ?? '#fff',
-    borderRadius: theme?.radius ?? '28px',
-    fontFamily: theme?.fontFamily ?? 'inherit',
-    '--card-accent': theme?.accentColor ?? '#00b8ff',
+    ...themeVariables,
+    background: 'var(--theme-gradient, #151c2b)',
+    color: 'var(--theme-text, #fff)',
+    borderRadius: 'var(--theme-radius, 28px)',
+    borderStyle: 'var(--theme-border-style, solid)' as CSSProperties['borderStyle'],
+    fontFamily: 'var(--theme-font-family, inherit)',
+    '--card-accent': 'var(--theme-accent, #00b8ff)',
     '--card-text-size': `${display?.cardTextSize ?? 16}px`,
     '--preview-lines': display?.previewLines ?? 5,
   };

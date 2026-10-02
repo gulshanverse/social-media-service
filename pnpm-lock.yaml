@@ -242,6 +242,9 @@ importers:
 
   packages/ui:
     dependencies:
+      '@ggv/themes':
+        specifier: workspace:*
+        version: link:../themes
       '@ggv/types':
         specifier: workspace:*
         version: link:../types

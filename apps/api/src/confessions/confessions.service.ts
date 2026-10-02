@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { ConfessionStatus } from '@prisma/client';
-import { themes } from '@ggv/themes';
+import { normalizeTheme, themes } from '@ggv/themes';
 import type { PublicConfession, PublicConfessionPage, SubmissionResult } from '@ggv/types';
 import { CreateConfessionDto, ListConfessionsQueryDto } from './dto';
 import { reportReasons } from './report.dto';
@@ -26,6 +26,10 @@ type ThemeRecord = {
   accentColor: string;
   fontFamily: string;
   radius: number;
+  borderStyle?: 'solid' | 'dashed' | 'dotted' | 'double' | 'none';
+  logoVisibility?: boolean;
+  handleVisibility?: boolean;
+  layoutVariant?: string;
 };
 type ConfessionRecord = {
   id?: string;
@@ -102,16 +106,26 @@ const prisma = sharedPrisma as unknown as ConfessionsPrisma;
 const rateLimiter = new SubmissionRateLimiter();
 
 function toPublicTheme(theme: ThemeRecord) {
-  const shared = themes.find((item) => item.id === theme.slug);
+  const fallback = themes.find((item) => item.id === 'midnight')!;
+  let normalized;
+  try {
+    normalized = normalizeTheme(theme);
+  } catch {
+    normalized = normalizeTheme({ ...fallback, slug: fallback.id });
+  }
   return {
-    id: theme.slug,
-    name: theme.name,
-    background: theme.background,
-    gradient: theme.gradient,
-    textColor: theme.textColor,
-    accentColor: theme.accentColor,
-    fontFamily: theme.fontFamily,
-    radius: shared?.radius ?? `${theme.radius}px`,
+    id: normalized.slug,
+    name: normalized.name,
+    background: normalized.background,
+    gradient: normalized.gradient,
+    textColor: normalized.textColor,
+    accentColor: normalized.accentColor,
+    fontFamily: normalized.fontFamily,
+    radius: `${normalized.radius}px`,
+    borderStyle: normalized.borderStyle,
+    logoVisibility: normalized.logoVisibility,
+    handleVisibility: normalized.handleVisibility,
+    layoutVariant: normalized.layoutVariant,
   };
 }
 
@@ -230,6 +244,10 @@ export class ConfessionsService {
               accentColor: true,
               fontFamily: true,
               radius: true,
+              borderStyle: true,
+              logoVisibility: true,
+              handleVisibility: true,
+              layoutVariant: true,
             },
           },
         },
@@ -271,6 +289,10 @@ export class ConfessionsService {
             accentColor: true,
             fontFamily: true,
             radius: true,
+            borderStyle: true,
+            logoVisibility: true,
+            handleVisibility: true,
+            layoutVariant: true,
           },
         },
       },

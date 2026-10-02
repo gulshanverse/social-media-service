@@ -1,20 +1,28 @@
 import { PrismaClient, AdminRole } from '@prisma/client';
-import { themes } from '../packages/themes/src/index';
+import { normalizeTheme, themes } from '../packages/themes/src/index';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 async function main() {
   await prisma.theme.createMany({
-    data: themes.map((theme) => ({
-      id: theme.id,
-      slug: theme.id,
-      name: theme.name,
-      background: theme.background,
-      gradient: theme.gradient,
-      textColor: theme.textColor,
-      accentColor: theme.accentColor,
-      fontFamily: theme.fontFamily,
-    })),
+    data: themes.map((theme) => {
+      const normalized = normalizeTheme({ ...theme, slug: theme.id });
+      return {
+        id: normalized.id,
+        slug: normalized.slug,
+        name: normalized.name,
+        background: normalized.background,
+        gradient: normalized.gradient,
+        textColor: normalized.textColor,
+        accentColor: normalized.accentColor,
+        fontFamily: normalized.fontFamily,
+        borderStyle: normalized.borderStyle,
+        logoVisibility: normalized.logoVisibility,
+        handleVisibility: normalized.handleVisibility,
+        layoutVariant: normalized.layoutVariant,
+        radius: normalized.radius,
+      };
+    }),
     skipDuplicates: true,
   });
   const email = process.env.ADMIN_SEED_EMAIL;

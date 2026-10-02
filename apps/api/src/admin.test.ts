@@ -474,6 +474,23 @@ async function testDtosAndServiceState() {
     admin,
   );
   assert.equal(audit.at(-1).action, 'THEME_CREATE');
+  await assert.rejects(
+    () =>
+      service.createTheme(
+        {
+          slug: 'unsafe',
+          name: 'Unsafe',
+          background: 'url(javascript:alert(1))',
+          gradient: 'none',
+          textColor: '#fff',
+          accentColor: '#fff',
+          fontFamily: 'Inter',
+          radius: 20,
+        },
+        admin,
+      ),
+    /unsafe|invalid/i,
+  );
   await service.updateTheme('theme-db-id', { name: 'Updated' }, admin);
   assert.equal(audit.at(-1).action, 'THEME_UPDATE');
   const auditCount = audit.length;

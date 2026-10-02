@@ -16,6 +16,7 @@ import {
   ArrayMaxSize,
   IsUrl,
   IsISO8601,
+  IsBoolean,
   validateSync,
 } from 'class-validator';
 import {
@@ -49,6 +50,15 @@ export class CreateThemeDto {
   @IsString() @MinLength(1) @MaxLength(100) accentColor!: string;
   @IsString() @MinLength(1) @MaxLength(120) fontFamily!: string;
   @IsInt() @Min(0) @Max(100) radius!: number;
+  @IsOptional() @IsIn(['solid', 'dashed', 'dotted', 'double', 'none']) borderStyle?:
+    | 'solid'
+    | 'dashed'
+    | 'dotted'
+    | 'double'
+    | 'none';
+  @IsOptional() @IsBoolean() logoVisibility?: boolean;
+  @IsOptional() @IsBoolean() handleVisibility?: boolean;
+  @IsOptional() @IsString() @MinLength(1) @MaxLength(40) layoutVariant?: string;
 }
 export class UpdateThemeDto {
   @IsOptional() @IsString() @MinLength(1) @MaxLength(120) name?: string;
@@ -58,6 +68,15 @@ export class UpdateThemeDto {
   @IsOptional() @IsString() @MinLength(1) @MaxLength(100) accentColor?: string;
   @IsOptional() @IsString() @MinLength(1) @MaxLength(120) fontFamily?: string;
   @IsOptional() @IsInt() @Min(0) @Max(100) radius?: number;
+  @IsOptional() @IsIn(['solid', 'dashed', 'dotted', 'double', 'none']) borderStyle?:
+    | 'solid'
+    | 'dashed'
+    | 'dotted'
+    | 'double'
+    | 'none';
+  @IsOptional() @IsBoolean() logoVisibility?: boolean;
+  @IsOptional() @IsBoolean() handleVisibility?: boolean;
+  @IsOptional() @IsString() @MinLength(1) @MaxLength(40) layoutVariant?: string;
 }
 export class UpdateProfileSettingsDto {
   @IsOptional() @IsString() @MinLength(1) @MaxLength(80) handle?: string;

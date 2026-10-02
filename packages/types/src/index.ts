@@ -22,6 +22,10 @@ export type PublicTheme = {
   accentColor: string;
   fontFamily: string;
   radius: string;
+  borderStyle?: 'solid' | 'dashed' | 'dotted' | 'double' | 'none';
+  logoVisibility?: boolean;
+  handleVisibility?: boolean;
+  layoutVariant?: string;
 };
 export type PublicConfession = {
   publicId: string;

@@ -23,6 +23,7 @@ import {
   UpdateGarbaSeasonDto,
 } from './admin.dto';
 import { increment } from './observability';
+import { normalizeTheme } from '@ggv/themes';
 
 export function assertOpenReportTransition(status: ReportStatus, action: 'resolve' | 'dismiss') {
   if (status !== ReportStatus.OPEN)
@@ -451,15 +452,25 @@ export class AdminService {
     return { items, page, limit, total, hasMore: page * limit < total };
   }
   async createTheme(body: CreateThemeDto, actor: AdminIdentity) {
+    let normalized;
+    try {
+      normalized = normalizeTheme(body);
+    } catch (error) {
+      throw new BadRequestException(error instanceof Error ? error.message : 'Invalid theme.');
+    }
     const data = {
-      slug: body.slug,
-      name: body.name,
-      background: body.background,
-      gradient: body.gradient,
-      textColor: body.textColor,
-      accentColor: body.accentColor,
-      fontFamily: body.fontFamily,
-      radius: body.radius,
+      slug: normalized.slug,
+      name: normalized.name,
+      background: normalized.background,
+      gradient: normalized.gradient,
+      textColor: normalized.textColor,
+      accentColor: normalized.accentColor,
+      fontFamily: normalized.fontFamily,
+      radius: normalized.radius,
+      borderStyle: normalized.borderStyle,
+      logoVisibility: normalized.logoVisibility,
+      handleVisibility: normalized.handleVisibility,
+      layoutVariant: normalized.layoutVariant,
     };
     const item = await prisma.theme.create({ data });
     await recordAudit(actor.id, 'THEME_CREATE', 'THEME', item.id);
@@ -469,8 +480,30 @@ export class AdminService {
   async updateTheme(id: string, body: UpdateThemeDto, actor: AdminIdentity) {
     const existing = await prisma.theme.findUnique({ where: { id }, select: { id: true } });
     if (!existing) throw new NotFoundException('Theme not found.');
+    let normalized;
+    try {
+      normalized = normalizeTheme({
+        id,
+        slug: id,
+        name: body.name ?? 'Theme',
+        background: body.background ?? '#000',
+        gradient: body.gradient ?? 'none',
+        textColor: body.textColor ?? '#fff',
+        accentColor: body.accentColor ?? '#fff',
+        fontFamily: body.fontFamily ?? 'Inter',
+        radius: body.radius ?? 0,
+        borderStyle: body.borderStyle as 'solid' | 'dashed' | 'dotted' | 'double' | 'none' | undefined,
+        logoVisibility: body.logoVisibility,
+        handleVisibility: body.handleVisibility,
+        layoutVariant: body.layoutVariant,
+      });
+    } catch (error) {
+      throw new BadRequestException(error instanceof Error ? error.message : 'Invalid theme.');
+    }
     const data = Object.fromEntries(
-      Object.entries(body).filter(([, value]) => value !== undefined),
+      Object.entries(body)
+        .filter(([, value]) => value !== undefined)
+        .map(([key]) => [key, normalized[key as keyof typeof normalized]]),
     );
     const item = await prisma.theme.update({ where: { id }, data });
     await recordAudit(actor.id, 'THEME_UPDATE', 'THEME', id, { changedFields: Object.keys(data) });
