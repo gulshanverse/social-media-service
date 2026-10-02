@@ -33,6 +33,10 @@ import {
   UpdateConfessionDto,
   UpdateProfileSettingsDto,
   UpdateThemeDto,
+  AdminGarbaCommentQueryDto,
+  AdminGarbaQueryDto,
+  UpdateGarbaPostDto,
+  UpdateGarbaSeasonDto,
 } from './admin.dto';
 
 @Controller('admin')
@@ -41,6 +45,42 @@ export class AdminController {
   constructor(@Inject(AdminService) private readonly service: AdminService) {}
   @Get('dashboard') dashboard() {
     return this.service.dashboardExtended();
+  }
+  @Get('garba') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) garbaDashboard() {
+    return this.service.garbaDashboard();
+  }
+  @Get('garba/posts') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) garbaPosts(@Query() query: AdminGarbaQueryDto) {
+    return this.service.garbaPosts(query);
+  }
+  @Get('garba/posts/:id') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) garbaPost(@Param('id') id: string) {
+    return this.service.garbaPost(id);
+  }
+  @Patch('garba/posts/:id') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) garbaEdit(@Param('id') id: string, @Body() body: UpdateGarbaPostDto, @Req() req: { user?: ReturnType<typeof requireUser> }) {
+    return this.service.updateGarbaPost(id, body, requireUser(req));
+  }
+  @Post('garba/posts/:id/:action') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) garbaTransition(@Param('id') id: string, @Param('action') action: 'approve' | 'reject' | 'archive' | 'restore', @Req() req: { user?: ReturnType<typeof requireUser> }) {
+    return this.service.garbaTransition(id, action, requireUser(req));
+  }
+  @Post('garba/posts/:id/comments-lock') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) garbaLockComments(@Param('id') id: string, @Body() body: { locked: boolean }, @Req() req: { user?: ReturnType<typeof requireUser> }) {
+    return this.service.garbaLockComments(id, body.locked === true, requireUser(req));
+  }
+  @Get('garba/comments') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) garbaComments(@Query() query: AdminGarbaCommentQueryDto) {
+    return this.service.garbaComments(query);
+  }
+  @Post('garba/comments/:id/:action') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) garbaCommentTransition(@Param('id') id: string, @Param('action') action: 'approve' | 'reject' | 'archive' | 'restore', @Req() req: { user?: ReturnType<typeof requireUser> }) {
+    return this.service.garbaCommentTransition(id, action, requireUser(req));
+  }
+  @Get('garba/reports') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) garbaReports(@Query() query: AdminReportQueryDto) {
+    return this.service.garbaReports(query);
+  }
+  @Post('garba/reports/:id/:action') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) garbaReportAction(@Param('id') id: string, @Param('action') action: 'resolve' | 'dismiss', @Req() req: { user?: ReturnType<typeof requireUser> }) {
+    return this.service.garbaReportAction(id, action, requireUser(req));
+  }
+  @Get('garba/seasons') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) garbaSeasons() {
+    return this.service.garbaSeasonSettings();
+  }
+  @Patch('garba/seasons') @Roles(AdminRole.SUPER_ADMIN) updateGarbaSeason(@Body() body: UpdateGarbaSeasonDto, @Req() req: { user?: ReturnType<typeof requireUser> }) {
+    return this.service.updateGarbaSeason(body, requireUser(req));
   }
   @Get('confessions') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) queue(
     @Query() query: AdminQueueQueryDto,

@@ -1,5 +1,6 @@
 import { Controller, Get, HttpException, HttpStatus, Module } from '@nestjs/common';
 import { ConfessionsModule } from './confessions/confessions.module';
+import { GarbaModule } from './garba/garba.module';
 import { AdminModule } from './admin.module';
 import { prisma } from './admin-auth';
 import { metricsSnapshot } from './observability';
@@ -44,7 +45,7 @@ export class MetricsController {
 }
 
 @Module({
-  imports: [ConfessionsModule, AdminModule],
+  imports: [ConfessionsModule, GarbaModule, AdminModule],
   controllers: [HealthController, MetricsController],
 })
 export class AppModule {}

@@ -1,5 +1,13 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { AdminRole, ConfessionCategory, ConfessionStatus, ReportStatus } from '@prisma/client';
+import {
+  AdminRole,
+  ConfessionCategory,
+  ConfessionStatus,
+  GarbaCommentStatus,
+  GarbaPostCategory,
+  GarbaPostStatus,
+  ReportStatus,
+} from '@prisma/client';
 import { prisma, recordAudit, AdminIdentity } from './admin-auth';
 import {
   AdminQueueQueryDto,
@@ -8,6 +16,10 @@ import {
   UpdateProfileSettingsDto,
   UpdateConfessionDto,
   UpdateThemeDto,
+  AdminGarbaCommentQueryDto,
+  AdminGarbaQueryDto,
+  UpdateGarbaPostDto,
+  UpdateGarbaSeasonDto,
 } from './admin.dto';
 import { increment } from './observability';
 
@@ -505,6 +517,122 @@ export class AdminService {
     );
     return item;
   }
+  async garbaDashboard() {
+    const [total, pending, published, rejected, archived, comments, openReports, season] = await Promise.all([
+      prisma.garbaPost.count(),
+      prisma.garbaPost.count({ where: { status: GarbaPostStatus.PENDING } }),
+      prisma.garbaPost.count({ where: { status: GarbaPostStatus.PUBLISHED } }),
+      prisma.garbaPost.count({ where: { status: GarbaPostStatus.REJECTED } }),
+      prisma.garbaPost.count({ where: { status: GarbaPostStatus.ARCHIVED } }),
+      prisma.garbaComment.count(),
+      prisma.garbaReport.count({ where: { status: ReportStatus.OPEN } }),
+      prisma.garbaSeason.findFirst({ where: { status: 'ACTIVE' }, orderBy: { year: 'desc' } }),
+    ]);
+    return { total, pending, published, rejected, archived, comments, openReports, season };
+  }
+
+  async garbaPosts(query: AdminGarbaQueryDto) {
+    const page = Math.max(1, query.page ?? 1);
+    const limit = Math.min(50, Math.max(1, query.limit ?? 20));
+    const where = {
+      status: query.status ?? GarbaPostStatus.PENDING,
+      ...(query.category ? { category: query.category } : {}),
+      ...(query.search ? { OR: [{ publicId: { contains: query.search, mode: 'insensitive' as const } }, { content: { contains: query.search, mode: 'insensitive' as const } }] } : {}),
+    };
+    const [items, total] = await Promise.all([
+      prisma.garbaPost.findMany({ where, orderBy: { createdAt: query.order === 'oldest' ? 'asc' : 'desc' }, skip: (page - 1) * limit, take: limit, include: { _count: { select: { comments: true, reactions: true, reports: true } } } }),
+      prisma.garbaPost.count({ where }),
+    ]);
+    return { items, page, limit, total, hasMore: page * limit < total };
+  }
+
+  async garbaPost(id: string) {
+    const item = await prisma.garbaPost.findUnique({ where: { id }, include: { reports: { orderBy: { createdAt: 'desc' } }, comments: { orderBy: { createdAt: 'asc' }, include: { replies: true } } } });
+    if (!item) throw new NotFoundException('Garba post not found.');
+    return item;
+  }
+
+  async updateGarbaPost(id: string, body: UpdateGarbaPostDto, actor: AdminIdentity) {
+    const current = await prisma.garbaPost.findUnique({ where: { id }, select: { status: true } });
+    if (!current) throw new NotFoundException('Garba post not found.');
+    if (current.status !== GarbaPostStatus.PENDING && current.status !== GarbaPostStatus.PUBLISHED) throw new BadRequestException('This Garba post is not editable in its current state.');
+    const data = { ...body, ...(body.eventDate ? { eventDate: new Date(body.eventDate) } : {}), ...(body.content ? { content: body.content.trim() } : {}), ...(body.location ? { location: body.location.trim() } : {}) } as any;
+    const item = await prisma.garbaPost.update({ where: { id }, data });
+    await recordAudit(actor.id, 'GARBA_POST_EDITED', 'GARBA_POST', id, { changedFields: Object.keys(data) });
+    return item;
+  }
+
+  async garbaTransition(id: string, action: 'approve' | 'reject' | 'archive' | 'restore', actor: AdminIdentity) {
+    const current = await prisma.garbaPost.findUnique({ where: { id }, select: { status: true } });
+    if (!current) throw new NotFoundException('Garba post not found.');
+    const allowed: Record<string, GarbaPostStatus[]> = { approve: [GarbaPostStatus.PENDING], reject: [GarbaPostStatus.PENDING], archive: [GarbaPostStatus.PUBLISHED, GarbaPostStatus.REJECTED], restore: [GarbaPostStatus.ARCHIVED] };
+    if (!allowed[action].includes(current.status)) throw new BadRequestException(`Cannot ${action} a ${current.status.toLowerCase()} Garba post.`);
+    const status = action === 'approve' || action === 'restore' ? GarbaPostStatus.PUBLISHED : action === 'reject' ? GarbaPostStatus.REJECTED : GarbaPostStatus.ARCHIVED;
+    const item = await prisma.garbaPost.update({ where: { id }, data: { status, ...(status === GarbaPostStatus.PUBLISHED ? { publishedAt: new Date() } : {}) } });
+    const auditAction = { approve: 'GARBA_POST_APPROVED', reject: 'GARBA_POST_REJECTED', archive: 'GARBA_POST_DELETED', restore: 'GARBA_POST_RESTORED' }[action];
+    await recordAudit(actor.id, auditAction, 'GARBA_POST', id);
+    increment('moderation_actions_total');
+    return item;
+  }
+
+  async garbaLockComments(id: string, locked: boolean, actor: AdminIdentity) {
+    const item = await prisma.garbaPost.update({ where: { id }, data: { commentsLocked: locked } });
+    await recordAudit(actor.id, locked ? 'GARBA_COMMENT_LOCKED' : 'GARBA_COMMENT_UNLOCKED', 'GARBA_POST', id);
+    return item;
+  }
+
+  async garbaComments(query: AdminGarbaCommentQueryDto) {
+    const page = Math.max(1, query.page ?? 1);
+    const limit = Math.min(50, Math.max(1, query.limit ?? 20));
+    const where = { status: query.status ?? GarbaCommentStatus.PENDING, ...(query.search ? { content: { contains: query.search, mode: 'insensitive' as const } } : {}) };
+    const [items, total] = await Promise.all([
+      prisma.garbaComment.findMany({ where, orderBy: { createdAt: 'desc' }, skip: (page - 1) * limit, take: limit, include: { post: { select: { id: true, publicId: true, content: true } }, parent: { select: { id: true, content: true } }, replies: true } }),
+      prisma.garbaComment.count({ where }),
+    ]);
+    return { items, page, limit, total, hasMore: page * limit < total };
+  }
+
+  async garbaCommentTransition(id: string, action: 'approve' | 'reject' | 'archive' | 'restore', actor: AdminIdentity) {
+    const current = await prisma.garbaComment.findUnique({ where: { id }, select: { status: true, parentId: true } });
+    if (!current) throw new NotFoundException('Garba comment or reply not found.');
+    const allowed: Record<string, GarbaCommentStatus[]> = { approve: [GarbaCommentStatus.PENDING], reject: [GarbaCommentStatus.PENDING], archive: [GarbaCommentStatus.PUBLISHED, GarbaCommentStatus.REJECTED], restore: [GarbaCommentStatus.ARCHIVED] };
+    if (!allowed[action].includes(current.status)) throw new BadRequestException(`Cannot ${action} this Garba comment.`);
+    const status = action === 'approve' || action === 'restore' ? GarbaCommentStatus.PUBLISHED : action === 'reject' ? GarbaCommentStatus.REJECTED : GarbaCommentStatus.ARCHIVED;
+    const item = await prisma.garbaComment.update({ where: { id }, data: { status } });
+    const target = current.parentId ? 'REPLY' : 'COMMENT';
+    const auditAction = { approve: `GARBA_${target}_APPROVED`, reject: `GARBA_${target}_REJECTED`, archive: `GARBA_${target}_DELETED`, restore: `GARBA_${target}_RESTORED` }[action];
+    await recordAudit(actor.id, auditAction, 'GARBA_COMMENT', id);
+    return item;
+  }
+
+  async garbaReports(query: { page?: number; limit?: number; status?: ReportStatus }) {
+    const page = Math.max(1, query.page ?? 1); const limit = Math.min(50, Math.max(1, query.limit ?? 20));
+    const where = query.status ? { status: query.status } : {};
+    const [items, total] = await Promise.all([prisma.garbaReport.findMany({ where, orderBy: { createdAt: 'desc' }, skip: (page - 1) * limit, take: limit, include: { post: { select: { id: true, publicId: true, content: true } }, comment: { select: { id: true, content: true, parentId: true } } } }), prisma.garbaReport.count({ where })]);
+    return { items: items.map((item) => ({ ...item, id: `garba:${item.id}`, kind: 'GARBA', confession: { id: item.post.id, publicId: item.post.publicId, content: item.comment?.content ?? item.post.content, status: 'GARBA' } })), page, limit, total, hasMore: page * limit < total };
+  }
+
+  async garbaReportAction(id: string, action: 'resolve' | 'dismiss', actor: AdminIdentity) {
+    const report = await prisma.garbaReport.findUnique({ where: { id }, select: { status: true } });
+    if (!report) throw new NotFoundException('Garba report not found.');
+    assertOpenReportTransition(report.status, action);
+    const item = await prisma.garbaReport.update({ where: { id }, data: { status: action === 'resolve' ? ReportStatus.RESOLVED : ReportStatus.DISMISSED } });
+    await recordAudit(actor.id, `GARBA_REPORT_${action.toUpperCase()}`, 'GARBA_REPORT', id);
+    increment('reports_processed_total');
+    return item;
+  }
+
+  async garbaSeasonSettings() { return prisma.garbaSeason.findMany({ orderBy: { year: 'desc' } }); }
+  async updateGarbaSeason(body: UpdateGarbaSeasonDto, actor: AdminIdentity) {
+    const item = await prisma.$transaction(async (tx) => {
+      if (body.status === 'ACTIVE') await tx.garbaSeason.updateMany({ data: { status: 'INACTIVE' } });
+      const existing = await tx.garbaSeason.findFirst({ where: { year: body.year } });
+      return existing ? tx.garbaSeason.update({ where: { id: existing.id }, data: { name: body.name, startDate: body.startDate ? new Date(body.startDate) : null, endDate: body.endDate ? new Date(body.endDate) : null, status: body.status } }) : tx.garbaSeason.create({ data: { name: body.name, year: body.year, startDate: body.startDate ? new Date(body.startDate) : null, endDate: body.endDate ? new Date(body.endDate) : null, status: body.status } });
+    });
+    await recordAudit(actor.id, 'GARBA_SEASON_UPDATED', 'GARBA_SEASON', item.id, { year: body.year, status: body.status });
+    return item;
+  }
+
   async dashboard() {
     const [
       pending,
@@ -539,10 +667,7 @@ export class AdminService {
       prisma.confession.count({ where: { status: 'ARCHIVED' } }),
       prisma.auditLog.findMany({
         where: {
-          entity: { in: ['CONFESSION', 'REPORT'] },
-          action: {
-            in: ['APPROVE', 'REJECT', 'ARCHIVE', 'RESTORE', 'REPORT_RESOLVE', 'REPORT_DISMISS'],
-          },
+          entity: { in: ['CONFESSION', 'REPORT', 'GARBA_POST', 'GARBA_COMMENT', 'GARBA_REPORT', 'GARBA_SEASON'] },
         },
         orderBy: { createdAt: 'desc' },
         take: 6,

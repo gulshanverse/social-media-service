@@ -153,7 +153,7 @@ function asPublicTheme(theme: Partial<Theme> | null | undefined): PublicTheme | 
 }
 export function Nav({ admin, onNavigate }: { admin: Admin; onNavigate?: () => void }) {
   const links: [string, string][] = [['/', 'Dashboard']];
-  if (admin.role !== 'DESIGNER') links.push(['/confessions', 'Queue'], ['/reports', 'Reports']);
+  if (admin.role !== 'DESIGNER') links.push(['/confessions', 'Queue'], ['/reports', 'Reports'], ['/garba', 'Garba']);
   if (admin.role === 'SUPER_ADMIN') links.push(['/audit-logs', 'Audit']);
   links.push(['/themes', 'Themes']);
   if (admin.role === 'SUPER_ADMIN' || admin.role === 'DESIGNER')
@@ -1009,6 +1009,7 @@ function ConfessionDetail({ admin }: { admin: Admin }) {
 }
 export function Reports() {
   const [data, setData] = useState<PageData<any> | null>(null);
+  const [garbaData, setGarbaData] = useState<PageData<any> | null>(null);
   const [status, setStatus] = useState('OPEN');
   const [search, setSearch] = useState('');
   const [order, setOrder] = useState('newest');
@@ -1022,6 +1023,7 @@ export function Reports() {
       .then(setData)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
+    api(`/admin/garba/reports?${qs({ status, page, limit: 20 })}`).then(setGarbaData).catch(() => undefined);
   };
   useEffect(() => {
     load();
@@ -1124,6 +1126,23 @@ export function Reports() {
           </article>
         ))}
       </div>
+      {garbaData?.items?.length ? (
+        <>
+          <p className="eyebrow" style={{ marginTop: 36 }}>GARBA REPORTS</p>
+          <div className="list">
+            {garbaData.items.map((r) => (
+              <article className="list-card" key={r.id}>
+                <div>
+                  <div className="row-title"><strong>{r.post.publicId}</strong><Status value={r.status} /></div>
+                  <span>Garba {r.comment ? (r.comment.parentId ? 'reply' : 'comment') : 'post'} report · {formatDate(r.createdAt)}</span>
+                  <p>{r.reason}</p>
+                </div>
+                {r.status === 'OPEN' && <div className="card-actions"><button onClick={() => api(`/admin/garba/reports/${r.id.replace('garba:', '')}/resolve`, { method: 'POST' }).then(load).catch((e) => setError(e.message))}>Resolve</button><button className="secondary" onClick={() => api(`/admin/garba/reports/${r.id.replace('garba:', '')}/dismiss`, { method: 'POST' }).then(load).catch((e) => setError(e.message))}>Dismiss</button></div>}
+              </article>
+            ))}
+          </div>
+        </>
+      ) : null}
       <Pager data={data} onPage={setPage} />
     </section>
   );
@@ -1362,6 +1381,25 @@ export function Themes({ admin }: { admin: Admin }) {
     </section>
   );
 }
+export function GarbaAdmin({ admin }: { admin: Admin }) {
+  const [tab, setTab] = useState('overview');
+  const [data, setData] = useState<any>(null);
+  const [status, setStatus] = useState('PENDING');
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const canWrite = admin.role !== 'DESIGNER';
+  const load = () => {
+    setError('');
+    const path = tab === 'overview' ? '/admin/garba' : tab === 'posts' ? `/admin/garba/posts?status=${status}` : tab === 'comments' ? '/admin/garba/comments?status=PENDING' : tab === 'reports' ? '/admin/garba/reports?status=OPEN' : '/admin/garba/seasons';
+    api(path).then(setData).catch((e) => setError(e.message));
+  };
+  useEffect(load, [tab, status]);
+  async function act(path: string, action: string, body?: object) {
+    if (!confirm(`Confirm ${action}?`)) return;
+    try { await api(path, { method: path.includes('/seasons') ? 'PATCH' : 'POST', ...(body ? { body: JSON.stringify(body) } : {}) }); setMessage(`${action} completed.`); load(); } catch (e) { setError(e instanceof Error ? e.message : 'Action failed.'); }
+  }
+  return <section><p className="eyebrow">GARBA COMMUNITY</p><h1>Garba moderation</h1><p className="muted">Review posts, comments, replies, reports, and the active season without leaving the existing admin workspace.</p><div className="admin-tabs">{['overview', 'posts', 'comments', 'reports', 'settings'].map((value) => <button className={tab === value ? 'active' : 'secondary'} key={value} onClick={() => setTab(value)}>{value[0].toUpperCase() + value.slice(1)}</button>)}</div><Notice error={error} message={message} />{tab === 'overview' && data && <div className="stats">{[['Total posts', 'total'], ['Pending', 'pending'], ['Published', 'published'], ['Rejected', 'rejected'], ['Deleted', 'archived'], ['Comments', 'comments'], ['Open reports', 'openReports']].map(([label, key]) => <div className="metric" key={key}><span>{label}</span><strong>{data[key]}</strong></div>)}</div>}{tab === 'posts' && <><div className="filters"><label>Status<select value={status} onChange={(e) => setStatus(e.target.value)}>{['PENDING', 'PUBLISHED', 'REJECTED', 'ARCHIVED'].map((v) => <option key={v}>{v}</option>)}</select></label></div><div className="list">{data?.items?.map((post: any) => <article className="list-card" key={post.id}><div><div className="row-title"><strong>{post.publicId}</strong><Status value={post.status} /></div><span>{post.category} · {formatDate(post.createdAt)}</span><p>{post.content}</p><small>{post.location || 'No location'} · @{post.instagramHandle || 'none'} · {post._count.comments} comments</small></div>{canWrite && <div className="card-actions">{post.status === 'PENDING' && <><button onClick={() => act(`/admin/garba/posts/${post.id}/approve`, 'Approve post')}>Approve</button><button className="danger" onClick={() => act(`/admin/garba/posts/${post.id}/reject`, 'Reject post')}>Reject</button></>}{['PUBLISHED', 'REJECTED'].includes(post.status) && <button className="danger" onClick={() => act(`/admin/garba/posts/${post.id}/archive`, 'Archive post')}>Archive</button>}{post.status === 'ARCHIVED' && <button onClick={() => act(`/admin/garba/posts/${post.id}/restore`, 'Restore post')}>Restore</button>}{post.status === 'PUBLISHED' && <button className="secondary" onClick={() => act(`/admin/garba/posts/${post.id}/comments-lock`, 'Lock comments', { locked: !post.commentsLocked })}>{post.commentsLocked ? 'Unlock comments' : 'Lock comments'}</button>}</div>}</article>)}</div></>}{tab === 'comments' && <div className="list">{data?.items?.map((comment: any) => <article className="list-card" key={comment.id}><div><div className="row-title"><strong>{comment.parentId ? 'Reply' : 'Comment'}</strong><Status value={comment.status} /></div><p>{comment.content}</p><small>Post {comment.post.publicId} · {formatDate(comment.createdAt)}</small></div>{canWrite && <div className="card-actions">{comment.status === 'PENDING' && <><button onClick={() => act(`/admin/garba/comments/${comment.id}/approve`, 'Approve comment')}>Approve</button><button className="danger" onClick={() => act(`/admin/garba/comments/${comment.id}/reject`, 'Reject comment')}>Reject</button></>}{comment.status === 'PUBLISHED' && <button className="danger" onClick={() => act(`/admin/garba/comments/${comment.id}/archive`, 'Hide comment')}>Hide</button>}{comment.status === 'ARCHIVED' && <button onClick={() => act(`/admin/garba/comments/${comment.id}/restore`, 'Restore comment')}>Restore</button>}</div>}</article>)}</div>}{tab === 'reports' && <div className="list">{data?.items?.map((report: any) => <article className="list-card" key={report.id}><div><div className="row-title"><strong>{report.kind} report</strong><Status value={report.status} /></div><p>{report.reason}</p><small>{report.comment ? (report.comment.parentId ? 'Reply' : 'Comment') : 'Post'} · {report.post.publicId} · {formatDate(report.createdAt)}</small></div>{report.status === 'OPEN' && canWrite && <div className="card-actions"><button onClick={() => act(`/admin/garba/reports/${report.id.replace('garba:', '')}/resolve`, 'Resolve report')}>Resolve</button><button className="secondary" onClick={() => act(`/admin/garba/reports/${report.id.replace('garba:', '')}/dismiss`, 'Dismiss report')}>Dismiss</button></div>}</article>)}</div>}{tab === 'settings' && <form className="panel garba-settings-form" onSubmit={(e) => { e.preventDefault(); const form = new FormData(e.currentTarget); act('/admin/garba/seasons', 'Save season', Object.fromEntries([...form.entries()].map(([k, v]) => [k, String(v)]))); }}><h2>Season settings</h2><p className="muted">Only one season is active at a time. Changes are audited.</p><label>Name<input name="name" defaultValue={data?.[0]?.name || 'Navratri'} required /></label><label>Year<input name="year" type="number" defaultValue={data?.[0]?.year || new Date().getFullYear()} required /></label><div className="form-grid"><label>Start date<input name="startDate" type="date" defaultValue={data?.[0]?.startDate?.slice(0, 10)} /></label><label>End date<input name="endDate" type="date" defaultValue={data?.[0]?.endDate?.slice(0, 10)} /></label></div><label>Status<select name="status" defaultValue="ACTIVE"><option>ACTIVE</option><option>INACTIVE</option></select></label>{admin.role === 'SUPER_ADMIN' && <button>Save season</button>}</form>}</section>;
+}
 export default function AdminClient() {
   const pathname = usePathname();
   const router = useRouter();
@@ -1396,6 +1434,8 @@ export default function AdminClient() {
       <ConfessionDetail admin={admin} />
     ) : pathname === '/reports' ? (
       <Reports />
+    ) : pathname === '/garba' ? (
+      <GarbaAdmin admin={admin} />
     ) : pathname === '/audit-logs' || pathname === '/audit' ? (
       <AuditLogs />
     ) : pathname === '/themes' ? (

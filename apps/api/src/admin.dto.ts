@@ -15,9 +15,17 @@ import {
   ArrayNotEmpty,
   ArrayMaxSize,
   IsUrl,
+  IsISO8601,
   validateSync,
 } from 'class-validator';
-import { ConfessionCategory, ConfessionStatus, ReportStatus } from '@prisma/client';
+import {
+  ConfessionCategory,
+  ConfessionStatus,
+  GarbaCommentStatus,
+  GarbaPostCategory,
+  GarbaPostStatus,
+  ReportStatus,
+} from '@prisma/client';
 
 export class LoginDto {
   @IsEmail() email!: string;
@@ -89,6 +97,30 @@ export class AdminReportQueryDto extends ListQueryDto {
 export class AdminAuditQueryDto extends ListQueryDto {
   @IsOptional() @IsString() @MaxLength(80) action?: string;
   @IsOptional() @IsString() @MaxLength(80) entity?: string;
+}
+export class AdminGarbaQueryDto extends ListQueryDto {
+  @IsOptional() @IsEnum(GarbaPostStatus) status?: GarbaPostStatus;
+  @IsOptional() @IsEnum(GarbaPostCategory) category?: GarbaPostCategory;
+  @IsOptional() @IsString() @MaxLength(120) search?: string;
+  @IsOptional() @IsIn(['newest', 'oldest']) order?: 'newest' | 'oldest';
+}
+export class UpdateGarbaPostDto {
+  @IsOptional() @IsString() @MinLength(10) @MaxLength(2000) content?: string;
+  @IsOptional() @IsEnum(GarbaPostCategory) category?: GarbaPostCategory;
+  @IsOptional() @IsString() @MaxLength(160) location?: string;
+  @IsOptional() @IsString() @MaxLength(30) instagramHandle?: string;
+  @IsOptional() @IsISO8601() eventDate?: string;
+}
+export class AdminGarbaCommentQueryDto extends ListQueryDto {
+  @IsOptional() @IsEnum(GarbaCommentStatus) status?: GarbaCommentStatus;
+  @IsOptional() @IsString() @MaxLength(120) search?: string;
+}
+export class UpdateGarbaSeasonDto {
+  @IsString() @MinLength(1) @MaxLength(80) name!: string;
+  @IsInt() @Min(2000) @Max(2100) year!: number;
+  @IsOptional() @IsISO8601() startDate?: string;
+  @IsOptional() @IsISO8601() endDate?: string;
+  @IsIn(['ACTIVE', 'INACTIVE']) status!: 'ACTIVE' | 'INACTIVE';
 }
 export class BulkModerationDto {
   @IsArray() @ArrayNotEmpty() @ArrayMaxSize(100) @IsString({ each: true }) ids!: string[];

@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 const links = [
   ['/', 'Home'],
   ['/confessions', 'Explore the community'],
+  ['/garba', 'Garba community'],
   ['/send', 'Send a confession'],
   ['/about', 'About'],
   ['/how-it-works', 'How it works'],

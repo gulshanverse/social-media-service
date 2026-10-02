@@ -32,6 +32,29 @@ enum ConfessionStatus {
   ARCHIVED
 }
 
+enum GarbaPostStatus {
+  PENDING
+  PUBLISHED
+  REJECTED
+  ARCHIVED
+}
+
+enum GarbaPostCategory {
+  PARTNER
+  GROUP
+  FRIENDS
+  EVENT
+  PRACTICE
+  GENERAL
+}
+
+enum GarbaCommentStatus {
+  PENDING
+  PUBLISHED
+  REJECTED
+  ARCHIVED
+}
+
 enum ReportStatus {
   OPEN
   RESOLVED
@@ -40,18 +63,18 @@ enum ReportStatus {
 }
 
 model AdminUser {
-  id          String      @id @default(cuid())
-  email       String      @unique
+  id           String         @id @default(cuid())
+  email        String         @unique
   passwordHash String
-  name        String?
-  isActive    Boolean     @default(true)
-  role        AdminRole   @default(SUPER_ADMIN)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  confessions Confession[] @relation("ConfessionEditor")
-  auditLogs   AuditLog[]  @relation("AuditActor")
-  reports     Report[]    @relation("ReportReviewer")
-  sessions    AdminSession[]
+  name         String?
+  isActive     Boolean        @default(true)
+  role         AdminRole      @default(SUPER_ADMIN)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  confessions  Confession[]   @relation("ConfessionEditor")
+  auditLogs    AuditLog[]     @relation("AuditActor")
+  reports      Report[]       @relation("ReportReviewer")
+  sessions     AdminSession[]
 }
 
 model AdminSession {
@@ -90,8 +113,8 @@ model Theme {
 }
 
 model Confession {
-  id              String             @id @default(cuid())
-  publicId        String             @unique
+  id              String              @id @default(cuid())
+  publicId        String              @unique
   content         String
   originalContent String
   category        ConfessionCategory?
@@ -113,15 +136,15 @@ model Confession {
 }
 
 model Report {
-  id           String         @id @default(cuid())
+  id           String       @id @default(cuid())
   confessionId String
-  confession   Confession     @relation(fields: [confessionId], references: [id])
+  confession   Confession   @relation(fields: [confessionId], references: [id])
   reason       String
-  status       ReportStatus   @default(OPEN)
+  status       ReportStatus @default(OPEN)
   reporterHash String?
   reviewerId   String?
-  reviewer     AdminUser?     @relation("ReportReviewer", fields: [reviewerId], references: [id])
-  createdAt    DateTime       @default(now())
+  reviewer     AdminUser?   @relation("ReportReviewer", fields: [reviewerId], references: [id])
+  createdAt    DateTime     @default(now())
   resolvedAt   DateTime?
 
   @@index([status, createdAt])
@@ -130,14 +153,14 @@ model Report {
 }
 
 model AuditLog {
-  id         String      @id @default(cuid())
-  actorId    String?
-  actor      AdminUser?  @relation("AuditActor", fields: [actorId], references: [id])
-  action     String
-  entity     String
-  entityId   String
-  metadata   Json?
-  createdAt  DateTime    @default(now())
+  id        String     @id @default(cuid())
+  actorId   String?
+  actor     AdminUser? @relation("AuditActor", fields: [actorId], references: [id])
+  action    String
+  entity    String
+  entityId  String
+  metadata  Json?
+  createdAt DateTime   @default(now())
 
   @@index([createdAt])
   @@index([actorId, createdAt])
@@ -164,4 +187,84 @@ model CollegeConfessionProfileSettings {
   updatedBy           String?
 
   @@index([updatedAt])
+}
+
+model GarbaSeason {
+  id        String      @id @default(cuid())
+  name      String
+  year      Int
+  startDate DateTime?
+  endDate   DateTime?
+  status    String      @default("ACTIVE")
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  posts     GarbaPost[]
+
+  @@index([status, year])
+}
+
+model GarbaPost {
+  id              String            @id @default(cuid())
+  publicId        String            @unique
+  seasonId        String?
+  season          GarbaSeason?      @relation(fields: [seasonId], references: [id])
+  category        GarbaPostCategory
+  content         String
+  eventDate       DateTime?
+  location        String?
+  instagramHandle String?
+  authorHash      String
+  status          GarbaPostStatus   @default(PENDING)
+  commentsLocked  Boolean           @default(false)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  publishedAt     DateTime?
+  comments        GarbaComment[]
+  reactions       GarbaReaction[]
+  reports         GarbaReport[]
+
+  @@index([status, createdAt])
+  @@index([seasonId, createdAt])
+}
+
+model GarbaComment {
+  id         String             @id @default(cuid())
+  postId     String
+  post       GarbaPost          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  parentId   String?
+  parent     GarbaComment?      @relation("GarbaCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies    GarbaComment[]     @relation("GarbaCommentReplies")
+  content    String
+  authorHash String
+  status     GarbaCommentStatus @default(PENDING)
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  reports    GarbaReport[]
+
+  @@index([postId, status, createdAt])
+}
+
+model GarbaReaction {
+  id        String    @id @default(cuid())
+  postId    String
+  post      GarbaPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  actorHash String
+  createdAt DateTime  @default(now())
+
+  @@unique([postId, actorHash])
+}
+
+model GarbaReport {
+  id           String        @id @default(cuid())
+  postId       String
+  post         GarbaPost     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  commentId    String?
+  comment      GarbaComment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  reason       String
+  reporterHash String
+  status       ReportStatus  @default(OPEN)
+  createdAt    DateTime      @default(now())
+
+  @@index([status, createdAt])
+  @@index([postId])
 }
