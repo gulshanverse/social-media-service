@@ -22,6 +22,15 @@ type Theme = {
   accentColor: string;
   fontFamily: string;
   radius: number;
+  borderStyle?: string;
+  logoVisibility?: boolean;
+  handleVisibility?: boolean;
+  layoutVariant?: string;
+  mode?: string;
+  status?: 'DRAFT' | 'PUBLISHED' | 'ACTIVE' | 'SCHEDULED';
+  startAt?: string | null;
+  endAt?: string | null;
+  favorites?: { adminId: string }[];
 };
 type PageData<T> = { items: T[]; page: number; limit: number; total: number; hasMore: boolean };
 let runtimeToken = '';
@@ -61,7 +70,7 @@ export async function api(path: string, init: RequestInit = {}) {
   }
   return response.json();
 }
-function qs(values: Record<string, string | number | undefined>) {
+function qs(values: Record<string, string | number | boolean | undefined>) {
   return Object.entries(values)
     .filter(([, value]) => value !== undefined && value !== '')
     .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value!)}`)
@@ -391,6 +400,9 @@ export function Confessions() {
   const [theme, setTheme] = useState(() =>
     typeof window === 'undefined' ? '' : localStorage.getItem('admin.queue.theme') || '',
   );
+  const [variant, setVariant] = useState('');
+  const [mode, setMode] = useState('');
+  const [favorites, setFavorites] = useState(false);
   const [search, setSearch] = useState('');
   const [order, setOrder] = useState(() =>
     typeof window === 'undefined'
@@ -406,7 +418,7 @@ export function Confessions() {
   const load = () => {
     setLoading(true);
     setError('');
-    api(`/admin/confessions?${qs({ status, category, theme, search, order, page, limit: 20 })}`)
+    api(`/admin/confessions?${qs({ status, category, theme, variant, mode, favorites, search, order, page, limit: 20 })}`)
       .then(setData)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -416,21 +428,24 @@ export function Confessions() {
     localStorage.setItem('admin.queue.category', category);
     localStorage.setItem('admin.queue.theme', theme);
     localStorage.setItem('admin.queue.order', order);
-  }, [status, category, theme, order]);
+  }, [status, category, theme, variant, mode, favorites, order]);
   useEffect(() => {
     const query = new URLSearchParams();
     if (status && status !== 'PENDING') query.set('status', status);
     if (category) query.set('category', category);
     if (theme) query.set('theme', theme);
+    if (variant) query.set('variant', variant);
+    if (mode) query.set('mode', mode);
+    if (favorites) query.set('favorites', 'true');
     if (search) query.set('search', search);
     if (order !== 'newest') query.set('order', order);
     if (typeof window !== 'undefined')
       window.history.replaceState(null, '', `/confessions${query.toString() ? `?${query}` : ''}`);
-  }, [status, category, theme, search, order]);
+  }, [status, category, theme, variant, mode, favorites, search, order]);
   useEffect(() => {
     load();
     setSelected([]);
-  }, [status, category, theme, order, page]);
+  }, [status, category, theme, variant, mode, favorites, order, page]);
   useEffect(() => {
     api('/admin/themes?page=1&limit=100')
       .then((value) => setThemes(value.items ?? []))
@@ -448,6 +463,9 @@ export function Confessions() {
     setStatus('PENDING');
     setCategory('');
     setTheme('');
+    setVariant('');
+    setMode('');
+    setFavorites(false);
     setSearch('');
     setOrder('newest');
     setPage(1);
@@ -586,6 +604,18 @@ export function Confessions() {
               </option>
             ))}
           </select>
+        </label>
+        <label>
+          Variant
+          <input value={variant} onChange={(e) => { setVariant(e.target.value); setPage(1); }} placeholder="classic" />
+        </label>
+        <label>
+          Mode
+          <input value={mode} onChange={(e) => { setMode(e.target.value); setPage(1); }} placeholder="dark" />
+        </label>
+        <label className="checkbox-filter">
+          <input type="checkbox" checked={favorites} onChange={(e) => { setFavorites(e.target.checked); setPage(1); }} />
+          Favorites only
         </label>
         <label>
           Order
@@ -1233,6 +1263,11 @@ const emptyTheme = {
   accentColor: '#00b8ff',
   fontFamily: 'Inter',
   radius: 28,
+  layoutVariant: 'classic',
+  mode: 'dark',
+  status: 'DRAFT' as const,
+  startAt: '',
+  endAt: '',
 };
 export function Themes({ admin }: { admin: Admin }) {
   const [data, setData] = useState<PageData<Theme> | null>(null);
@@ -1243,6 +1278,15 @@ export function Themes({ admin }: { admin: Admin }) {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const canWrite = admin.role === 'SUPER_ADMIN' || admin.role === 'DESIGNER';
+  async function themeAction(id: string, action: string, method = 'POST') {
+    const labels: Record<string, string> = { publish: 'Publish', activate: 'Activate', duplicate: 'Duplicate', delete: 'Delete', favorite: 'Favorite', unfavorite: 'Unfavorite' };
+    if (action === 'delete' && !confirm('Delete this theme? Themes used by confessions or currently active are protected.')) return;
+    try {
+      await api(`/admin/themes/${id}${action === 'favorite' || action === 'unfavorite' ? '/favorite' : `/${action}`}`, { method });
+      setMessage(`${labels[action]} completed successfully.`);
+      load();
+    } catch (e) { setError(e instanceof Error ? e.message : 'Theme action failed.'); }
+  }
   const load = () => {
     setLoading(true);
     setError('');
@@ -1293,19 +1337,23 @@ export function Themes({ admin }: { admin: Admin }) {
               <div>
                 <h3>{t.name}</h3>
                 <span className="muted">
-                  {t.slug} · {t.id}
+                  {t.slug} · {t.id} · {t.mode || 'dark'} / {t.layoutVariant || 'classic'}
                 </span>
+                <div className="actions">
+                  <Status value={t.status || 'DRAFT'} />
+                  <button className="secondary" onClick={() => themeAction(t.id, t.favorites?.some((favorite) => favorite.adminId === admin.id) ? 'unfavorite' : 'favorite', t.favorites?.some((favorite) => favorite.adminId === admin.id) ? 'DELETE' : 'POST')}>
+                    {t.favorites?.some((favorite) => favorite.adminId === admin.id) ? 'Unfavorite' : 'Favorite'}
+                  </button>
+                </div>
               </div>
               {canWrite && (
-                <button
-                  className="secondary"
-                  onClick={() => {
-                    setEditing(t.id);
-                    setForm({ ...t });
-                  }}
-                >
-                  Edit
-                </button>
+                <div className="actions">
+                  <button className="secondary" onClick={() => { setEditing(t.id); setForm({ ...emptyTheme, ...t, startAt: t.startAt?.slice(0, 16) || '', endAt: t.endAt?.slice(0, 16) || '' }); }}>Edit</button>
+                  {t.status === 'DRAFT' && <button onClick={() => themeAction(t.id, 'publish')}>Publish</button>}
+                  {t.status !== 'ACTIVE' && <button onClick={() => themeAction(t.id, 'activate')}>Activate</button>}
+                  <button className="secondary" onClick={() => themeAction(t.id, 'duplicate')}>Duplicate</button>
+                  {t.status !== 'ACTIVE' && <button className="danger" onClick={() => themeAction(t.id, 'delete', 'DELETE')}>Delete</button>}
+                </div>
               )}
             </div>
           </article>
@@ -1374,6 +1422,30 @@ export function Themes({ admin }: { admin: Admin }) {
               required
             />
           </label>
+          <div className="form-grid">
+            <label>
+              Variant
+              <input value={form.layoutVariant || ''} onChange={(e) => setForm({ ...form, layoutVariant: e.target.value })} required />
+            </label>
+            <label>
+              Mode
+              <input value={form.mode || ''} onChange={(e) => setForm({ ...form, mode: e.target.value })} required />
+            </label>
+            <label>
+              Lifecycle status
+              <select value={form.status || 'DRAFT'} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+                {['DRAFT', 'PUBLISHED', 'ACTIVE', 'SCHEDULED'].map((value) => <option key={value}>{value}</option>)}
+              </select>
+            </label>
+            <label>
+              Start at
+              <input type="datetime-local" value={form.startAt || ''} onChange={(e) => setForm({ ...form, startAt: e.target.value })} />
+            </label>
+            <label>
+              End at
+              <input type="datetime-local" value={form.endAt || ''} onChange={(e) => setForm({ ...form, endAt: e.target.value })} />
+            </label>
+          </div>
           <ThemePreview theme={form} label={form.name || 'Live preview'} />
           <button>{editing ? 'Save theme' : 'Create theme'}</button>
         </form>
