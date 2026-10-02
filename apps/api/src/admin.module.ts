@@ -29,6 +29,7 @@ import {
   AdminReportQueryDto,
   BulkModerationPipe,
   CreateThemeDto,
+  ImportThemeDto,
   ListQueryDto,
   UpdateConfessionDto,
   UpdateProfileSettingsDto,
@@ -181,6 +182,17 @@ export class AdminController {
   ) {
     return this.service.createTheme(body, requireUser(req));
   }
+  @Get('themes/:id/export') @Roles(AdminRole.SUPER_ADMIN, AdminRole.DESIGNER) exportTheme(
+    @Param('id') id: string,
+    @Req() req: { user?: ReturnType<typeof requireUser> },
+  ) { return this.service.exportTheme(id, requireUser(req)); }
+  @Post('themes/import/preview') @Roles(AdminRole.SUPER_ADMIN, AdminRole.DESIGNER) previewThemeImport(
+    @Body() body: ImportThemeDto,
+  ) { return this.service.previewThemeImport(body); }
+  @Post('themes/import') @Roles(AdminRole.SUPER_ADMIN, AdminRole.DESIGNER) importTheme(
+    @Body() body: ImportThemeDto,
+    @Req() req: { user?: ReturnType<typeof requireUser> },
+  ) { return this.service.importTheme(body, requireUser(req)); }
   @Patch('themes/:id') @Roles(AdminRole.SUPER_ADMIN, AdminRole.DESIGNER) updateTheme(
     @Param('id') id: string,
     @Body() body: UpdateThemeDto,

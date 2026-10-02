@@ -17,6 +17,7 @@ import {
   UpdateProfileSettingsDto,
   UpdateConfessionDto,
   UpdateThemeDto,
+  ImportThemeDto,
   AdminGarbaCommentQueryDto,
   AdminGarbaQueryDto,
   UpdateGarbaPostDto,
@@ -24,7 +25,7 @@ import {
   UpdateGarbaSeasonDto,
 } from './admin.dto';
 import { increment } from './observability';
-import { normalizeTheme } from '@ggv/themes';
+import { exportPortableTheme, normalizeImportedTheme, normalizeTheme, portableToCreateInput } from '@ggv/themes';
 
 export function assertOpenReportTransition(status: ReportStatus, action: 'resolve' | 'dismiss') {
   if (status !== ReportStatus.OPEN)
@@ -459,6 +460,10 @@ export class AdminService {
       endAt: true,
       favorites: { select: { adminId: true } },
       tokens: true,
+      description: true,
+      icon: true,
+      category: true,
+      tags: true,
     } as const;
     const [items, total] = await Promise.all([
       prisma.theme.findMany({
@@ -470,6 +475,44 @@ export class AdminService {
       prisma.theme.count(),
     ]);
     return { items, page, limit, total, hasMore: page * limit < total };
+  }
+  async exportTheme(id: string, actor: AdminIdentity) {
+    const theme = await prisma.theme.findUnique({ where: { id } });
+    if (!theme) throw new NotFoundException('Theme not found.');
+    try {
+      const document = exportPortableTheme({ ...theme, borderStyle: theme.borderStyle as 'solid' | 'dashed' | 'dotted' | 'double' | 'none', tokens: (theme.tokens as Record<string, string> | null) ?? undefined });
+      await recordAudit(actor.id, 'THEME_EXPORT', 'THEME', id);
+      return document;
+    } catch (error) {
+      throw new BadRequestException(error instanceof Error ? error.message : 'Theme cannot be exported safely.');
+    }
+  }
+  private async proposedImportSlug(slug: string) {
+    let candidate = slug;
+    let suffix = 1;
+    while (await prisma.theme.findUnique({ where: { slug: candidate }, select: { id: true } })) {
+      suffix += 1;
+      candidate = `${slug}-copy${suffix === 2 ? '' : `-${suffix}`}`;
+      if (suffix > 100) throw new BadRequestException('Unable to find an available theme slug.');
+    }
+    return candidate;
+  }
+  async previewThemeImport(body: ImportThemeDto) {
+    try {
+      const draft = normalizeImportedTheme(body.document);
+      const slug = await this.proposedImportSlug(draft.slug);
+      return { ...draft, proposedSlug: slug };
+    } catch (error) {
+      throw new BadRequestException(error instanceof Error ? error.message : 'Theme import is invalid.');
+    }
+  }
+  async importTheme(body: ImportThemeDto, actor: AdminIdentity) {
+    const preview = await this.previewThemeImport(body);
+    const input = portableToCreateInput(preview, preview.proposedSlug);
+    const item = await prisma.theme.create({ data: input as any });
+    await recordAudit(actor.id, 'THEME_IMPORT', 'THEME', item.id, { slug: item.slug, schemaVersion: 1 });
+    increment('theme_mutations_total');
+    return item;
   }
   async createTheme(body: CreateThemeDto, actor: AdminIdentity) {
     let normalized;
@@ -502,6 +545,10 @@ export class AdminService {
       startAt,
       endAt,
       tokens: normalized.visualTokens,
+      description: body.description?.trim() || null,
+      icon: body.icon?.trim() || null,
+      category: body.category?.trim() || null,
+      tags: body.tags ?? [],
     };
     const item = await prisma.theme.create({ data });
     await recordAudit(actor.id, 'THEME_CREATE', 'THEME', item.id);
@@ -543,7 +590,7 @@ export class AdminService {
         .filter(([, value]) => value !== undefined)
         .map(([key, value]) => [
           key,
-          key === 'startAt' ? startAt : key === 'endAt' ? endAt : key === 'mode' || key === 'status' ? value : key === 'tokens' ? normalized.visualTokens : normalized[key as keyof typeof normalized],
+          key === 'startAt' ? startAt : key === 'endAt' ? endAt : key === 'mode' || key === 'status' || key === 'description' || key === 'icon' || key === 'category' || key === 'tags' ? value : key === 'tokens' ? normalized.visualTokens : normalized[key as keyof typeof normalized],
         ]),
     );
     const item = await prisma.theme.update({ where: { id }, data });

@@ -139,3 +139,5 @@ export const themes: Theme[] = [
   { id: 'ggv-gold', name: 'GGV Gold', background: '#070a12', gradient: 'linear-gradient(135deg,#070a12,#6b4d00)', textColor: '#fff', accentColor: '#ffd54a', fontFamily: 'Space Grotesk', radius: '18px' },
   { id: 'campus-dark', name: 'Campus Dark', background: '#101522', gradient: 'linear-gradient(135deg,#101522,#243c5a)', textColor: '#fff', accentColor: '#00d9ff', fontFamily: 'Inter', radius: '18px' },
 ];
+
+export * from './portable';

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { AdminQueueQueryDto, CreateThemeDto, UpdateThemeDto } from './admin.dto';
-import { normalizeTheme, themeToCssVariables } from '@ggv/themes';
+import { exportPortableTheme, normalizeImportedTheme, normalizeTheme, themePresets, themeToCssVariables, validatePresets } from '@ggv/themes';
 
 async function run() {
   const scheduled = plainToInstance(CreateThemeDto, {
@@ -31,6 +31,15 @@ async function run() {
   assert.equal(normalized.visualTokens.buttonVariant, 'outline');
   assert.equal(themeToCssVariables(normalized)['--theme-primary-text'], '#fff');
   assert.throws(() => normalizeTheme({ ...normalized, tokens: { primaryText: 'url(javascript:bad)' } }));
+  const portable = exportPortableTheme({ ...normalized, mode: 'dark', description: 'Portable theme', tags: ['test'] });
+  assert.equal(portable.schemaVersion, 1);
+  assert.equal((portable as any).id, undefined);
+  assert.equal((portable as any).createdAt, undefined);
+  assert.equal(normalizeImportedTheme(portable).normalized.visualTokens.buttonVariant, 'outline');
+  assert.throws(() => normalizeImportedTheme({ ...portable, schemaVersion: 99 }));
+  assert.throws(() => normalizeImportedTheme({ ...portable, tokens: { ...portable.tokens, background: 'url(javascript:bad)' } }));
+  assert.equal(new Set(themePresets.map((preset) => preset.slug)).size, 14);
+  assert.equal(validatePresets().length, 14);
   console.log('phase 2 lifecycle DTO and filter regression tests passed');
 }
 void run();

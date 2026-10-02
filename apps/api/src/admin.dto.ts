@@ -66,6 +66,10 @@ export class CreateThemeDto {
   @IsOptional() @IsISO8601() startAt?: string;
   @IsOptional() @IsISO8601() endAt?: string;
   @IsOptional() @IsObject() tokens?: Record<string, string>;
+  @IsOptional() @IsString() @MaxLength(240) description?: string;
+  @IsOptional() @IsString() @MaxLength(80) icon?: string;
+  @IsOptional() @IsString() @MaxLength(80) category?: string;
+  @IsOptional() @IsArray() @ArrayMaxSize(20) @IsString({ each: true }) tags?: string[];
 }
 export class UpdateThemeDto {
   @IsOptional() @IsString() @MinLength(1) @MaxLength(120) name?: string;
@@ -89,6 +93,13 @@ export class UpdateThemeDto {
   @IsOptional() @IsISO8601() startAt?: string;
   @IsOptional() @IsISO8601() endAt?: string;
   @IsOptional() @IsObject() tokens?: Record<string, string>;
+  @IsOptional() @IsString() @MaxLength(240) description?: string;
+  @IsOptional() @IsString() @MaxLength(80) icon?: string;
+  @IsOptional() @IsString() @MaxLength(80) category?: string;
+  @IsOptional() @IsArray() @ArrayMaxSize(20) @IsString({ each: true }) tags?: string[];
+}
+export class ImportThemeDto {
+  @IsObject() document!: Record<string, unknown>;
 }
 export class UpdateProfileSettingsDto {
   @IsOptional() @IsString() @MinLength(1) @MaxLength(80) handle?: string;

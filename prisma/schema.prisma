@@ -105,6 +105,10 @@ model Theme {
   id               String       @id @default(cuid())
   slug             String       @unique
   name             String
+  description      String?
+  icon             String?
+  category         String?
+  tags             Json?
   background       String
   gradient         String
   textColor        String

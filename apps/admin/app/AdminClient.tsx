@@ -1,11 +1,11 @@
 'use client';
 
-import { FormEvent, useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { appConfig } from '@ggv/config';
 import type { PublicConfession, PublicTheme } from '@ggv/types';
-import { themeToCssVariables } from '@ggv/themes';
+import { themePresets, themeToCssVariables } from '@ggv/themes';
 import { ConfessionCard as SharedConfessionCard, Logo } from '@ggv/ui';
 import ProfilePage from './ProfilePage';
 
@@ -17,6 +17,10 @@ type Theme = {
   id: string;
   slug: string;
   name: string;
+  description?: string | null;
+  icon?: string | null;
+  category?: string | null;
+  tags?: string[];
   background: string;
   gradient: string;
   textColor: string;
@@ -1301,6 +1305,10 @@ function ThemeWorkspacePreview({ theme, viewport, onViewport }: { theme: Partial
 const emptyTheme = {
   slug: '',
   name: '',
+  description: '',
+  icon: '',
+  category: '',
+  tags: [] as string[],
   background: '#070a12',
   gradient: 'linear-gradient(135deg,#070a12,#101c3b)',
   textColor: '#ffffff',
@@ -1314,6 +1322,11 @@ const emptyTheme = {
   endAt: '',
   tokens: visualTokenDefaults,
 };
+function portableToForm(document: any, proposedSlug?: string) {
+  const tokens = document.tokens || {};
+  const { background, gradient, textColor, accentColor, fontFamily, radius, borderStyle, logoVisibility, handleVisibility, ...visualTokens } = tokens;
+  return { ...emptyTheme, slug: proposedSlug || document.slug || '', name: document.name || '', description: document.description || '', icon: document.icon || '', category: document.category || '', tags: document.tags || [], background: String(background || emptyTheme.background), gradient: String(gradient || emptyTheme.gradient), textColor: String(textColor || emptyTheme.textColor), accentColor: String(accentColor || emptyTheme.accentColor), fontFamily: String(fontFamily || emptyTheme.fontFamily), radius: Number(radius ?? emptyTheme.radius), borderStyle: borderStyle || 'solid', logoVisibility: logoVisibility !== false, handleVisibility: handleVisibility !== false, layoutVariant: document.variant || 'classic', mode: document.mode || 'dark', status: 'DRAFT' as const, tokens: { ...visualTokenDefaults, ...visualTokens } };
+}
 export function Themes({ admin }: { admin: Admin }) {
   const [data, setData] = useState<PageData<Theme> | null>(null);
   const [form, setForm] = useState<any>(emptyTheme);
@@ -1326,8 +1339,44 @@ export function Themes({ admin }: { admin: Admin }) {
   const [viewport, setViewport] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
   const [advancedJson, setAdvancedJson] = useState(JSON.stringify(emptyTheme.tokens, null, 2));
   const [advancedError, setAdvancedError] = useState('');
+  const [importPreview, setImportPreview] = useState<any>(null);
+  const [importError, setImportError] = useState('');
+  const importFile = useRef<HTMLInputElement>(null);
   const canWrite = admin.role === 'SUPER_ADMIN' || admin.role === 'DESIGNER';
   const dirty = JSON.stringify(form) !== JSON.stringify(savedForm);
+  const importedForm = importPreview ? portableToForm(importPreview.document, importPreview.proposedSlug) : null;
+  function downloadTheme(theme: Theme) {
+    api(`/admin/themes/${theme.id}/export`).then((portable) => {
+      const blob = new Blob([JSON.stringify(portable, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `${portable.slug || theme.slug}.theme.json`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    }).catch((e) => setError(e instanceof Error ? e.message : 'Theme could not be exported.'));
+  }
+  async function inspectImport(file: File) {
+    setImportError('');
+    try {
+      const document = JSON.parse(await file.text());
+      const preview = await api('/admin/themes/import/preview', { method: 'POST', body: JSON.stringify({ document }) });
+      setImportPreview({ ...preview, document });
+    } catch (e) { setImportError(e instanceof Error ? e.message : 'Theme import could not be validated.'); setImportPreview(null); }
+  }
+  async function confirmImport() {
+    if (!importPreview) return;
+    try {
+      await api('/admin/themes/import', { method: 'POST', body: JSON.stringify({ document: importPreview.document }) });
+      setMessage(`Imported draft “${importPreview.proposedSlug}” created.`);
+      setImportPreview(null); if (importFile.current) importFile.current.value = ''; load();
+    } catch (e) { setImportError(e instanceof Error ? e.message : 'Theme import failed.'); }
+  }
+  function applyPreset(preset: any) {
+    if (dirty && !confirm('Replace the current unsaved draft with this preset?')) return;
+    const next = portableToForm(preset);
+    setEditing(null); setForm(next); setSavedForm(emptyTheme); setAdvancedJson(JSON.stringify(next.tokens, null, 2)); setAdvancedError('');
+  }
   async function themeAction(id: string, action: string, method = 'POST') {
     const labels: Record<string, string> = { publish: 'Publish', activate: 'Activate', duplicate: 'Duplicate', delete: 'Delete', favorite: 'Favorite', unfavorite: 'Unfavorite' };
     if (action === 'delete' && !confirm('Delete this theme? Themes used by confessions or currently active are protected.')) return;
@@ -1389,6 +1438,18 @@ export function Themes({ admin }: { admin: Admin }) {
         creation.
       </p>
       <Notice error={error} message={message} />
+      {canWrite && <div className="panel portable-tools">
+        <div className="form-heading"><div><p className="eyebrow">PORTABLE THEMES</p><h2>Presets and import</h2><p className="muted">Presets and imports become drafts only. Nothing is published or activated automatically.</p></div></div>
+        <div className="portable-tool-row">
+          <label>Use preset<select defaultValue="" onChange={(event) => { const preset = themePresets.find((item) => item.slug === event.target.value); if (preset) applyPreset(preset); event.target.value = ''; }}><option value="">Choose a named preset…</option>{themePresets.map((preset) => <option key={preset.slug} value={preset.slug}>{preset.name}</option>)}</select></label>
+          <label>Import theme JSON<input ref={importFile} type="file" accept="application/json,.json" onChange={(event) => { const file = event.target.files?.[0]; if (file) inspectImport(file); }} /></label>
+        </div>
+        {importError && <div className="notice error" role="alert">{importError}</div>}
+        {importPreview && importedForm && <div className="import-preview">
+          <div className="form-heading"><div><h3>Import preview</h3><p className="muted">Proposed slug: <strong>{importPreview.proposedSlug}</strong> · Draft only</p></div><div className="actions"><button type="button" onClick={confirmImport}>Confirm Import as Draft</button><button type="button" className="secondary" onClick={() => setImportPreview(null)}>Cancel</button></div></div>
+          <ThemeWorkspacePreview theme={importedForm} viewport={viewport} onViewport={setViewport} />
+        </div>}
+      </div>}
       {loading && <div className="state">Loading themes…</div>}
       {!loading && data?.items.length === 0 && (
         <div className="state empty">No themes exist yet.</div>
@@ -1412,6 +1473,7 @@ export function Themes({ admin }: { admin: Admin }) {
               </div>
               {canWrite && (
                 <div className="actions">
+                  <button className="secondary" onClick={() => downloadTheme(t)}>Export JSON</button>
                   <button className="secondary" onClick={() => { const next = { ...emptyTheme, ...t, tokens: { ...visualTokenDefaults, ...(t.tokens || {}) }, startAt: t.startAt?.slice(0, 16) || '', endAt: t.endAt?.slice(0, 16) || '' }; setEditing(t.id); setForm(next); setSavedForm(next); setAdvancedJson(JSON.stringify(next.tokens, null, 2)); setAdvancedError(''); }}>Edit</button>
                   {t.status === 'DRAFT' && <button onClick={() => themeAction(t.id, 'publish')}>Publish</button>}
                   {t.status !== 'ACTIVE' && <button onClick={() => themeAction(t.id, 'activate')}>Activate</button>}
@@ -1460,6 +1522,12 @@ export function Themes({ admin }: { admin: Admin }) {
               minLength={1}
             />
           </label>
+          <div className="form-grid">
+            <label>Description<input value={form.description || ''} maxLength={240} onChange={(e) => setForm({ ...form, description: e.target.value })} /></label>
+            <label>Icon<input value={form.icon || ''} maxLength={80} onChange={(e) => setForm({ ...form, icon: e.target.value })} /></label>
+            <label>Category<input value={form.category || ''} maxLength={80} onChange={(e) => setForm({ ...form, category: e.target.value })} /></label>
+            <label>Tags<input value={(form.tags || []).join(', ')} onChange={(e) => setForm({ ...form, tags: e.target.value.split(',').map((tag: string) => tag.trim()).filter(Boolean) })} placeholder="dark, minimal, campus" /></label>
+          </div>
           <div className="form-grid">
             {(['background', 'gradient', 'textColor', 'accentColor', 'fontFamily'] as const).map(
               (key) => (
