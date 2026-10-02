@@ -1,7 +1,14 @@
 import '@testing-library/jest-dom/vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { Confessions, Dashboard, Nav } from './AdminClient';
+import AdminClient, { Confessions, Dashboard, Nav } from './AdminClient';
+
+const navigation = vi.hoisted(() => ({ pathname: '/', push: vi.fn() }));
+
+vi.mock('next/navigation', () => ({
+  usePathname: () => navigation.pathname,
+  useRouter: () => ({ push: navigation.push }),
+}));
 
 vi.mock('next/link', () => ({
   default: ({ children, ...props }: any) => <a {...props}>{children}</a>,
@@ -17,6 +24,8 @@ function response(body: unknown, ok = true, status = 200) {
 describe('admin workspace behavior', () => {
   beforeEach(() => {
     localStorage.clear();
+    navigation.pathname = '/';
+    navigation.push.mockReset();
     vi.restoreAllMocks();
     vi.stubGlobal(
       'confirm',
@@ -125,5 +134,39 @@ describe('admin workspace behavior', () => {
     expect(screen.getByText('1 selected')).toBeInTheDocument();
     fireEvent.click(screen.getByText('Clear selection'));
     expect(screen.queryByText('1 selected')).not.toBeInTheDocument();
+  });
+
+  it('renders Garba moderation at /garba through the authenticated AdminClient route dispatch', async () => {
+    navigation.pathname = '/garba';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes('/admin/auth/refresh')) return response({ accessToken: 'test-token' });
+        if (url.includes('/admin/auth/me')) return response(admin);
+        if (url.includes('/admin/garba'))
+          return response({ total: 4, pending: 2, published: 1, rejected: 1, archived: 0, comments: 3, openReports: 0 });
+        return response({});
+      }),
+    );
+
+    render(<AdminClient />);
+
+    expect(await screen.findByRole('heading', { name: 'Garba moderation' })).toBeInTheDocument();
+    expect(await screen.findByText('4')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Garba' })).toHaveAttribute('href', '/garba');
+  });
+
+  it('keeps the existing sign-in flow when the Garba admin route is unauthenticated', async () => {
+    navigation.pathname = '/garba';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => response({}, false, 401)),
+    );
+
+    render(<AdminClient />);
+
+    expect(await screen.findByRole('heading', { name: 'Admin sign in' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Garba moderation' })).not.toBeInTheDocument();
   });
 });
