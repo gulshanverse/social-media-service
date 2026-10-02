@@ -15,13 +15,21 @@ async function run() {
     },
     garbaReaction: {
       findUnique: async () => reaction,
-      create: async ({ data }: any) => { reaction = { id: 'reaction-1', ...data }; return reaction; },
-      delete: async () => { reaction = null; },
-      count: async () => reaction ? 1 : 0,
+      create: async ({ data }: any) => {
+        reaction = { id: 'reaction-1', ...data };
+        return reaction;
+      },
+      delete: async () => {
+        reaction = null;
+      },
+      count: async () => (reaction ? 1 : 0),
     },
     garbaComment: {
       findFirst: async () => ({ id: 'parent-1', postId: 'post-1', parentId: null }),
-      create: async ({ data }: any) => { created = data; return data; },
+      create: async ({ data }: any) => {
+        created = data;
+        return data;
+      },
     },
   };
   setPrismaForTests(database);
@@ -32,7 +40,10 @@ async function run() {
     await service.comment('post-1', { content: 'A published test comment' } as any, '127.0.0.1');
     assert.equal(created.status, 'PUBLISHED');
     locked = true;
-    await assert.rejects(() => service.comment('post-1', { content: 'Blocked comment' } as any, '127.0.0.2'), BadRequestException);
+    await assert.rejects(
+      () => service.comment('post-1', { content: 'Blocked comment' } as any, '127.0.0.2'),
+      BadRequestException,
+    );
   } finally {
     setPrismaForTests(realPrisma);
   }

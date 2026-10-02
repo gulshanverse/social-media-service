@@ -5,7 +5,12 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { appConfig } from '@ggv/config';
 import type { PublicConfession, PublicTheme } from '@ggv/types';
-import { analyzeThemeContrast, themePresets, themeToCssVariables, type ContrastPair } from '@ggv/themes';
+import {
+  analyzeThemeContrast,
+  themePresets,
+  themeToCssVariables,
+  type ContrastPair,
+} from '@ggv/themes';
 import { ConfessionCard as SharedConfessionCard, Logo } from '@ggv/ui';
 import ProfilePage from './ProfilePage';
 
@@ -169,7 +174,8 @@ function asPublicTheme(theme: Partial<Theme> | null | undefined): PublicTheme | 
 }
 export function Nav({ admin, onNavigate }: { admin: Admin; onNavigate?: () => void }) {
   const links: [string, string][] = [['/', 'Dashboard']];
-  if (admin.role !== 'DESIGNER') links.push(['/confessions', 'Queue'], ['/reports', 'Reports'], ['/garba', 'Garba']);
+  if (admin.role !== 'DESIGNER')
+    links.push(['/confessions', 'Queue'], ['/reports', 'Reports'], ['/garba', 'Garba']);
   if (admin.role === 'SUPER_ADMIN') links.push(['/audit-logs', 'Audit']);
   links.push(['/themes', 'Themes']);
   if (admin.role === 'SUPER_ADMIN' || admin.role === 'DESIGNER')
@@ -425,7 +431,9 @@ export function Confessions() {
   const load = () => {
     setLoading(true);
     setError('');
-    api(`/admin/confessions?${qs({ status, category, theme, variant, mode, favorites, search, order, page, limit: 20 })}`)
+    api(
+      `/admin/confessions?${qs({ status, category, theme, variant, mode, favorites, search, order, page, limit: 20 })}`,
+    )
       .then(setData)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -614,14 +622,35 @@ export function Confessions() {
         </label>
         <label>
           Variant
-          <input value={variant} onChange={(e) => { setVariant(e.target.value); setPage(1); }} placeholder="classic" />
+          <input
+            value={variant}
+            onChange={(e) => {
+              setVariant(e.target.value);
+              setPage(1);
+            }}
+            placeholder="classic"
+          />
         </label>
         <label>
           Mode
-          <input value={mode} onChange={(e) => { setMode(e.target.value); setPage(1); }} placeholder="dark" />
+          <input
+            value={mode}
+            onChange={(e) => {
+              setMode(e.target.value);
+              setPage(1);
+            }}
+            placeholder="dark"
+          />
         </label>
         <label className="checkbox-filter">
-          <input type="checkbox" checked={favorites} onChange={(e) => { setFavorites(e.target.checked); setPage(1); }} />
+          <input
+            type="checkbox"
+            checked={favorites}
+            onChange={(e) => {
+              setFavorites(e.target.checked);
+              setPage(1);
+            }}
+          />
           Favorites only
         </label>
         <label>
@@ -1060,7 +1089,9 @@ export function Reports() {
       .then(setData)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-    api(`/admin/garba/reports?${qs({ status, page, limit: 20 })}`).then(setGarbaData).catch(() => undefined);
+    api(`/admin/garba/reports?${qs({ status, page, limit: 20 })}`)
+      .then(setGarbaData)
+      .catch(() => undefined);
   };
   useEffect(() => {
     load();
@@ -1165,16 +1196,50 @@ export function Reports() {
       </div>
       {garbaData?.items?.length ? (
         <>
-          <p className="eyebrow" style={{ marginTop: 36 }}>GARBA REPORTS</p>
+          <p className="eyebrow" style={{ marginTop: 36 }}>
+            GARBA REPORTS
+          </p>
           <div className="list">
             {garbaData.items.map((r) => (
               <article className="list-card" key={r.id}>
                 <div>
-                  <div className="row-title"><strong>{r.post.publicId}</strong><Status value={r.status} /></div>
-                  <span>Garba {r.comment ? (r.comment.parentId ? 'reply' : 'comment') : 'post'} report · {formatDate(r.createdAt)}</span>
+                  <div className="row-title">
+                    <strong>{r.post.publicId}</strong>
+                    <Status value={r.status} />
+                  </div>
+                  <span>
+                    Garba {r.comment ? (r.comment.parentId ? 'reply' : 'comment') : 'post'} report ·{' '}
+                    {formatDate(r.createdAt)}
+                  </span>
                   <p>{r.reason}</p>
                 </div>
-                {r.status === 'OPEN' && <div className="card-actions"><button onClick={() => api(`/admin/garba/reports/${r.id.replace('garba:', '')}/resolve`, { method: 'POST' }).then(load).catch((e) => setError(e.message))}>Resolve</button><button className="secondary" onClick={() => api(`/admin/garba/reports/${r.id.replace('garba:', '')}/dismiss`, { method: 'POST' }).then(load).catch((e) => setError(e.message))}>Dismiss</button></div>}
+                {r.status === 'OPEN' && (
+                  <div className="card-actions">
+                    <button
+                      onClick={() =>
+                        api(`/admin/garba/reports/${r.id.replace('garba:', '')}/resolve`, {
+                          method: 'POST',
+                        })
+                          .then(load)
+                          .catch((e) => setError(e.message))
+                      }
+                    >
+                      Resolve
+                    </button>
+                    <button
+                      className="secondary"
+                      onClick={() =>
+                        api(`/admin/garba/reports/${r.id.replace('garba:', '')}/dismiss`, {
+                          method: 'POST',
+                        })
+                          .then(load)
+                          .catch((e) => setError(e.message))
+                      }
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                )}
               </article>
             ))}
           </div>
@@ -1264,51 +1329,328 @@ export function AuditLogs() {
 const TOKEN_GROUPS: Record<string, string[]> = {
   Identity: ['buttonVariant'],
   Background: ['backgroundImage', 'gradientType', 'gradientAngle', 'gradientOpacity'],
-  Typography: ['headingFont', 'bodyFont', 'monospaceFont', 'headingWeight', 'bodyWeight', 'buttonWeight', 'letterSpacing', 'headingLetterSpacing', 'bodyLetterSpacing', 'lineHeight', 'headingLineHeight', 'bodyLineHeight'],
-  Text: ['primaryText', 'secondaryText', 'mutedText', 'disabledText', 'headingText', 'linkText', 'linkHover', 'placeholderText'],
+  Typography: [
+    'headingFont',
+    'bodyFont',
+    'monospaceFont',
+    'headingWeight',
+    'bodyWeight',
+    'buttonWeight',
+    'letterSpacing',
+    'headingLetterSpacing',
+    'bodyLetterSpacing',
+    'lineHeight',
+    'headingLineHeight',
+    'bodyLineHeight',
+  ],
+  Text: [
+    'primaryText',
+    'secondaryText',
+    'mutedText',
+    'disabledText',
+    'headingText',
+    'linkText',
+    'linkHover',
+    'placeholderText',
+  ],
   Accent: ['accentHover', 'accentActive', 'accentSoft', 'accentContrast', 'secondaryAccent'],
-  Surfaces: ['surface', 'surfaceHover', 'surfaceActive', 'surfaceElevated', 'card', 'cardHover', 'input', 'inputHover', 'inputFocus', 'popover', 'modal', 'overlay'],
+  Surfaces: [
+    'surface',
+    'surfaceHover',
+    'surfaceActive',
+    'surfaceElevated',
+    'card',
+    'cardHover',
+    'input',
+    'inputHover',
+    'inputFocus',
+    'popover',
+    'modal',
+    'overlay',
+  ],
   Borders: ['border', 'borderHover', 'borderActive', 'divider', 'focusRing', 'glassBorder'],
-  Buttons: ['buttonBackground', 'buttonText', 'buttonHover', 'buttonActive', 'buttonDisabled', 'buttonBorder', 'buttonShadow'],
-  Status: ['success', 'successSoft', 'warning', 'warningSoft', 'danger', 'dangerSoft', 'info', 'infoSoft'],
-  Effects: ['shadow', 'shadowSmall', 'shadowMedium', 'shadowLarge', 'glow', 'glowColor', 'glowIntensity', 'glowBlur', 'blur', 'backdropBlur', 'glassOpacity', 'noiseOpacity', 'highlightOpacity'],
+  Buttons: [
+    'buttonBackground',
+    'buttonText',
+    'buttonHover',
+    'buttonActive',
+    'buttonDisabled',
+    'buttonBorder',
+    'buttonShadow',
+  ],
+  Status: [
+    'success',
+    'successSoft',
+    'warning',
+    'warningSoft',
+    'danger',
+    'dangerSoft',
+    'info',
+    'infoSoft',
+  ],
+  Effects: [
+    'shadow',
+    'shadowSmall',
+    'shadowMedium',
+    'shadowLarge',
+    'glow',
+    'glowColor',
+    'glowIntensity',
+    'glowBlur',
+    'blur',
+    'backdropBlur',
+    'glassOpacity',
+    'noiseOpacity',
+    'highlightOpacity',
+  ],
   Shape: ['cardRadius', 'buttonRadius', 'inputRadius', 'badgeRadius', 'modalRadius'],
 };
-const COLOR_TOKENS = new Set(['primaryText', 'secondaryText', 'mutedText', 'disabledText', 'headingText', 'linkText', 'linkHover', 'placeholderText', 'accentHover', 'accentActive', 'accentSoft', 'accentContrast', 'secondaryAccent', 'surface', 'surfaceHover', 'surfaceActive', 'surfaceElevated', 'card', 'cardHover', 'input', 'inputHover', 'inputFocus', 'popover', 'modal', 'border', 'borderHover', 'borderActive', 'divider', 'focusRing', 'glassBorder', 'buttonBackground', 'buttonText', 'buttonHover', 'buttonActive', 'buttonDisabled', 'buttonBorder', 'success', 'successSoft', 'warning', 'warningSoft', 'danger', 'dangerSoft', 'info', 'infoSoft', 'glowColor']);
-const visualTokenDefaults: Record<string, string> = Object.fromEntries(Object.values(TOKEN_GROUPS).flat().map((key) => [key, COLOR_TOKENS.has(key) ? '#ffffff' : key === 'buttonVariant' ? 'solid' : '0']));
-function tokenLabel(key: string) { return key.replace(/[A-Z]/g, (letter) => ` ${letter}`).replace(/^./, (letter) => letter.toUpperCase()); }
-function VisualTokenEditor({ tokens, onChange }: { tokens: Record<string, string>; onChange: (tokens: Record<string, string>) => void }) {
-  return <div className="visual-token-sections">
-    {Object.entries(TOKEN_GROUPS).map(([group, keys]) => <fieldset className="token-section" key={group}>
-      <legend>{group}</legend>
-      <div className="token-grid">{keys.map((key) => {
-        const value = tokens[key] ?? visualTokenDefaults[key];
-        const isColor = COLOR_TOKENS.has(key) && /^#[0-9a-f]{6}$/i.test(value);
-        return <label key={key} className="token-control"><span>{tokenLabel(key)}</span><div className="token-input-row">{isColor && <input aria-label={`${tokenLabel(key)} swatch`} type="color" value={value} onChange={(event) => onChange({ ...tokens, [key]: event.target.value })} />}<input aria-label={tokenLabel(key)} value={value} onChange={(event) => onChange({ ...tokens, [key]: event.target.value })} /></div></label>;
-      })}</div>
-    </fieldset>)}
-  </div>;
+const COLOR_TOKENS = new Set([
+  'primaryText',
+  'secondaryText',
+  'mutedText',
+  'disabledText',
+  'headingText',
+  'linkText',
+  'linkHover',
+  'placeholderText',
+  'accentHover',
+  'accentActive',
+  'accentSoft',
+  'accentContrast',
+  'secondaryAccent',
+  'surface',
+  'surfaceHover',
+  'surfaceActive',
+  'surfaceElevated',
+  'card',
+  'cardHover',
+  'input',
+  'inputHover',
+  'inputFocus',
+  'popover',
+  'modal',
+  'border',
+  'borderHover',
+  'borderActive',
+  'divider',
+  'focusRing',
+  'glassBorder',
+  'buttonBackground',
+  'buttonText',
+  'buttonHover',
+  'buttonActive',
+  'buttonDisabled',
+  'buttonBorder',
+  'success',
+  'successSoft',
+  'warning',
+  'warningSoft',
+  'danger',
+  'dangerSoft',
+  'info',
+  'infoSoft',
+  'glowColor',
+]);
+const visualTokenDefaults: Record<string, string> = Object.fromEntries(
+  Object.values(TOKEN_GROUPS)
+    .flat()
+    .map((key) => [
+      key,
+      COLOR_TOKENS.has(key) ? '#ffffff' : key === 'buttonVariant' ? 'solid' : '0',
+    ]),
+);
+function tokenLabel(key: string) {
+  return key
+    .replace(/[A-Z]/g, (letter) => ` ${letter}`)
+    .replace(/^./, (letter) => letter.toUpperCase());
 }
-function ThemeWorkspacePreview({ theme, viewport, onViewport }: { theme: Partial<Theme>; viewport: 'desktop' | 'tablet' | 'mobile'; onViewport: (value: 'desktop' | 'tablet' | 'mobile') => void }) {
+function VisualTokenEditor({
+  tokens,
+  onChange,
+}: {
+  tokens: Record<string, string>;
+  onChange: (tokens: Record<string, string>) => void;
+}) {
+  return (
+    <div className="visual-token-sections">
+      {Object.entries(TOKEN_GROUPS).map(([group, keys]) => (
+        <fieldset className="token-section" key={group}>
+          <legend>{group}</legend>
+          <div className="token-grid">
+            {keys.map((key) => {
+              const value = tokens[key] ?? visualTokenDefaults[key];
+              const isColor = COLOR_TOKENS.has(key) && /^#[0-9a-f]{6}$/i.test(value);
+              return (
+                <label key={key} className="token-control">
+                  <span>{tokenLabel(key)}</span>
+                  <div className="token-input-row">
+                    {isColor && (
+                      <input
+                        aria-label={`${tokenLabel(key)} swatch`}
+                        type="color"
+                        value={value}
+                        onChange={(event) => onChange({ ...tokens, [key]: event.target.value })}
+                      />
+                    )}
+                    <input
+                      aria-label={tokenLabel(key)}
+                      value={value}
+                      onChange={(event) => onChange({ ...tokens, [key]: event.target.value })}
+                    />
+                  </div>
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
+      ))}
+    </div>
+  );
+}
+function ThemeWorkspacePreview({
+  theme,
+  viewport,
+  onViewport,
+}: {
+  theme: Partial<Theme>;
+  viewport: 'desktop' | 'tablet' | 'mobile';
+  onViewport: (value: 'desktop' | 'tablet' | 'mobile') => void;
+}) {
   const publicTheme = asPublicTheme(theme);
   const variables = publicTheme ? themeToCssVariables(publicTheme as any) : {};
-  const style = { ...variables, background: 'var(--theme-surface, #101522)', color: 'var(--theme-primary-text, var(--theme-text, #fff))' } as CSSProperties;
-  return <section className={`theme-workspace-preview viewport-${viewport}`} aria-label="Isolated draft preview">
-    <div className="preview-toolbar"><strong>Draft preview</strong><span className="muted">Public theme is unchanged</span><div className="viewport-switcher">{(['desktop', 'tablet', 'mobile'] as const).map((value) => <button type="button" className={viewport === value ? '' : 'secondary'} key={value} onClick={() => onViewport(value)}>{value}</button>)}</div></div>
-    <div className="preview-canvas" style={style}>
-      <div className="preview-context landing-context"><span className="eyebrow">LANDING</span><h2 style={{ color: 'var(--theme-heading-text, var(--theme-text, #fff))' }}>A calmer confession wall</h2><p style={{ color: 'var(--theme-secondary-text, var(--theme-text, #fff))' }}>Share a thought safely with your campus.</p><div className="preview-buttons"><button style={{ background: 'var(--theme-button-background, var(--theme-accent, #00b8ff))', color: 'var(--theme-button-text, #070a12)' }}>Send anonymously</button><button className="secondary">Browse feed</button></div></div>
-      {publicTheme && <SharedConfessionCard confession={{ publicId: 'draft-preview', content: 'This card is rendered from the current draft tokens.', category: 'COLLEGE_LIFE', theme: publicTheme, publishedAt: new Date().toISOString() }} className="theme-preview" />}
-      <div className="preview-context form-context"><label>Input state<input placeholder="Your anonymous thought" /></label><span className="preview-badge">PUBLISHED</span><button className="secondary">Open dialog</button></div>
-    </div>
-  </section>;
+  const style = {
+    ...variables,
+    background: 'var(--theme-surface, #101522)',
+    color: 'var(--theme-primary-text, var(--theme-text, #fff))',
+  } as CSSProperties;
+  return (
+    <section
+      className={`theme-workspace-preview viewport-${viewport}`}
+      aria-label="Isolated draft preview"
+    >
+      <div className="preview-toolbar">
+        <strong>Draft preview</strong>
+        <span className="muted">Public theme is unchanged</span>
+        <div className="viewport-switcher">
+          {(['desktop', 'tablet', 'mobile'] as const).map((value) => (
+            <button
+              type="button"
+              className={viewport === value ? '' : 'secondary'}
+              key={value}
+              onClick={() => onViewport(value)}
+            >
+              {value}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="preview-canvas" style={style}>
+        <div className="preview-context landing-context">
+          <span className="eyebrow">LANDING</span>
+          <h2 style={{ color: 'var(--theme-heading-text, var(--theme-text, #fff))' }}>
+            A calmer confession wall
+          </h2>
+          <p style={{ color: 'var(--theme-secondary-text, var(--theme-text, #fff))' }}>
+            Share a thought safely with your campus.
+          </p>
+          <div className="preview-buttons">
+            <button
+              style={{
+                background: 'var(--theme-button-background, var(--theme-accent, #00b8ff))',
+                color: 'var(--theme-button-text, #070a12)',
+              }}
+            >
+              Send anonymously
+            </button>
+            <button className="secondary">Browse feed</button>
+          </div>
+        </div>
+        {publicTheme && (
+          <SharedConfessionCard
+            confession={{
+              publicId: 'draft-preview',
+              content: 'This card is rendered from the current draft tokens.',
+              category: 'COLLEGE_LIFE',
+              theme: publicTheme,
+              publishedAt: new Date().toISOString(),
+            }}
+            className="theme-preview"
+          />
+        )}
+        <div className="preview-context form-context">
+          <label>
+            Input state
+            <input placeholder="Your anonymous thought" />
+          </label>
+          <span className="preview-badge">PUBLISHED</span>
+          <button className="secondary">Open dialog</button>
+        </div>
+      </div>
+    </section>
+  );
 }
 function AccessibilityDashboard({ theme }: { theme: Partial<Theme> }) {
-  const pairs: ContrastPair[] = (() => { try { return analyzeThemeContrast(theme as any); } catch { return []; } })();
-  return <section className="accessibility-dashboard" aria-labelledby="accessibility-heading">
-    <div className="form-heading"><div><p className="eyebrow">WCAG CONTRAST</p><h2 id="accessibility-heading">Accessibility</h2><p className="muted">Live analysis of the current draft. Results are pair-specific, not a universal theme rating.</p></div><span className="status">{pairs.filter((pair) => pair.status === 'PASS').length}/{pairs.length} strong pairs</span></div>
-    <div className="contrast-grid">{pairs.map((pair) => <article className="contrast-card" key={pair.id}><div className="contrast-card-heading"><strong>{pair.label}</strong><span className={`contrast-status contrast-${pair.status.toLowerCase()}`}>{pair.status}</span></div><div className="contrast-ratio">{pair.ratio.toFixed(2)}:1</div><div className="wcag-levels"><span className={pair.aaNormal ? 'level-pass' : 'level-fail'}>AA normal {pair.aaNormal ? '✓' : '✕'}</span><span className={pair.aaLarge ? 'level-pass' : 'level-fail'}>AA large {pair.aaLarge ? '✓' : '✕'}</span><span className={pair.aaaNormal ? 'level-pass' : 'level-fail'}>AAA normal {pair.aaaNormal ? '✓' : '✕'}</span><span className={pair.aaaLarge ? 'level-pass' : 'level-fail'}>AAA large {pair.aaaLarge ? '✓' : '✕'}</span></div><div className="contrast-swatches"><span style={{ color: pair.foreground, background: pair.background }}>Aa</span><code>{pair.foreground} / {pair.background}</code></div></article>)}</div>
-    {pairs.length === 0 && <div className="state">No meaningful color pairs could be evaluated yet.</div>}
-  </section>;
+  const pairs: ContrastPair[] = (() => {
+    try {
+      return analyzeThemeContrast(theme as any);
+    } catch {
+      return [];
+    }
+  })();
+  return (
+    <section className="accessibility-dashboard" aria-labelledby="accessibility-heading">
+      <div className="form-heading">
+        <div>
+          <p className="eyebrow">WCAG CONTRAST</p>
+          <h2 id="accessibility-heading">Accessibility</h2>
+          <p className="muted">
+            Live analysis of the current draft. Results are pair-specific, not a universal theme
+            rating.
+          </p>
+        </div>
+        <span className="status">
+          {pairs.filter((pair) => pair.status === 'PASS').length}/{pairs.length} strong pairs
+        </span>
+      </div>
+      <div className="contrast-grid">
+        {pairs.map((pair) => (
+          <article className="contrast-card" key={pair.id}>
+            <div className="contrast-card-heading">
+              <strong>{pair.label}</strong>
+              <span className={`contrast-status contrast-${pair.status.toLowerCase()}`}>
+                {pair.status}
+              </span>
+            </div>
+            <div className="contrast-ratio">{pair.ratio.toFixed(2)}:1</div>
+            <div className="wcag-levels">
+              <span className={pair.aaNormal ? 'level-pass' : 'level-fail'}>
+                AA normal {pair.aaNormal ? '✓' : '✕'}
+              </span>
+              <span className={pair.aaLarge ? 'level-pass' : 'level-fail'}>
+                AA large {pair.aaLarge ? '✓' : '✕'}
+              </span>
+              <span className={pair.aaaNormal ? 'level-pass' : 'level-fail'}>
+                AAA normal {pair.aaaNormal ? '✓' : '✕'}
+              </span>
+              <span className={pair.aaaLarge ? 'level-pass' : 'level-fail'}>
+                AAA large {pair.aaaLarge ? '✓' : '✕'}
+              </span>
+            </div>
+            <div className="contrast-swatches">
+              <span style={{ color: pair.foreground, background: pair.background }}>Aa</span>
+              <code>
+                {pair.foreground} / {pair.background}
+              </code>
+            </div>
+          </article>
+        ))}
+      </div>
+      {pairs.length === 0 && (
+        <div className="state">No meaningful color pairs could be evaluated yet.</div>
+      )}
+    </section>
+  );
 }
 const emptyTheme = {
   slug: '',
@@ -1332,8 +1674,40 @@ const emptyTheme = {
 };
 function portableToForm(document: any, proposedSlug?: string) {
   const tokens = document.tokens || {};
-  const { background, gradient, textColor, accentColor, fontFamily, radius, borderStyle, logoVisibility, handleVisibility, ...visualTokens } = tokens;
-  return { ...emptyTheme, slug: proposedSlug || document.slug || '', name: document.name || '', description: document.description || '', icon: document.icon || '', category: document.category || '', tags: document.tags || [], background: String(background || emptyTheme.background), gradient: String(gradient || emptyTheme.gradient), textColor: String(textColor || emptyTheme.textColor), accentColor: String(accentColor || emptyTheme.accentColor), fontFamily: String(fontFamily || emptyTheme.fontFamily), radius: Number(radius ?? emptyTheme.radius), borderStyle: borderStyle || 'solid', logoVisibility: logoVisibility !== false, handleVisibility: handleVisibility !== false, layoutVariant: document.variant || 'classic', mode: document.mode || 'dark', status: 'DRAFT' as const, tokens: { ...visualTokenDefaults, ...visualTokens } };
+  const {
+    background,
+    gradient,
+    textColor,
+    accentColor,
+    fontFamily,
+    radius,
+    borderStyle,
+    logoVisibility,
+    handleVisibility,
+    ...visualTokens
+  } = tokens;
+  return {
+    ...emptyTheme,
+    slug: proposedSlug || document.slug || '',
+    name: document.name || '',
+    description: document.description || '',
+    icon: document.icon || '',
+    category: document.category || '',
+    tags: document.tags || [],
+    background: String(background || emptyTheme.background),
+    gradient: String(gradient || emptyTheme.gradient),
+    textColor: String(textColor || emptyTheme.textColor),
+    accentColor: String(accentColor || emptyTheme.accentColor),
+    fontFamily: String(fontFamily || emptyTheme.fontFamily),
+    radius: Number(radius ?? emptyTheme.radius),
+    borderStyle: borderStyle || 'solid',
+    logoVisibility: logoVisibility !== false,
+    handleVisibility: handleVisibility !== false,
+    layoutVariant: document.variant || 'classic',
+    mode: document.mode || 'dark',
+    status: 'DRAFT' as const,
+    tokens: { ...visualTokenDefaults, ...visualTokens },
+  };
 }
 export function Themes({ admin }: { admin: Admin }) {
   const [data, setData] = useState<PageData<Theme> | null>(null);
@@ -1352,47 +1726,84 @@ export function Themes({ admin }: { admin: Admin }) {
   const importFile = useRef<HTMLInputElement>(null);
   const canWrite = admin.role === 'SUPER_ADMIN' || admin.role === 'DESIGNER';
   const dirty = JSON.stringify(form) !== JSON.stringify(savedForm);
-  const importedForm = importPreview ? portableToForm(importPreview.document, importPreview.proposedSlug) : null;
+  const importedForm = importPreview
+    ? portableToForm(importPreview.document, importPreview.proposedSlug)
+    : null;
   function downloadTheme(theme: Theme) {
-    api(`/admin/themes/${theme.id}/export`).then((portable) => {
-      const blob = new Blob([JSON.stringify(portable, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = `${portable.slug || theme.slug}.theme.json`;
-      anchor.click();
-      URL.revokeObjectURL(url);
-    }).catch((e) => setError(e instanceof Error ? e.message : 'Theme could not be exported.'));
+    api(`/admin/themes/${theme.id}/export`)
+      .then((portable) => {
+        const blob = new Blob([JSON.stringify(portable, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = `${portable.slug || theme.slug}.theme.json`;
+        anchor.click();
+        URL.revokeObjectURL(url);
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : 'Theme could not be exported.'));
   }
   async function inspectImport(file: File) {
     setImportError('');
     try {
       const document = JSON.parse(await file.text());
-      const preview = await api('/admin/themes/import/preview', { method: 'POST', body: JSON.stringify({ document }) });
+      const preview = await api('/admin/themes/import/preview', {
+        method: 'POST',
+        body: JSON.stringify({ document }),
+      });
       setImportPreview({ ...preview, document });
-    } catch (e) { setImportError(e instanceof Error ? e.message : 'Theme import could not be validated.'); setImportPreview(null); }
+    } catch (e) {
+      setImportError(e instanceof Error ? e.message : 'Theme import could not be validated.');
+      setImportPreview(null);
+    }
   }
   async function confirmImport() {
     if (!importPreview) return;
     try {
-      await api('/admin/themes/import', { method: 'POST', body: JSON.stringify({ document: importPreview.document }) });
+      await api('/admin/themes/import', {
+        method: 'POST',
+        body: JSON.stringify({ document: importPreview.document }),
+      });
       setMessage(`Imported draft “${importPreview.proposedSlug}” created.`);
-      setImportPreview(null); if (importFile.current) importFile.current.value = ''; load();
-    } catch (e) { setImportError(e instanceof Error ? e.message : 'Theme import failed.'); }
+      setImportPreview(null);
+      if (importFile.current) importFile.current.value = '';
+      load();
+    } catch (e) {
+      setImportError(e instanceof Error ? e.message : 'Theme import failed.');
+    }
   }
   function applyPreset(preset: any) {
     if (dirty && !confirm('Replace the current unsaved draft with this preset?')) return;
     const next = portableToForm(preset);
-    setEditing(null); setForm(next); setSavedForm(emptyTheme); setAdvancedJson(JSON.stringify(next.tokens, null, 2)); setAdvancedError('');
+    setEditing(null);
+    setForm(next);
+    setSavedForm(emptyTheme);
+    setAdvancedJson(JSON.stringify(next.tokens, null, 2));
+    setAdvancedError('');
   }
   async function themeAction(id: string, action: string, method = 'POST') {
-    const labels: Record<string, string> = { publish: 'Publish', activate: 'Activate', duplicate: 'Duplicate', delete: 'Delete', favorite: 'Favorite', unfavorite: 'Unfavorite' };
-    if (action === 'delete' && !confirm('Delete this theme? Themes used by confessions or currently active are protected.')) return;
+    const labels: Record<string, string> = {
+      publish: 'Publish',
+      activate: 'Activate',
+      duplicate: 'Duplicate',
+      delete: 'Delete',
+      favorite: 'Favorite',
+      unfavorite: 'Unfavorite',
+    };
+    if (
+      action === 'delete' &&
+      !confirm('Delete this theme? Themes used by confessions or currently active are protected.')
+    )
+      return;
     try {
-      await api(`/admin/themes/${id}${action === 'favorite' || action === 'unfavorite' ? '/favorite' : `/${action}`}`, { method });
+      await api(
+        `/admin/themes/${id}${action === 'favorite' || action === 'unfavorite' ? '/favorite' : `/${action}`}`,
+        { method },
+      );
       setMessage(`${labels[action]} completed successfully.`);
       load();
-    } catch (e) { setError(e instanceof Error ? e.message : 'Theme action failed.'); }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Theme action failed.');
+    }
   }
   const load = () => {
     setLoading(true);
@@ -1407,7 +1818,10 @@ export function Themes({ admin }: { admin: Admin }) {
   }, [page]);
   useEffect(() => {
     if (!dirty) return;
-    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; };
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
   }, [dirty]);
@@ -1416,8 +1830,12 @@ export function Themes({ admin }: { admin: Admin }) {
     setError('');
     setMessage('');
     let draft = form;
-    try { draft = { ...form, tokens: JSON.parse(advancedJson), status: 'DRAFT' }; }
-    catch { setAdvancedError('Advanced / Raw Tokens must contain valid JSON.'); return; }
+    try {
+      draft = { ...form, tokens: JSON.parse(advancedJson), status: 'DRAFT' };
+    } catch {
+      setAdvancedError('Advanced / Raw Tokens must contain valid JSON.');
+      return;
+    }
     try {
       await api(editing ? `/admin/themes/${editing}` : '/admin/themes', {
         method: editing ? 'PATCH' : 'POST',
@@ -1446,20 +1864,116 @@ export function Themes({ admin }: { admin: Admin }) {
         creation.
       </p>
       <Notice error={error} message={message} />
-      {canWrite && <div className="panel portable-tools">
-        <div className="form-heading"><div><p className="eyebrow">PORTABLE THEMES</p><h2>Presets and import</h2><p className="muted">Presets and imports become drafts only. Nothing is published or activated automatically.</p></div></div>
-        <div className="portable-tool-row">
-          <label>Use preset<select defaultValue="" onChange={(event) => { const preset = themePresets.find((item) => item.slug === event.target.value); if (preset) applyPreset(preset); event.target.value = ''; }}><option value="">Choose a named preset…</option>{themePresets.map((preset) => <option key={preset.slug} value={preset.slug}>{preset.name}</option>)}</select></label>
-          <label>Import theme JSON<input ref={importFile} type="file" accept="application/json,.json" onChange={(event) => { const file = event.target.files?.[0]; if (file) inspectImport(file); }} /></label>
+      {canWrite && (
+        <div className="panel portable-tools">
+          <div className="form-heading">
+            <div>
+              <p className="eyebrow">PORTABLE THEMES</p>
+              <h2>Presets and import</h2>
+              <p className="muted">
+                Presets and imports become drafts only. Nothing is published or activated
+                automatically.
+              </p>
+            </div>
+          </div>
+          <div className="portable-tool-row">
+            <label>
+              Use preset
+              <select
+                defaultValue=""
+                onChange={(event) => {
+                  const preset = themePresets.find((item) => item.slug === event.target.value);
+                  if (preset) applyPreset(preset);
+                  event.target.value = '';
+                }}
+              >
+                <option value="">Choose a named preset…</option>
+                {themePresets.map((preset) => (
+                  <option key={preset.slug} value={preset.slug}>
+                    {preset.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Import theme JSON
+              <input
+                ref={importFile}
+                type="file"
+                accept="application/json,.json"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) inspectImport(file);
+                }}
+              />
+            </label>
+          </div>
+          <details className="preset-browser">
+            <summary>Browse all named presets</summary>
+            <div className="preset-grid">
+              {themePresets.map((preset) => (
+                <article className="preset-card" key={preset.slug}>
+                  <ThemePreview theme={portableToForm(preset)} label={preset.name} />
+                  <h3>{preset.name}</h3>
+                  <p className="muted">{preset.description}</p>
+                  <small>
+                    {preset.category} · {preset.variant} · {preset.mode}
+                  </small>
+                  <div className="actions">
+                    <button type="button" onClick={() => applyPreset(preset)}>
+                      Use preset
+                    </button>
+                    <button
+                      type="button"
+                      className="secondary"
+                      onClick={() => {
+                        setImportPreview({ document: preset, proposedSlug: preset.slug });
+                      }}
+                    >
+                      Preview
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </details>
+          {importError && (
+            <div className="notice error" role="alert">
+              {importError}
+            </div>
+          )}
+          {importPreview && importedForm && (
+            <div className="import-preview">
+              <div className="form-heading">
+                <div>
+                  <h3>Import preview</h3>
+                  <p className="muted">
+                    Proposed slug: <strong>{importPreview.proposedSlug}</strong> · Draft only
+                  </p>
+                </div>
+                <div className="actions">
+                  <button type="button" onClick={confirmImport}>
+                    Confirm Import as Draft
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary"
+                    onClick={() => setImportPreview(null)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+              <ThemeWorkspacePreview
+                theme={importedForm}
+                viewport={viewport}
+                onViewport={setViewport}
+              />
+              <AccessibilityDashboard theme={importedForm} />
+            </div>
+          )}
         </div>
-        <details className="preset-browser"><summary>Browse all named presets</summary><div className="preset-grid">{themePresets.map((preset) => <article className="preset-card" key={preset.slug}><ThemePreview theme={portableToForm(preset)} label={preset.name} /><h3>{preset.name}</h3><p className="muted">{preset.description}</p><small>{preset.category} · {preset.variant} · {preset.mode}</small><div className="actions"><button type="button" onClick={() => applyPreset(preset)}>Use preset</button><button type="button" className="secondary" onClick={() => { setImportPreview({ document: preset, proposedSlug: preset.slug }); }}>Preview</button></div></article>)}</div></details>
-        {importError && <div className="notice error" role="alert">{importError}</div>}
-        {importPreview && importedForm && <div className="import-preview">
-          <div className="form-heading"><div><h3>Import preview</h3><p className="muted">Proposed slug: <strong>{importPreview.proposedSlug}</strong> · Draft only</p></div><div className="actions"><button type="button" onClick={confirmImport}>Confirm Import as Draft</button><button type="button" className="secondary" onClick={() => setImportPreview(null)}>Cancel</button></div></div>
-          <ThemeWorkspacePreview theme={importedForm} viewport={viewport} onViewport={setViewport} />
-          <AccessibilityDashboard theme={importedForm} />
-        </div>}
-      </div>}
+      )}
       {loading && <div className="state">Loading themes…</div>}
       {!loading && data?.items.length === 0 && (
         <div className="state empty">No themes exist yet.</div>
@@ -1476,19 +1990,67 @@ export function Themes({ admin }: { admin: Admin }) {
                 </span>
                 <div className="actions">
                   <Status value={t.status || 'DRAFT'} />
-                  <button className="secondary" onClick={() => themeAction(t.id, t.favorites?.some((favorite) => favorite.adminId === admin.id) ? 'unfavorite' : 'favorite', t.favorites?.some((favorite) => favorite.adminId === admin.id) ? 'DELETE' : 'POST')}>
-                    {t.favorites?.some((favorite) => favorite.adminId === admin.id) ? 'Unfavorite' : 'Favorite'}
+                  <button
+                    className="secondary"
+                    onClick={() =>
+                      themeAction(
+                        t.id,
+                        t.favorites?.some((favorite) => favorite.adminId === admin.id)
+                          ? 'unfavorite'
+                          : 'favorite',
+                        t.favorites?.some((favorite) => favorite.adminId === admin.id)
+                          ? 'DELETE'
+                          : 'POST',
+                      )
+                    }
+                  >
+                    {t.favorites?.some((favorite) => favorite.adminId === admin.id)
+                      ? 'Unfavorite'
+                      : 'Favorite'}
                   </button>
                 </div>
               </div>
               {canWrite && (
                 <div className="actions">
-                  <button className="secondary" onClick={() => downloadTheme(t)}>Export JSON</button>
-                  <button className="secondary" onClick={() => { const next = { ...emptyTheme, ...t, tokens: { ...visualTokenDefaults, ...(t.tokens || {}) }, startAt: t.startAt?.slice(0, 16) || '', endAt: t.endAt?.slice(0, 16) || '' }; setEditing(t.id); setForm(next); setSavedForm(next); setAdvancedJson(JSON.stringify(next.tokens, null, 2)); setAdvancedError(''); }}>Edit</button>
-                  {t.status === 'DRAFT' && <button onClick={() => themeAction(t.id, 'publish')}>Publish</button>}
-                  {t.status !== 'ACTIVE' && <button onClick={() => themeAction(t.id, 'activate')}>Activate</button>}
-                  <button className="secondary" onClick={() => themeAction(t.id, 'duplicate')}>Duplicate</button>
-                  {t.status !== 'ACTIVE' && <button className="danger" onClick={() => themeAction(t.id, 'delete', 'DELETE')}>Delete</button>}
+                  <button className="secondary" onClick={() => downloadTheme(t)}>
+                    Export JSON
+                  </button>
+                  <button
+                    className="secondary"
+                    onClick={() => {
+                      const next = {
+                        ...emptyTheme,
+                        ...t,
+                        tokens: { ...visualTokenDefaults, ...(t.tokens || {}) },
+                        startAt: t.startAt?.slice(0, 16) || '',
+                        endAt: t.endAt?.slice(0, 16) || '',
+                      };
+                      setEditing(t.id);
+                      setForm(next);
+                      setSavedForm(next);
+                      setAdvancedJson(JSON.stringify(next.tokens, null, 2));
+                      setAdvancedError('');
+                    }}
+                  >
+                    Edit
+                  </button>
+                  {t.status === 'DRAFT' && (
+                    <button onClick={() => themeAction(t.id, 'publish')}>Publish</button>
+                  )}
+                  {t.status !== 'ACTIVE' && (
+                    <button onClick={() => themeAction(t.id, 'activate')}>Activate</button>
+                  )}
+                  <button className="secondary" onClick={() => themeAction(t.id, 'duplicate')}>
+                    Duplicate
+                  </button>
+                  {t.status !== 'ACTIVE' && (
+                    <button
+                      className="danger"
+                      onClick={() => themeAction(t.id, 'delete', 'DELETE')}
+                    >
+                      Delete
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -1533,10 +2095,46 @@ export function Themes({ admin }: { admin: Admin }) {
             />
           </label>
           <div className="form-grid">
-            <label>Description<input value={form.description || ''} maxLength={240} onChange={(e) => setForm({ ...form, description: e.target.value })} /></label>
-            <label>Icon<input value={form.icon || ''} maxLength={80} onChange={(e) => setForm({ ...form, icon: e.target.value })} /></label>
-            <label>Category<input value={form.category || ''} maxLength={80} onChange={(e) => setForm({ ...form, category: e.target.value })} /></label>
-            <label>Tags<input value={(form.tags || []).join(', ')} onChange={(e) => setForm({ ...form, tags: e.target.value.split(',').map((tag: string) => tag.trim()).filter(Boolean) })} placeholder="dark, minimal, campus" /></label>
+            <label>
+              Description
+              <input
+                value={form.description || ''}
+                maxLength={240}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+              />
+            </label>
+            <label>
+              Icon
+              <input
+                value={form.icon || ''}
+                maxLength={80}
+                onChange={(e) => setForm({ ...form, icon: e.target.value })}
+              />
+            </label>
+            <label>
+              Category
+              <input
+                value={form.category || ''}
+                maxLength={80}
+                onChange={(e) => setForm({ ...form, category: e.target.value })}
+              />
+            </label>
+            <label>
+              Tags
+              <input
+                value={(form.tags || []).join(', ')}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    tags: e.target.value
+                      .split(',')
+                      .map((tag: string) => tag.trim())
+                      .filter(Boolean),
+                  })
+                }
+                placeholder="dark, minimal, campus"
+              />
+            </label>
           </div>
           <div className="form-grid">
             {(['background', 'gradient', 'textColor', 'accentColor', 'fontFamily'] as const).map(
@@ -1567,35 +2165,100 @@ export function Themes({ admin }: { admin: Admin }) {
           <div className="form-grid">
             <label>
               Variant
-              <input value={form.layoutVariant || ''} onChange={(e) => setForm({ ...form, layoutVariant: e.target.value })} required />
+              <input
+                value={form.layoutVariant || ''}
+                onChange={(e) => setForm({ ...form, layoutVariant: e.target.value })}
+                required
+              />
             </label>
             <label>
               Mode
-              <input value={form.mode || ''} onChange={(e) => setForm({ ...form, mode: e.target.value })} required />
+              <input
+                value={form.mode || ''}
+                onChange={(e) => setForm({ ...form, mode: e.target.value })}
+                required
+              />
             </label>
             <label>
               Lifecycle status
-              <select value={form.status || 'DRAFT'} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-                {['DRAFT', 'PUBLISHED', 'ACTIVE', 'SCHEDULED'].map((value) => <option key={value}>{value}</option>)}
+              <select
+                value={form.status || 'DRAFT'}
+                onChange={(e) => setForm({ ...form, status: e.target.value })}
+              >
+                {['DRAFT', 'PUBLISHED', 'ACTIVE', 'SCHEDULED'].map((value) => (
+                  <option key={value}>{value}</option>
+                ))}
               </select>
             </label>
             <label>
               Start at
-              <input type="datetime-local" value={form.startAt || ''} onChange={(e) => setForm({ ...form, startAt: e.target.value })} />
+              <input
+                type="datetime-local"
+                value={form.startAt || ''}
+                onChange={(e) => setForm({ ...form, startAt: e.target.value })}
+              />
             </label>
             <label>
               End at
-              <input type="datetime-local" value={form.endAt || ''} onChange={(e) => setForm({ ...form, endAt: e.target.value })} />
+              <input
+                type="datetime-local"
+                value={form.endAt || ''}
+                onChange={(e) => setForm({ ...form, endAt: e.target.value })}
+              />
             </label>
           </div>
-          <VisualTokenEditor tokens={form.tokens || visualTokenDefaults} onChange={(tokens) => { setForm({ ...form, tokens }); setAdvancedJson(JSON.stringify(tokens, null, 2)); setAdvancedError(''); }} />
+          <VisualTokenEditor
+            tokens={form.tokens || visualTokenDefaults}
+            onChange={(tokens) => {
+              setForm({ ...form, tokens });
+              setAdvancedJson(JSON.stringify(tokens, null, 2));
+              setAdvancedError('');
+            }}
+          />
           <details className="advanced-token-editor">
             <summary>Advanced / Raw Tokens</summary>
-            <p className="muted">Optional advanced mode. Uses the same canonical token schema and server validation.</p>
-            <textarea aria-label="Advanced raw tokens" value={advancedJson} onChange={(event) => { const value = event.target.value; setAdvancedJson(value); try { const tokens = JSON.parse(value); if (!tokens || Array.isArray(tokens) || typeof tokens !== 'object') throw new Error(); setForm({ ...form, tokens }); setAdvancedError(''); } catch { setAdvancedError('JSON is invalid or must be an object; the last valid draft remains active.'); } }} rows={12} spellCheck={false} />
+            <p className="muted">
+              Optional advanced mode. Uses the same canonical token schema and server validation.
+            </p>
+            <textarea
+              aria-label="Advanced raw tokens"
+              value={advancedJson}
+              onChange={(event) => {
+                const value = event.target.value;
+                setAdvancedJson(value);
+                try {
+                  const tokens = JSON.parse(value);
+                  if (!tokens || Array.isArray(tokens) || typeof tokens !== 'object')
+                    throw new Error();
+                  setForm({ ...form, tokens });
+                  setAdvancedError('');
+                } catch {
+                  setAdvancedError(
+                    'JSON is invalid or must be an object; the last valid draft remains active.',
+                  );
+                }
+              }}
+              rows={12}
+              spellCheck={false}
+            />
             {advancedError && <span className="notice error">{advancedError}</span>}
           </details>
-          <div className="dirty-bar" role="status"><strong>{dirty ? 'Unsaved changes' : 'Saved snapshot'}</strong>{dirty && <button type="button" className="secondary" onClick={() => { setForm(savedForm); setAdvancedJson(JSON.stringify(savedForm.tokens || {}, null, 2)); setAdvancedError(''); }}>Discard changes</button>}</div>
+          <div className="dirty-bar" role="status">
+            <strong>{dirty ? 'Unsaved changes' : 'Saved snapshot'}</strong>
+            {dirty && (
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => {
+                  setForm(savedForm);
+                  setAdvancedJson(JSON.stringify(savedForm.tokens || {}, null, 2));
+                  setAdvancedError('');
+                }}
+              >
+                Discard changes
+              </button>
+            )}
+          </div>
           <ThemeWorkspacePreview theme={form} viewport={viewport} onViewport={setViewport} />
           <AccessibilityDashboard theme={form} />
           <button disabled={!dirty}>Save Draft</button>
@@ -1607,7 +2270,9 @@ export function Themes({ admin }: { admin: Admin }) {
 export function GarbaAdmin({ admin }: { admin: Admin }) {
   const router = useRouter();
   const [locationQuery, setLocationQuery] = useState(() =>
-    typeof window === 'undefined' ? new URLSearchParams() : new URLSearchParams(window.location.search),
+    typeof window === 'undefined'
+      ? new URLSearchParams()
+      : new URLSearchParams(window.location.search),
   );
   const [tab, setTab] = useState(locationQuery.get('tab') || 'overview');
   const [data, setData] = useState<any>(null);
@@ -1639,16 +2304,19 @@ export function GarbaAdmin({ admin }: { admin: Admin }) {
 
   const load = () => {
     setError('');
-    const path = tab === 'overview'
-      ? '/admin/garba'
-      : tab === 'posts'
-        ? `/admin/garba/posts?${qs({ status: status === 'ALL' ? undefined : status })}`
-        : tab === 'comments'
-          ? '/admin/garba/comments?status=PUBLISHED'
-          : tab === 'reports'
-            ? '/admin/garba/reports?status=OPEN'
-            : '/admin/garba/seasons';
-    api(path).then(setData).catch((e) => setError(e instanceof Error ? e.message : 'Garba data could not be loaded.'));
+    const path =
+      tab === 'overview'
+        ? '/admin/garba'
+        : tab === 'posts'
+          ? `/admin/garba/posts?${qs({ status: status === 'ALL' ? undefined : status })}`
+          : tab === 'comments'
+            ? '/admin/garba/comments?status=PUBLISHED'
+            : tab === 'reports'
+              ? '/admin/garba/reports?status=OPEN'
+              : '/admin/garba/seasons';
+    api(path)
+      .then(setData)
+      .catch((e) => setError(e instanceof Error ? e.message : 'Garba data could not be loaded.'));
   };
   useEffect(load, [tab, status]);
 
@@ -1656,63 +2324,586 @@ export function GarbaAdmin({ admin }: { admin: Admin }) {
     setPostDetail(null);
     setTab(nextTab);
     if (nextStatus) setStatus(nextStatus);
-    const query = qs({ tab: nextTab === 'overview' ? undefined : nextTab, status: nextTab === 'posts' && nextStatus ? nextStatus : undefined });
+    const query = qs({
+      tab: nextTab === 'overview' ? undefined : nextTab,
+      status: nextTab === 'posts' && nextStatus ? nextStatus : undefined,
+    });
     setLocationQuery(new URLSearchParams(query));
     router.push(`/garba${query ? `?${query}` : ''}`);
   }
   async function act(path: string, action: string, body?: object, method = 'POST') {
     if (!confirm(`Confirm ${action}?`)) return;
-    try { await api(path, { method, ...(body ? { body: JSON.stringify(body) } : {}) }); setMessage(`${action} completed.`); load(); if (postDetail) openPost(postDetail.id); } catch (e) { setError(e instanceof Error ? e.message : 'Action failed.'); }
+    try {
+      await api(path, { method, ...(body ? { body: JSON.stringify(body) } : {}) });
+      setMessage(`${action} completed.`);
+      load();
+      if (postDetail) openPost(postDetail.id);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Action failed.');
+    }
   }
   async function openPost(id: string) {
-    try { setError(''); setPostDetail(await api(`/admin/garba/posts/${id}`)); } catch (e) { setError(e instanceof Error ? e.message : 'Post could not be loaded.'); }
+    try {
+      setError('');
+      setPostDetail(await api(`/admin/garba/posts/${id}`));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Post could not be loaded.');
+    }
   }
   async function editComment(comment: any) {
     const content = window.prompt('Edit comment or reply:', comment.content);
     if (content === null || content.trim() === comment.content) return;
-    try { await api(`/admin/garba/comments/${comment.id}`, { method: 'PATCH', body: JSON.stringify({ content }) }); setMessage('Comment updated.'); if (postDetail) openPost(postDetail.id); load(); } catch (e) { setError(e instanceof Error ? e.message : 'Comment could not be edited.'); }
+    try {
+      await api(`/admin/garba/comments/${comment.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ content }),
+      });
+      setMessage('Comment updated.');
+      if (postDetail) openPost(postDetail.id);
+      load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Comment could not be edited.');
+    }
   }
   function commentActions(comment: any) {
     if (!canWrite) return null;
-    return <div className="card-actions"><button onClick={() => editComment(comment)}>Edit</button>{comment.status === 'PUBLISHED' && <button className="danger" onClick={() => act(`/admin/garba/comments/${comment.id}/archive`, 'Archive comment')}>Archive</button>}{comment.status === 'ARCHIVED' && <button onClick={() => act(`/admin/garba/comments/${comment.id}/restore`, 'Restore comment')}>Restore</button>}<button className="danger" onClick={() => act(`/admin/garba/comments/${comment.id}`, 'Delete comment', undefined, 'DELETE')}>Delete</button></div>;
+    return (
+      <div className="card-actions">
+        <button onClick={() => editComment(comment)}>Edit</button>
+        {comment.status === 'PUBLISHED' && (
+          <button
+            className="danger"
+            onClick={() => act(`/admin/garba/comments/${comment.id}/archive`, 'Archive comment')}
+          >
+            Archive
+          </button>
+        )}
+        {comment.status === 'ARCHIVED' && (
+          <button
+            onClick={() => act(`/admin/garba/comments/${comment.id}/restore`, 'Restore comment')}
+          >
+            Restore
+          </button>
+        )}
+        <button
+          className="danger"
+          onClick={() =>
+            act(`/admin/garba/comments/${comment.id}`, 'Delete comment', undefined, 'DELETE')
+          }
+        >
+          Delete
+        </button>
+      </div>
+    );
   }
-  const renderComment = (comment: any, nested = false) => <article className={nested ? 'list-card garba-nested-comment' : 'list-card'} key={comment.id}><div><div className="row-title"><strong>{nested ? 'Reply' : 'Comment'}</strong> <Status value={comment.status} /></div><p>{comment.content}</p><small>{formatDate(comment.createdAt)}{comment.updatedAt !== comment.createdAt ? ' · edited' : ''}</small></div>{commentActions(comment)}</article>;
+  const renderComment = (comment: any, nested = false) => (
+    <article className={nested ? 'list-card garba-nested-comment' : 'list-card'} key={comment.id}>
+      <div>
+        <div className="row-title">
+          <strong>{nested ? 'Reply' : 'Comment'}</strong> <Status value={comment.status} />
+        </div>
+        <p>{comment.content}</p>
+        <small>
+          {formatDate(comment.createdAt)}
+          {comment.updatedAt !== comment.createdAt ? ' · edited' : ''}
+        </small>
+      </div>
+      {commentActions(comment)}
+    </article>
+  );
   const metricCards = [
-    { label: 'Total posts', key: 'total', description: 'All Garba posts', action: 'View all posts', tab: 'posts', status: 'ALL', tone: 'gold' },
-    { label: 'Pending', key: 'pending', description: 'Awaiting moderation', action: 'Review pending', tab: 'posts', status: 'PENDING', tone: 'orange' },
-    { label: 'Published', key: 'published', description: 'Visible on Garba', action: 'View published', tab: 'posts', status: 'PUBLISHED', tone: 'green' },
-    { label: 'Rejected', key: 'rejected', description: 'Declined posts', action: 'View rejected', tab: 'posts', status: 'REJECTED', tone: 'red' },
-    { label: 'Archived', key: 'archived', description: 'Removed from the feed', action: 'View archived', tab: 'posts', status: 'ARCHIVED', tone: 'slate' },
-    { label: 'Comments', key: 'comments', description: 'Across published posts', action: 'Manage comments', tab: 'comments', tone: 'blue' },
-    { label: 'Open reports', key: 'openReports', description: 'Need attention', action: 'Review reports', tab: 'reports', tone: 'purple' },
+    {
+      label: 'Total posts',
+      key: 'total',
+      description: 'All Garba posts',
+      action: 'View all posts',
+      tab: 'posts',
+      status: 'ALL',
+      tone: 'gold',
+    },
+    {
+      label: 'Pending',
+      key: 'pending',
+      description: 'Awaiting moderation',
+      action: 'Review pending',
+      tab: 'posts',
+      status: 'PENDING',
+      tone: 'orange',
+    },
+    {
+      label: 'Published',
+      key: 'published',
+      description: 'Visible on Garba',
+      action: 'View published',
+      tab: 'posts',
+      status: 'PUBLISHED',
+      tone: 'green',
+    },
+    {
+      label: 'Rejected',
+      key: 'rejected',
+      description: 'Declined posts',
+      action: 'View rejected',
+      tab: 'posts',
+      status: 'REJECTED',
+      tone: 'red',
+    },
+    {
+      label: 'Archived',
+      key: 'archived',
+      description: 'Removed from the feed',
+      action: 'View archived',
+      tab: 'posts',
+      status: 'ARCHIVED',
+      tone: 'slate',
+    },
+    {
+      label: 'Comments',
+      key: 'comments',
+      description: 'Across published posts',
+      action: 'Manage comments',
+      tab: 'comments',
+      tone: 'blue',
+    },
+    {
+      label: 'Open reports',
+      key: 'openReports',
+      description: 'Need attention',
+      action: 'Review reports',
+      tab: 'reports',
+      tone: 'purple',
+    },
   ];
   const quickActions = [
-    { label: 'Visit Garba', description: 'Preview the public experience', href: '/garba', icon: '↗' },
-    { label: 'Manage posts', description: 'Review and moderate content', href: '/garba?tab=posts&status=PENDING', icon: '▤' },
-    { label: 'Review comments', description: 'Open post conversations', href: '/garba?tab=comments', icon: '◌' },
-    { label: 'Review reports', description: 'Resolve open reports', href: '/garba?tab=reports', icon: '!' },
-    ...(admin.role === 'SUPER_ADMIN' ? [{ label: 'Season settings', description: 'Manage the active season', href: '/garba?tab=settings', icon: '⚙' }] : []),
+    {
+      label: 'Visit Garba',
+      description: 'Preview the public experience',
+      href: '/garba',
+      icon: '↗',
+    },
+    {
+      label: 'Manage posts',
+      description: 'Review and moderate content',
+      href: '/garba?tab=posts&status=PENDING',
+      icon: '▤',
+    },
+    {
+      label: 'Review comments',
+      description: 'Open post conversations',
+      href: '/garba?tab=comments',
+      icon: '◌',
+    },
+    {
+      label: 'Review reports',
+      description: 'Resolve open reports',
+      href: '/garba?tab=reports',
+      icon: '!',
+    },
+    ...(admin.role === 'SUPER_ADMIN'
+      ? [
+          {
+            label: 'Season settings',
+            description: 'Manage the active season',
+            href: '/garba?tab=settings',
+            icon: '⚙',
+          },
+        ]
+      : []),
   ];
 
-  return <section className="garba-dashboard">
-    <div className="garba-hero">
-      <div><p className="eyebrow">GARBA COMMUNITY <span className="live-dot" aria-hidden="true" /> LIVE OPERATIONS</p><h1>Garba moderation</h1><p className="muted">Monitor and manage the Garba community from one place.</p></div>
-      <Link href="/garba" className="garba-visit-link" aria-label="Visit the public Garba experience">Visit Garba <span aria-hidden="true">↗</span></Link>
-    </div>
-    <div className="admin-tabs" role="tablist" aria-label="Garba workspaces">{Object.entries(tabLabels).map(([value, label]) => <button role="tab" aria-selected={tab === value} className={tab === value ? 'active' : 'secondary'} key={value} onClick={() => navigate(value)}>{label}</button>)}</div>
-    <Notice error={error} message={message} />
-    {postDetail ? <div className="panel"><button className="secondary" onClick={() => setPostDetail(null)}>← Back to posts</button><div className="row-title"><h2>{postDetail.publicId}</h2><Status value={postDetail.status} /></div><p>{postDetail.content}</p><p className="muted">{postDetail.category} · {formatDate(postDetail.createdAt)} · {postDetail.location || 'No location'} · @{postDetail.instagramHandle || 'none'}</p><p className="muted">Event date: {postDetail.eventDate ? formatDate(postDetail.eventDate) : 'None'} · Reactions: {postDetail._count?.reactions ?? 0} · Comments: {postDetail._count?.comments ?? 0}</p>{canWrite && <div className="card-actions">{postDetail.status === 'PENDING' && <button onClick={() => act(`/admin/garba/posts/${postDetail.id}/approve`, 'Approve post')}>Approve</button>}{postDetail.status === 'PENDING' && <button className="danger" onClick={() => act(`/admin/garba/posts/${postDetail.id}/reject`, 'Reject post')}>Reject</button>}{['PUBLISHED', 'REJECTED'].includes(postDetail.status) && <button className="danger" onClick={() => act(`/admin/garba/posts/${postDetail.id}/archive`, 'Archive post')}>Archive</button>}{postDetail.status === 'ARCHIVED' && <button onClick={() => act(`/admin/garba/posts/${postDetail.id}/restore`, 'Restore post')}>Restore</button>}{postDetail.status === 'PUBLISHED' && <button className="secondary" onClick={() => act(`/admin/garba/posts/${postDetail.id}/comments-lock`, postDetail.commentsLocked ? 'Unlock comments' : 'Lock comments', { locked: !postDetail.commentsLocked })}>{postDetail.commentsLocked ? 'Unlock comments' : 'Lock comments'}</button>}</div>}<h3>Comments &amp; replies</h3><div className="list">{postDetail.comments?.length ? postDetail.comments.map((comment: any) => <div key={comment.id}>{renderComment(comment)}<div className="list">{comment.replies?.map((reply: any) => renderComment(reply, true))}</div></div>) : <p className="muted">No comments or replies.</p>}</div></div>
-      : tab === 'overview' && data && <>
-        <div className="section-heading"><div><p className="eyebrow">OVERVIEW</p><h2>Moderation at a glance</h2></div><span className="muted">Select a metric to open its workspace</span></div>
-        <div className="stats garba-stats">{metricCards.map((card) => <Link key={card.key} href={`/garba?tab=${card.tab}${card.status ? `&status=${card.status}` : ''}`} onClick={(event) => { event.preventDefault(); navigate(card.tab, card.status); }} className={`metric garba-metric garba-metric--${card.tone}`} aria-label={`${card.label}: ${data[card.key] ?? 0}. ${card.action}.`}><span className="metric-label">{card.label}<span className="metric-arrow" aria-hidden="true">↗</span></span><strong>{data[card.key] ?? 0}</strong><small>{(data[card.key] ?? 0) === 0 ? `No ${card.label.toLowerCase()} right now` : card.description}</small><span className="metric-action">{card.action} <span aria-hidden="true">→</span></span></Link>)}</div>
-        <div className="section-heading quick-actions-heading"><div><p className="eyebrow">QUICK ACTIONS</p><h2>Keep the community moving</h2></div></div>
-        <div className="quick-actions" aria-label="Garba quick actions">{quickActions.map((action) => <Link href={action.href} onClick={(event) => { if (!action.href.includes('?tab=')) return; event.preventDefault(); const actionQuery = new URL(action.href, window.location.origin).searchParams; navigate(actionQuery.get('tab') || 'overview', actionQuery.get('status') || undefined); }} className="quick-action" key={action.label}><span className="quick-action-icon" aria-hidden="true">{action.icon}</span><span><strong>{action.label}</strong><small>{action.description}</small></span><span className="quick-action-arrow" aria-hidden="true">→</span></Link>)}</div>
-      </>}
-    {!postDetail && tab === 'posts' && <><div className="filters"><label>Status<select value={status} onChange={(e) => { setStatus(e.target.value); navigate('posts', e.target.value); }}>{statuses.map((v) => <option key={v}>{v}</option>)}</select></label></div><div className="list">{data?.items?.length ? data.items.map((post: any) => <article className="list-card" key={post.id}><div><div className="row-title"><strong>{post.publicId}</strong><Status value={post.status} /></div><span>{post.category} · {formatDate(post.createdAt)}</span><p>{post.content}</p><small>{post.location || 'No location'} · @{post.instagramHandle || 'none'} · {post._count.comments} comments · {post._count.reactions} reactions</small></div><div className="card-actions"><button onClick={() => openPost(post.id)}>View post</button>{canWrite && post.status === 'PUBLISHED' && <button className="secondary" onClick={() => act(`/admin/garba/posts/${post.id}/comments-lock`, post.commentsLocked ? 'Unlock comments' : 'Lock comments', { locked: !post.commentsLocked })}>{post.commentsLocked ? 'Unlock comments' : 'Lock comments'}</button>}</div></article>) : <div className="state empty"><strong>No {status === 'ALL' ? '' : status.toLowerCase()} Garba posts</strong><span>{status === 'PENDING' || status === 'ALL' ? 'You’re all caught up.' : 'There’s nothing to review here right now.'}</span></div>}</div></>}
-    {!postDetail && tab === 'comments' && <div className="list">{data?.items?.length ? data.items.map((comment: any) => <article className="list-card" key={comment.id}><div><div className="row-title"><strong>{comment.parentId ? 'Reply' : 'Comment'}</strong> <Status value={comment.status} /></div><p>{comment.content}</p><small>Post {comment.post.publicId} · {formatDate(comment.createdAt)}</small></div>{commentActions(comment)}</article>) : <div className="state empty"><strong>No comments to manage</strong><span>Published post conversations will appear here.</span></div>}</div>}
-    {!postDetail && tab === 'reports' && <div className="list">{data?.items?.length ? data.items.map((report: any) => <article className="list-card" key={report.id}><div><div className="row-title"><strong>{report.kind} report</strong> <Status value={report.status} /></div><p>{report.reason}</p><small>{report.comment ? (report.comment.parentId ? 'Reply' : 'Comment') : 'Post'} · {report.post.publicId} · {formatDate(report.createdAt)}</small></div>{report.status === 'OPEN' && canWrite && <div className="card-actions"><button onClick={() => act(`/admin/garba/reports/${report.id.replace('garba:', '')}/resolve`, 'Resolve report')}>Resolve</button><button className="secondary" onClick={() => act(`/admin/garba/reports/${report.id.replace('garba:', '')}/dismiss`, 'Dismiss report')}>Dismiss</button></div>}</article>) : <div className="state empty"><strong>No open reports</strong><span>You’re all caught up.</span></div>}</div>}
-    {!postDetail && tab === 'settings' && <form className="panel garba-settings-form" onSubmit={(e) => { e.preventDefault(); const form = new FormData(e.currentTarget); act('/admin/garba/seasons', 'Save season', Object.fromEntries([...form.entries()].map(([k, v]) => [k, String(v)])), 'PATCH'); }}><h2>Season settings</h2><p className="muted">Only one season is active at a time. Changes are audited.</p><label>Name<input name="name" defaultValue={data?.[0]?.name || 'Navratri'} required /></label><label>Year<input name="year" type="number" defaultValue={data?.[0]?.year || new Date().getFullYear()} required /></label><div className="form-grid"><label>Start date<input name="startDate" type="date" defaultValue={data?.[0]?.startDate?.slice(0, 10)} /></label><label>End date<input name="endDate" type="date" defaultValue={data?.[0]?.endDate?.slice(0, 10)} /></label></div><label>Status<select name="status" defaultValue="ACTIVE"><option>ACTIVE</option><option>INACTIVE</option></select></label>{admin.role === 'SUPER_ADMIN' && <button>Save season</button>}</form>}
-  </section>;
+  return (
+    <section className="garba-dashboard">
+      <div className="garba-hero">
+        <div>
+          <p className="eyebrow">
+            GARBA COMMUNITY <span className="live-dot" aria-hidden="true" /> LIVE OPERATIONS
+          </p>
+          <h1>Garba moderation</h1>
+          <p className="muted">Monitor and manage the Garba community from one place.</p>
+        </div>
+        <Link
+          href="/garba"
+          className="garba-visit-link"
+          aria-label="Visit the public Garba experience"
+        >
+          Visit Garba <span aria-hidden="true">↗</span>
+        </Link>
+      </div>
+      <div className="admin-tabs" role="tablist" aria-label="Garba workspaces">
+        {Object.entries(tabLabels).map(([value, label]) => (
+          <button
+            role="tab"
+            aria-selected={tab === value}
+            className={tab === value ? 'active' : 'secondary'}
+            key={value}
+            onClick={() => navigate(value)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <Notice error={error} message={message} />
+      {postDetail ? (
+        <div className="panel">
+          <button className="secondary" onClick={() => setPostDetail(null)}>
+            ← Back to posts
+          </button>
+          <div className="row-title">
+            <h2>{postDetail.publicId}</h2>
+            <Status value={postDetail.status} />
+          </div>
+          <p>{postDetail.content}</p>
+          <p className="muted">
+            {postDetail.category} · {formatDate(postDetail.createdAt)} ·{' '}
+            {postDetail.location || 'No location'} · @{postDetail.instagramHandle || 'none'}
+          </p>
+          <p className="muted">
+            Event date: {postDetail.eventDate ? formatDate(postDetail.eventDate) : 'None'} ·
+            Reactions: {postDetail._count?.reactions ?? 0} · Comments:{' '}
+            {postDetail._count?.comments ?? 0}
+          </p>
+          {canWrite && (
+            <div className="card-actions">
+              {postDetail.status === 'PENDING' && (
+                <button
+                  onClick={() => act(`/admin/garba/posts/${postDetail.id}/approve`, 'Approve post')}
+                >
+                  Approve
+                </button>
+              )}
+              {postDetail.status === 'PENDING' && (
+                <button
+                  className="danger"
+                  onClick={() => act(`/admin/garba/posts/${postDetail.id}/reject`, 'Reject post')}
+                >
+                  Reject
+                </button>
+              )}
+              {['PUBLISHED', 'REJECTED'].includes(postDetail.status) && (
+                <button
+                  className="danger"
+                  onClick={() => act(`/admin/garba/posts/${postDetail.id}/archive`, 'Archive post')}
+                >
+                  Archive
+                </button>
+              )}
+              {postDetail.status === 'ARCHIVED' && (
+                <button
+                  onClick={() => act(`/admin/garba/posts/${postDetail.id}/restore`, 'Restore post')}
+                >
+                  Restore
+                </button>
+              )}
+              {postDetail.status === 'PUBLISHED' && (
+                <button
+                  className="secondary"
+                  onClick={() =>
+                    act(
+                      `/admin/garba/posts/${postDetail.id}/comments-lock`,
+                      postDetail.commentsLocked ? 'Unlock comments' : 'Lock comments',
+                      { locked: !postDetail.commentsLocked },
+                    )
+                  }
+                >
+                  {postDetail.commentsLocked ? 'Unlock comments' : 'Lock comments'}
+                </button>
+              )}
+            </div>
+          )}
+          <h3>Comments &amp; replies</h3>
+          <div className="list">
+            {postDetail.comments?.length ? (
+              postDetail.comments.map((comment: any) => (
+                <div key={comment.id}>
+                  {renderComment(comment)}
+                  <div className="list">
+                    {comment.replies?.map((reply: any) => renderComment(reply, true))}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="muted">No comments or replies.</p>
+            )}
+          </div>
+        </div>
+      ) : (
+        tab === 'overview' &&
+        data && (
+          <>
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">OVERVIEW</p>
+                <h2>Moderation at a glance</h2>
+              </div>
+              <span className="muted">Select a metric to open its workspace</span>
+            </div>
+            <div className="stats garba-stats">
+              {metricCards.map((card) => (
+                <Link
+                  key={card.key}
+                  href={`/garba?tab=${card.tab}${card.status ? `&status=${card.status}` : ''}`}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    navigate(card.tab, card.status);
+                  }}
+                  className={`metric garba-metric garba-metric--${card.tone}`}
+                  aria-label={`${card.label}: ${data[card.key] ?? 0}. ${card.action}.`}
+                >
+                  <span className="metric-label">
+                    {card.label}
+                    <span className="metric-arrow" aria-hidden="true">
+                      ↗
+                    </span>
+                  </span>
+                  <strong>{data[card.key] ?? 0}</strong>
+                  <small>
+                    {(data[card.key] ?? 0) === 0
+                      ? `No ${card.label.toLowerCase()} right now`
+                      : card.description}
+                  </small>
+                  <span className="metric-action">
+                    {card.action} <span aria-hidden="true">→</span>
+                  </span>
+                </Link>
+              ))}
+            </div>
+            <div className="section-heading quick-actions-heading">
+              <div>
+                <p className="eyebrow">QUICK ACTIONS</p>
+                <h2>Keep the community moving</h2>
+              </div>
+            </div>
+            <div className="quick-actions" aria-label="Garba quick actions">
+              {quickActions.map((action) => (
+                <Link
+                  href={action.href}
+                  onClick={(event) => {
+                    if (!action.href.includes('?tab=')) return;
+                    event.preventDefault();
+                    const actionQuery = new URL(action.href, window.location.origin).searchParams;
+                    navigate(
+                      actionQuery.get('tab') || 'overview',
+                      actionQuery.get('status') || undefined,
+                    );
+                  }}
+                  className="quick-action"
+                  key={action.label}
+                >
+                  <span className="quick-action-icon" aria-hidden="true">
+                    {action.icon}
+                  </span>
+                  <span>
+                    <strong>{action.label}</strong>
+                    <small>{action.description}</small>
+                  </span>
+                  <span className="quick-action-arrow" aria-hidden="true">
+                    →
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </>
+        )
+      )}
+      {!postDetail && tab === 'posts' && (
+        <>
+          <div className="filters">
+            <label>
+              Status
+              <select
+                value={status}
+                onChange={(e) => {
+                  setStatus(e.target.value);
+                  navigate('posts', e.target.value);
+                }}
+              >
+                {statuses.map((v) => (
+                  <option key={v}>{v}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className="list">
+            {data?.items?.length ? (
+              data.items.map((post: any) => (
+                <article className="list-card" key={post.id}>
+                  <div>
+                    <div className="row-title">
+                      <strong>{post.publicId}</strong>
+                      <Status value={post.status} />
+                    </div>
+                    <span>
+                      {post.category} · {formatDate(post.createdAt)}
+                    </span>
+                    <p>{post.content}</p>
+                    <small>
+                      {post.location || 'No location'} · @{post.instagramHandle || 'none'} ·{' '}
+                      {post._count.comments} comments · {post._count.reactions} reactions
+                    </small>
+                  </div>
+                  <div className="card-actions">
+                    <button onClick={() => openPost(post.id)}>View post</button>
+                    {canWrite && post.status === 'PUBLISHED' && (
+                      <button
+                        className="secondary"
+                        onClick={() =>
+                          act(
+                            `/admin/garba/posts/${post.id}/comments-lock`,
+                            post.commentsLocked ? 'Unlock comments' : 'Lock comments',
+                            { locked: !post.commentsLocked },
+                          )
+                        }
+                      >
+                        {post.commentsLocked ? 'Unlock comments' : 'Lock comments'}
+                      </button>
+                    )}
+                  </div>
+                </article>
+              ))
+            ) : (
+              <div className="state empty">
+                <strong>No {status === 'ALL' ? '' : status.toLowerCase()} Garba posts</strong>
+                <span>
+                  {status === 'PENDING' || status === 'ALL'
+                    ? 'You’re all caught up.'
+                    : 'There’s nothing to review here right now.'}
+                </span>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+      {!postDetail && tab === 'comments' && (
+        <div className="list">
+          {data?.items?.length ? (
+            data.items.map((comment: any) => (
+              <article className="list-card" key={comment.id}>
+                <div>
+                  <div className="row-title">
+                    <strong>{comment.parentId ? 'Reply' : 'Comment'}</strong>{' '}
+                    <Status value={comment.status} />
+                  </div>
+                  <p>{comment.content}</p>
+                  <small>
+                    Post {comment.post.publicId} · {formatDate(comment.createdAt)}
+                  </small>
+                </div>
+                {commentActions(comment)}
+              </article>
+            ))
+          ) : (
+            <div className="state empty">
+              <strong>No comments to manage</strong>
+              <span>Published post conversations will appear here.</span>
+            </div>
+          )}
+        </div>
+      )}
+      {!postDetail && tab === 'reports' && (
+        <div className="list">
+          {data?.items?.length ? (
+            data.items.map((report: any) => (
+              <article className="list-card" key={report.id}>
+                <div>
+                  <div className="row-title">
+                    <strong>{report.kind} report</strong> <Status value={report.status} />
+                  </div>
+                  <p>{report.reason}</p>
+                  <small>
+                    {report.comment ? (report.comment.parentId ? 'Reply' : 'Comment') : 'Post'} ·{' '}
+                    {report.post.publicId} · {formatDate(report.createdAt)}
+                  </small>
+                </div>
+                {report.status === 'OPEN' && canWrite && (
+                  <div className="card-actions">
+                    <button
+                      onClick={() =>
+                        act(
+                          `/admin/garba/reports/${report.id.replace('garba:', '')}/resolve`,
+                          'Resolve report',
+                        )
+                      }
+                    >
+                      Resolve
+                    </button>
+                    <button
+                      className="secondary"
+                      onClick={() =>
+                        act(
+                          `/admin/garba/reports/${report.id.replace('garba:', '')}/dismiss`,
+                          'Dismiss report',
+                        )
+                      }
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                )}
+              </article>
+            ))
+          ) : (
+            <div className="state empty">
+              <strong>No open reports</strong>
+              <span>You’re all caught up.</span>
+            </div>
+          )}
+        </div>
+      )}
+      {!postDetail && tab === 'settings' && (
+        <form
+          className="panel garba-settings-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const form = new FormData(e.currentTarget);
+            act(
+              '/admin/garba/seasons',
+              'Save season',
+              Object.fromEntries([...form.entries()].map(([k, v]) => [k, String(v)])),
+              'PATCH',
+            );
+          }}
+        >
+          <h2>Season settings</h2>
+          <p className="muted">Only one season is active at a time. Changes are audited.</p>
+          <label>
+            Name
+            <input name="name" defaultValue={data?.[0]?.name || 'Navratri'} required />
+          </label>
+          <label>
+            Year
+            <input
+              name="year"
+              type="number"
+              defaultValue={data?.[0]?.year || new Date().getFullYear()}
+              required
+            />
+          </label>
+          <div className="form-grid">
+            <label>
+              Start date
+              <input
+                name="startDate"
+                type="date"
+                defaultValue={data?.[0]?.startDate?.slice(0, 10)}
+              />
+            </label>
+            <label>
+              End date
+              <input name="endDate" type="date" defaultValue={data?.[0]?.endDate?.slice(0, 10)} />
+            </label>
+          </div>
+          <label>
+            Status
+            <select name="status" defaultValue="ACTIVE">
+              <option>ACTIVE</option>
+              <option>INACTIVE</option>
+            </select>
+          </label>
+          {admin.role === 'SUPER_ADMIN' && <button>Save season</button>}
+        </form>
+      )}
+    </section>
+  );
 }
 export default function AdminClient() {
   const pathname = usePathname();

@@ -53,11 +53,7 @@ export class CreateThemeDto {
   @IsString() @MinLength(1) @MaxLength(120) fontFamily!: string;
   @IsInt() @Min(0) @Max(100) radius!: number;
   @IsOptional() @IsIn(['solid', 'dashed', 'dotted', 'double', 'none']) borderStyle?:
-    | 'solid'
-    | 'dashed'
-    | 'dotted'
-    | 'double'
-    | 'none';
+    'solid' | 'dashed' | 'dotted' | 'double' | 'none';
   @IsOptional() @IsBoolean() logoVisibility?: boolean;
   @IsOptional() @IsBoolean() handleVisibility?: boolean;
   @IsOptional() @IsString() @MinLength(1) @MaxLength(40) layoutVariant?: string;
@@ -80,11 +76,7 @@ export class UpdateThemeDto {
   @IsOptional() @IsString() @MinLength(1) @MaxLength(120) fontFamily?: string;
   @IsOptional() @IsInt() @Min(0) @Max(100) radius?: number;
   @IsOptional() @IsIn(['solid', 'dashed', 'dotted', 'double', 'none']) borderStyle?:
-    | 'solid'
-    | 'dashed'
-    | 'dotted'
-    | 'double'
-    | 'none';
+    'solid' | 'dashed' | 'dotted' | 'double' | 'none';
   @IsOptional() @IsBoolean() logoVisibility?: boolean;
   @IsOptional() @IsBoolean() handleVisibility?: boolean;
   @IsOptional() @IsString() @MinLength(1) @MaxLength(40) layoutVariant?: string;
@@ -131,7 +123,10 @@ export class AdminQueueQueryDto extends ListQueryDto {
   @IsOptional() @IsString() @MaxLength(120) search?: string;
   @IsOptional() @IsString() @MaxLength(40) variant?: string;
   @IsOptional() @IsString() @MaxLength(40) mode?: string;
-  @IsOptional() @Transform(({ value }) => value === true || value === 'true') @IsBoolean() favorites?: boolean;
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true')
+  @IsBoolean()
+  favorites?: boolean;
   @IsOptional() @IsIn(['newest', 'oldest']) order?: 'newest' | 'oldest';
 }
 export class AdminReportQueryDto extends ListQueryDto {

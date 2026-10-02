@@ -41,7 +41,10 @@ describe('public Garba post form', () => {
   it('posts once, resets every field, keeps the success notice, and ends loading', async () => {
     let resolvePost!: (result: { message: string }) => void;
     garbaApi.createGarbaPost.mockImplementation(
-      () => new Promise((resolve) => { resolvePost = resolve; }),
+      () =>
+        new Promise((resolve) => {
+          resolvePost = resolve;
+        }),
     );
     render(<GarbaClient />);
     fillForm();
@@ -58,7 +61,9 @@ describe('public Garba post form', () => {
     expect(await screen.findByRole('status')).toHaveTextContent(
       'Your Garba post is awaiting moderation.',
     );
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Post on Garba' })).toBeEnabled());
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Post on Garba' })).toBeEnabled(),
+    );
     expect(screen.getByRole('combobox', { name: /post type/i })).toHaveValue('GENERAL');
     expect(screen.getByRole('textbox', { name: /what's happening/i })).toHaveValue('');
     expect(screen.getByLabelText(/event date/i)).toHaveValue('');

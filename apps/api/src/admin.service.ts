@@ -25,7 +25,12 @@ import {
   UpdateGarbaSeasonDto,
 } from './admin.dto';
 import { increment } from './observability';
-import { exportPortableTheme, normalizeImportedTheme, normalizeTheme, portableToCreateInput } from '@ggv/themes';
+import {
+  exportPortableTheme,
+  normalizeImportedTheme,
+  normalizeTheme,
+  portableToCreateInput,
+} from '@ggv/themes';
 
 export function assertOpenReportTransition(status: ReportStatus, action: 'resolve' | 'dismiss') {
   if (status !== ReportStatus.OPEN)
@@ -54,7 +59,7 @@ export class AdminService {
     const where = {
       status: query.status ?? ConfessionStatus.PENDING,
       ...(query.category ? { category: query.category } : {}),
-      ...((query.theme || query.variant || query.mode || (query.favorites && actor))
+      ...(query.theme || query.variant || query.mode || (query.favorites && actor)
         ? {
             theme: {
               ...(query.theme ? { id: query.theme } : {}),
@@ -90,7 +95,16 @@ export class AdminService {
           updatedAt: true,
           publishedAt: true,
           reportCount: true,
-          theme: { select: { id: true, slug: true, name: true, layoutVariant: true, mode: true, status: true } },
+          theme: {
+            select: {
+              id: true,
+              slug: true,
+              name: true,
+              layoutVariant: true,
+              mode: true,
+              status: true,
+            },
+          },
           editor: { select: { id: true, email: true, role: true } },
         },
       }),
@@ -480,11 +494,17 @@ export class AdminService {
     const theme = await prisma.theme.findUnique({ where: { id } });
     if (!theme) throw new NotFoundException('Theme not found.');
     try {
-      const document = exportPortableTheme({ ...theme, borderStyle: theme.borderStyle as 'solid' | 'dashed' | 'dotted' | 'double' | 'none', tokens: (theme.tokens as Record<string, string> | null) ?? undefined });
+      const document = exportPortableTheme({
+        ...theme,
+        borderStyle: theme.borderStyle as 'solid' | 'dashed' | 'dotted' | 'double' | 'none',
+        tokens: (theme.tokens as Record<string, string> | null) ?? undefined,
+      });
       await recordAudit(actor.id, 'THEME_EXPORT', 'THEME', id);
       return document;
     } catch (error) {
-      throw new BadRequestException(error instanceof Error ? error.message : 'Theme cannot be exported safely.');
+      throw new BadRequestException(
+        error instanceof Error ? error.message : 'Theme cannot be exported safely.',
+      );
     }
   }
   private async proposedImportSlug(slug: string) {
@@ -503,14 +523,19 @@ export class AdminService {
       const slug = await this.proposedImportSlug(draft.slug);
       return { ...draft, proposedSlug: slug };
     } catch (error) {
-      throw new BadRequestException(error instanceof Error ? error.message : 'Theme import is invalid.');
+      throw new BadRequestException(
+        error instanceof Error ? error.message : 'Theme import is invalid.',
+      );
     }
   }
   async importTheme(body: ImportThemeDto, actor: AdminIdentity) {
     const preview = await this.previewThemeImport(body);
     const input = portableToCreateInput(preview, preview.proposedSlug);
     const item = await prisma.theme.create({ data: input as any });
-    await recordAudit(actor.id, 'THEME_IMPORT', 'THEME', item.id, { slug: item.slug, schemaVersion: 1 });
+    await recordAudit(actor.id, 'THEME_IMPORT', 'THEME', item.id, {
+      slug: item.slug,
+      schemaVersion: 1,
+    });
     increment('theme_mutations_total');
     return item;
   }
@@ -570,7 +595,8 @@ export class AdminService {
         accentColor: body.accentColor ?? existing.accentColor ?? '#fff',
         fontFamily: body.fontFamily ?? existing.fontFamily ?? 'Inter',
         radius: body.radius ?? existing.radius ?? 0,
-        borderStyle: body.borderStyle as 'solid' | 'dashed' | 'dotted' | 'double' | 'none' | undefined,
+        borderStyle: body.borderStyle as
+          'solid' | 'dashed' | 'dotted' | 'double' | 'none' | undefined,
         logoVisibility: body.logoVisibility ?? existing.logoVisibility ?? true,
         handleVisibility: body.handleVisibility ?? existing.handleVisibility ?? true,
         layoutVariant: body.layoutVariant ?? existing.layoutVariant ?? 'classic',
@@ -579,7 +605,8 @@ export class AdminService {
     } catch (error) {
       throw new BadRequestException(error instanceof Error ? error.message : 'Invalid theme.');
     }
-    const startAt = body.startAt === undefined ? (existing.startAt ?? null) : new Date(body.startAt);
+    const startAt =
+      body.startAt === undefined ? (existing.startAt ?? null) : new Date(body.startAt);
     const endAt = body.endAt === undefined ? (existing.endAt ?? null) : new Date(body.endAt);
     if (startAt && endAt && startAt >= endAt)
       throw new BadRequestException('startAt must be before endAt.');
@@ -590,7 +617,20 @@ export class AdminService {
         .filter(([, value]) => value !== undefined)
         .map(([key, value]) => [
           key,
-          key === 'startAt' ? startAt : key === 'endAt' ? endAt : key === 'mode' || key === 'status' || key === 'description' || key === 'icon' || key === 'category' || key === 'tags' ? value : key === 'tokens' ? normalized.visualTokens : normalized[key as keyof typeof normalized],
+          key === 'startAt'
+            ? startAt
+            : key === 'endAt'
+              ? endAt
+              : key === 'mode' ||
+                  key === 'status' ||
+                  key === 'description' ||
+                  key === 'icon' ||
+                  key === 'category' ||
+                  key === 'tags'
+                ? value
+                : key === 'tokens'
+                  ? normalized.visualTokens
+                  : normalized[key as keyof typeof normalized],
         ]),
     );
     const item = await prisma.theme.update({ where: { id }, data });
@@ -604,7 +644,10 @@ export class AdminService {
   async activateTheme(id: string, actor: AdminIdentity) {
     const current = await prisma.theme.findUnique({ where: { id }, select: { id: true } });
     if (!current) throw new NotFoundException('Theme not found.');
-    await prisma.theme.updateMany({ where: { status: ThemeStatus.ACTIVE, id: { not: id } }, data: { status: ThemeStatus.PUBLISHED } });
+    await prisma.theme.updateMany({
+      where: { status: ThemeStatus.ACTIVE, id: { not: id } },
+      data: { status: ThemeStatus.PUBLISHED },
+    });
     return this.setThemeStatus(id, ThemeStatus.ACTIVE, actor);
   }
   private async setThemeStatus(id: string, status: ThemeStatus, actor: AdminIdentity) {
@@ -618,16 +661,37 @@ export class AdminService {
   async duplicateTheme(id: string, actor: AdminIdentity) {
     const source = await prisma.theme.findUnique({ where: { id } });
     if (!source) throw new NotFoundException('Theme not found.');
-    const { id: _id, createdAt: _createdAt, updatedAt: _updatedAt, favorites: _favorites, confessions: _confessions, ...copy } = source as any;
-    const item = await prisma.theme.create({ data: { ...copy, slug: `${source.slug}-copy-${Date.now().toString(36)}`.slice(0, 80), name: `${source.name} Copy`, status: ThemeStatus.DRAFT, startAt: null, endAt: null } });
+    const {
+      id: _id,
+      createdAt: _createdAt,
+      updatedAt: _updatedAt,
+      favorites: _favorites,
+      confessions: _confessions,
+      ...copy
+    } = source as any;
+    const item = await prisma.theme.create({
+      data: {
+        ...copy,
+        slug: `${source.slug}-copy-${Date.now().toString(36)}`.slice(0, 80),
+        name: `${source.name} Copy`,
+        status: ThemeStatus.DRAFT,
+        startAt: null,
+        endAt: null,
+      },
+    });
     await recordAudit(actor.id, 'THEME_DUPLICATE', 'THEME', item.id, { sourceId: id });
     return item;
   }
   async deleteTheme(id: string, actor: AdminIdentity) {
-    const source = await prisma.theme.findUnique({ where: { id }, select: { id: true, status: true } });
+    const source = await prisma.theme.findUnique({
+      where: { id },
+      select: { id: true, status: true },
+    });
     if (!source) throw new NotFoundException('Theme not found.');
     if (source.status === ThemeStatus.ACTIVE)
-      throw new BadRequestException('Active themes cannot be deleted. Activate another theme first.');
+      throw new BadRequestException(
+        'Active themes cannot be deleted. Activate another theme first.',
+      );
     const used = await prisma.confession.count({ where: { themeId: id } });
     if (used > 0) throw new BadRequestException('Themes used by confessions cannot be deleted.');
     await prisma.theme.delete({ where: { id } });
@@ -636,7 +700,11 @@ export class AdminService {
   }
   async favoriteTheme(id: string, actor: AdminIdentity) {
     await prisma.theme.findUniqueOrThrow({ where: { id }, select: { id: true } });
-    await prisma.themeFavorite.upsert({ where: { adminId_themeId: { adminId: actor.id, themeId: id } }, create: { adminId: actor.id, themeId: id }, update: {} });
+    await prisma.themeFavorite.upsert({
+      where: { adminId_themeId: { adminId: actor.id, themeId: id } },
+      create: { adminId: actor.id, themeId: id },
+      update: {},
+    });
     return { id, favorite: true };
   }
   async unfavoriteTheme(id: string, actor: AdminIdentity) {
@@ -685,16 +753,17 @@ export class AdminService {
     return item;
   }
   async garbaDashboard() {
-    const [total, pending, published, rejected, archived, comments, openReports, season] = await Promise.all([
-      prisma.garbaPost.count(),
-      prisma.garbaPost.count({ where: { status: GarbaPostStatus.PENDING } }),
-      prisma.garbaPost.count({ where: { status: GarbaPostStatus.PUBLISHED } }),
-      prisma.garbaPost.count({ where: { status: GarbaPostStatus.REJECTED } }),
-      prisma.garbaPost.count({ where: { status: GarbaPostStatus.ARCHIVED } }),
-      prisma.garbaComment.count(),
-      prisma.garbaReport.count({ where: { status: ReportStatus.OPEN } }),
-      prisma.garbaSeason.findFirst({ where: { status: 'ACTIVE' }, orderBy: { year: 'desc' } }),
-    ]);
+    const [total, pending, published, rejected, archived, comments, openReports, season] =
+      await Promise.all([
+        prisma.garbaPost.count(),
+        prisma.garbaPost.count({ where: { status: GarbaPostStatus.PENDING } }),
+        prisma.garbaPost.count({ where: { status: GarbaPostStatus.PUBLISHED } }),
+        prisma.garbaPost.count({ where: { status: GarbaPostStatus.REJECTED } }),
+        prisma.garbaPost.count({ where: { status: GarbaPostStatus.ARCHIVED } }),
+        prisma.garbaComment.count(),
+        prisma.garbaReport.count({ where: { status: ReportStatus.OPEN } }),
+        prisma.garbaSeason.findFirst({ where: { status: 'ACTIVE' }, orderBy: { year: 'desc' } }),
+      ]);
     return { total, pending, published, rejected, archived, comments, openReports, season };
   }
 
@@ -704,10 +773,23 @@ export class AdminService {
     const where = {
       status: query.status ?? GarbaPostStatus.PENDING,
       ...(query.category ? { category: query.category } : {}),
-      ...(query.search ? { OR: [{ publicId: { contains: query.search, mode: 'insensitive' as const } }, { content: { contains: query.search, mode: 'insensitive' as const } }] } : {}),
+      ...(query.search
+        ? {
+            OR: [
+              { publicId: { contains: query.search, mode: 'insensitive' as const } },
+              { content: { contains: query.search, mode: 'insensitive' as const } },
+            ],
+          }
+        : {}),
     };
     const [items, total] = await Promise.all([
-      prisma.garbaPost.findMany({ where, orderBy: { createdAt: query.order === 'oldest' ? 'asc' : 'desc' }, skip: (page - 1) * limit, take: limit, include: { _count: { select: { comments: true, reactions: true, reports: true } } } }),
+      prisma.garbaPost.findMany({
+        where,
+        orderBy: { createdAt: query.order === 'oldest' ? 'asc' : 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        include: { _count: { select: { comments: true, reactions: true, reports: true } } },
+      }),
       prisma.garbaPost.count({ where }),
     ]);
     return { items, page, limit, total, hasMore: page * limit < total };
@@ -733,21 +815,57 @@ export class AdminService {
   async updateGarbaPost(id: string, body: UpdateGarbaPostDto, actor: AdminIdentity) {
     const current = await prisma.garbaPost.findUnique({ where: { id }, select: { status: true } });
     if (!current) throw new NotFoundException('Garba post not found.');
-    if (current.status !== GarbaPostStatus.PENDING && current.status !== GarbaPostStatus.PUBLISHED) throw new BadRequestException('This Garba post is not editable in its current state.');
-    const data = { ...body, ...(body.eventDate ? { eventDate: new Date(body.eventDate) } : {}), ...(body.content ? { content: body.content.trim() } : {}), ...(body.location ? { location: body.location.trim() } : {}) } as any;
+    if (current.status !== GarbaPostStatus.PENDING && current.status !== GarbaPostStatus.PUBLISHED)
+      throw new BadRequestException('This Garba post is not editable in its current state.');
+    const data = {
+      ...body,
+      ...(body.eventDate ? { eventDate: new Date(body.eventDate) } : {}),
+      ...(body.content ? { content: body.content.trim() } : {}),
+      ...(body.location ? { location: body.location.trim() } : {}),
+    } as any;
     const item = await prisma.garbaPost.update({ where: { id }, data });
-    await recordAudit(actor.id, 'GARBA_POST_EDITED', 'GARBA_POST', id, { changedFields: Object.keys(data) });
+    await recordAudit(actor.id, 'GARBA_POST_EDITED', 'GARBA_POST', id, {
+      changedFields: Object.keys(data),
+    });
     return item;
   }
 
-  async garbaTransition(id: string, action: 'approve' | 'reject' | 'archive' | 'restore', actor: AdminIdentity) {
+  async garbaTransition(
+    id: string,
+    action: 'approve' | 'reject' | 'archive' | 'restore',
+    actor: AdminIdentity,
+  ) {
     const current = await prisma.garbaPost.findUnique({ where: { id }, select: { status: true } });
     if (!current) throw new NotFoundException('Garba post not found.');
-    const allowed: Record<string, GarbaPostStatus[]> = { approve: [GarbaPostStatus.PENDING], reject: [GarbaPostStatus.PENDING], archive: [GarbaPostStatus.PUBLISHED, GarbaPostStatus.REJECTED], restore: [GarbaPostStatus.ARCHIVED] };
-    if (!allowed[action].includes(current.status)) throw new BadRequestException(`Cannot ${action} a ${current.status.toLowerCase()} Garba post.`);
-    const status = action === 'approve' || action === 'restore' ? GarbaPostStatus.PUBLISHED : action === 'reject' ? GarbaPostStatus.REJECTED : GarbaPostStatus.ARCHIVED;
-    const item = await prisma.garbaPost.update({ where: { id }, data: { status, ...(status === GarbaPostStatus.PUBLISHED ? { publishedAt: new Date() } : {}) } });
-    const auditAction = { approve: 'GARBA_POST_APPROVED', reject: 'GARBA_POST_REJECTED', archive: 'GARBA_POST_DELETED', restore: 'GARBA_POST_RESTORED' }[action];
+    const allowed: Record<string, GarbaPostStatus[]> = {
+      approve: [GarbaPostStatus.PENDING],
+      reject: [GarbaPostStatus.PENDING],
+      archive: [GarbaPostStatus.PUBLISHED, GarbaPostStatus.REJECTED],
+      restore: [GarbaPostStatus.ARCHIVED],
+    };
+    if (!allowed[action].includes(current.status))
+      throw new BadRequestException(
+        `Cannot ${action} a ${current.status.toLowerCase()} Garba post.`,
+      );
+    const status =
+      action === 'approve' || action === 'restore'
+        ? GarbaPostStatus.PUBLISHED
+        : action === 'reject'
+          ? GarbaPostStatus.REJECTED
+          : GarbaPostStatus.ARCHIVED;
+    const item = await prisma.garbaPost.update({
+      where: { id },
+      data: {
+        status,
+        ...(status === GarbaPostStatus.PUBLISHED ? { publishedAt: new Date() } : {}),
+      },
+    });
+    const auditAction = {
+      approve: 'GARBA_POST_APPROVED',
+      reject: 'GARBA_POST_REJECTED',
+      archive: 'GARBA_POST_DELETED',
+      restore: 'GARBA_POST_RESTORED',
+    }[action];
     await recordAudit(actor.id, auditAction, 'GARBA_POST', id);
     increment('moderation_actions_total');
     return item;
@@ -755,25 +873,49 @@ export class AdminService {
 
   async garbaLockComments(id: string, locked: boolean, actor: AdminIdentity) {
     const item = await prisma.garbaPost.update({ where: { id }, data: { commentsLocked: locked } });
-    await recordAudit(actor.id, locked ? 'GARBA_COMMENT_LOCKED' : 'GARBA_COMMENT_UNLOCKED', 'GARBA_POST', id);
+    await recordAudit(
+      actor.id,
+      locked ? 'GARBA_COMMENT_LOCKED' : 'GARBA_COMMENT_UNLOCKED',
+      'GARBA_POST',
+      id,
+    );
     return item;
   }
 
   async garbaComments(query: AdminGarbaCommentQueryDto) {
     const page = Math.max(1, query.page ?? 1);
     const limit = Math.min(50, Math.max(1, query.limit ?? 20));
-    const where = { status: query.status ?? GarbaCommentStatus.PENDING, ...(query.search ? { content: { contains: query.search, mode: 'insensitive' as const } } : {}) };
+    const where = {
+      status: query.status ?? GarbaCommentStatus.PENDING,
+      ...(query.search
+        ? { content: { contains: query.search, mode: 'insensitive' as const } }
+        : {}),
+    };
     const [items, total] = await Promise.all([
-      prisma.garbaComment.findMany({ where, orderBy: { createdAt: 'desc' }, skip: (page - 1) * limit, take: limit, include: { post: { select: { id: true, publicId: true, content: true } }, parent: { select: { id: true, content: true } }, replies: true } }),
+      prisma.garbaComment.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        include: {
+          post: { select: { id: true, publicId: true, content: true } },
+          parent: { select: { id: true, content: true } },
+          replies: true,
+        },
+      }),
       prisma.garbaComment.count({ where }),
     ]);
     return { items, page, limit, total, hasMore: page * limit < total };
   }
 
   async updateGarbaComment(id: string, body: UpdateGarbaCommentDto, actor: AdminIdentity) {
-    const current = await prisma.garbaComment.findUnique({ where: { id }, select: { status: true } });
+    const current = await prisma.garbaComment.findUnique({
+      where: { id },
+      select: { status: true },
+    });
     if (!current) throw new NotFoundException('Garba comment or reply not found.');
-    if (current.status === GarbaCommentStatus.REJECTED) throw new BadRequestException('Rejected Garba comments cannot be edited.');
+    if (current.status === GarbaCommentStatus.REJECTED)
+      throw new BadRequestException('Rejected Garba comments cannot be edited.');
     const content = body.content.trim();
     if (!content) throw new BadRequestException('Comment content cannot be empty.');
     const item = await prisma.garbaComment.update({ where: { id }, data: { content } });
@@ -781,51 +923,138 @@ export class AdminService {
     return item;
   }
   async deleteGarbaComment(id: string, actor: AdminIdentity) {
-    const current = await prisma.garbaComment.findUnique({ where: { id }, select: { parentId: true } });
+    const current = await prisma.garbaComment.findUnique({
+      where: { id },
+      select: { parentId: true },
+    });
     if (!current) throw new NotFoundException('Garba comment or reply not found.');
     await prisma.garbaComment.delete({ where: { id } });
-    await recordAudit(actor.id, current.parentId ? 'GARBA_REPLY_DELETED' : 'GARBA_COMMENT_DELETED', 'GARBA_COMMENT', id);
+    await recordAudit(
+      actor.id,
+      current.parentId ? 'GARBA_REPLY_DELETED' : 'GARBA_COMMENT_DELETED',
+      'GARBA_COMMENT',
+      id,
+    );
     increment('moderation_actions_total');
     return { id, deleted: true };
   }
-  async garbaCommentTransition(id: string, action: 'approve' | 'reject' | 'archive' | 'restore', actor: AdminIdentity) {
-    const current = await prisma.garbaComment.findUnique({ where: { id }, select: { status: true, parentId: true } });
+  async garbaCommentTransition(
+    id: string,
+    action: 'approve' | 'reject' | 'archive' | 'restore',
+    actor: AdminIdentity,
+  ) {
+    const current = await prisma.garbaComment.findUnique({
+      where: { id },
+      select: { status: true, parentId: true },
+    });
     if (!current) throw new NotFoundException('Garba comment or reply not found.');
-    const allowed: Record<string, GarbaCommentStatus[]> = { approve: [GarbaCommentStatus.PENDING], reject: [GarbaCommentStatus.PENDING], archive: [GarbaCommentStatus.PUBLISHED, GarbaCommentStatus.REJECTED], restore: [GarbaCommentStatus.ARCHIVED] };
-    if (!allowed[action].includes(current.status)) throw new BadRequestException(`Cannot ${action} this Garba comment.`);
-    const status = action === 'approve' || action === 'restore' ? GarbaCommentStatus.PUBLISHED : action === 'reject' ? GarbaCommentStatus.REJECTED : GarbaCommentStatus.ARCHIVED;
+    const allowed: Record<string, GarbaCommentStatus[]> = {
+      approve: [GarbaCommentStatus.PENDING],
+      reject: [GarbaCommentStatus.PENDING],
+      archive: [GarbaCommentStatus.PUBLISHED, GarbaCommentStatus.REJECTED],
+      restore: [GarbaCommentStatus.ARCHIVED],
+    };
+    if (!allowed[action].includes(current.status))
+      throw new BadRequestException(`Cannot ${action} this Garba comment.`);
+    const status =
+      action === 'approve' || action === 'restore'
+        ? GarbaCommentStatus.PUBLISHED
+        : action === 'reject'
+          ? GarbaCommentStatus.REJECTED
+          : GarbaCommentStatus.ARCHIVED;
     const item = await prisma.garbaComment.update({ where: { id }, data: { status } });
     const target = current.parentId ? 'REPLY' : 'COMMENT';
-    const auditAction = { approve: `GARBA_${target}_APPROVED`, reject: `GARBA_${target}_REJECTED`, archive: `GARBA_${target}_DELETED`, restore: `GARBA_${target}_RESTORED` }[action];
+    const auditAction = {
+      approve: `GARBA_${target}_APPROVED`,
+      reject: `GARBA_${target}_REJECTED`,
+      archive: `GARBA_${target}_DELETED`,
+      restore: `GARBA_${target}_RESTORED`,
+    }[action];
     await recordAudit(actor.id, auditAction, 'GARBA_COMMENT', id);
     return item;
   }
 
   async garbaReports(query: { page?: number; limit?: number; status?: ReportStatus }) {
-    const page = Math.max(1, query.page ?? 1); const limit = Math.min(50, Math.max(1, query.limit ?? 20));
+    const page = Math.max(1, query.page ?? 1);
+    const limit = Math.min(50, Math.max(1, query.limit ?? 20));
     const where = query.status ? { status: query.status } : {};
-    const [items, total] = await Promise.all([prisma.garbaReport.findMany({ where, orderBy: { createdAt: 'desc' }, skip: (page - 1) * limit, take: limit, include: { post: { select: { id: true, publicId: true, content: true } }, comment: { select: { id: true, content: true, parentId: true } } } }), prisma.garbaReport.count({ where })]);
-    return { items: items.map((item) => ({ ...item, id: `garba:${item.id}`, kind: 'GARBA', confession: { id: item.post.id, publicId: item.post.publicId, content: item.comment?.content ?? item.post.content, status: 'GARBA' } })), page, limit, total, hasMore: page * limit < total };
+    const [items, total] = await Promise.all([
+      prisma.garbaReport.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        include: {
+          post: { select: { id: true, publicId: true, content: true } },
+          comment: { select: { id: true, content: true, parentId: true } },
+        },
+      }),
+      prisma.garbaReport.count({ where }),
+    ]);
+    return {
+      items: items.map((item) => ({
+        ...item,
+        id: `garba:${item.id}`,
+        kind: 'GARBA',
+        confession: {
+          id: item.post.id,
+          publicId: item.post.publicId,
+          content: item.comment?.content ?? item.post.content,
+          status: 'GARBA',
+        },
+      })),
+      page,
+      limit,
+      total,
+      hasMore: page * limit < total,
+    };
   }
 
   async garbaReportAction(id: string, action: 'resolve' | 'dismiss', actor: AdminIdentity) {
     const report = await prisma.garbaReport.findUnique({ where: { id }, select: { status: true } });
     if (!report) throw new NotFoundException('Garba report not found.');
     assertOpenReportTransition(report.status, action);
-    const item = await prisma.garbaReport.update({ where: { id }, data: { status: action === 'resolve' ? ReportStatus.RESOLVED : ReportStatus.DISMISSED } });
+    const item = await prisma.garbaReport.update({
+      where: { id },
+      data: { status: action === 'resolve' ? ReportStatus.RESOLVED : ReportStatus.DISMISSED },
+    });
     await recordAudit(actor.id, `GARBA_REPORT_${action.toUpperCase()}`, 'GARBA_REPORT', id);
     increment('reports_processed_total');
     return item;
   }
 
-  async garbaSeasonSettings() { return prisma.garbaSeason.findMany({ orderBy: { year: 'desc' } }); }
+  async garbaSeasonSettings() {
+    return prisma.garbaSeason.findMany({ orderBy: { year: 'desc' } });
+  }
   async updateGarbaSeason(body: UpdateGarbaSeasonDto, actor: AdminIdentity) {
     const item = await prisma.$transaction(async (tx) => {
-      if (body.status === 'ACTIVE') await tx.garbaSeason.updateMany({ data: { status: 'INACTIVE' } });
+      if (body.status === 'ACTIVE')
+        await tx.garbaSeason.updateMany({ data: { status: 'INACTIVE' } });
       const existing = await tx.garbaSeason.findFirst({ where: { year: body.year } });
-      return existing ? tx.garbaSeason.update({ where: { id: existing.id }, data: { name: body.name, startDate: body.startDate ? new Date(body.startDate) : null, endDate: body.endDate ? new Date(body.endDate) : null, status: body.status } }) : tx.garbaSeason.create({ data: { name: body.name, year: body.year, startDate: body.startDate ? new Date(body.startDate) : null, endDate: body.endDate ? new Date(body.endDate) : null, status: body.status } });
+      return existing
+        ? tx.garbaSeason.update({
+            where: { id: existing.id },
+            data: {
+              name: body.name,
+              startDate: body.startDate ? new Date(body.startDate) : null,
+              endDate: body.endDate ? new Date(body.endDate) : null,
+              status: body.status,
+            },
+          })
+        : tx.garbaSeason.create({
+            data: {
+              name: body.name,
+              year: body.year,
+              startDate: body.startDate ? new Date(body.startDate) : null,
+              endDate: body.endDate ? new Date(body.endDate) : null,
+              status: body.status,
+            },
+          });
     });
-    await recordAudit(actor.id, 'GARBA_SEASON_UPDATED', 'GARBA_SEASON', item.id, { year: body.year, status: body.status });
+    await recordAudit(actor.id, 'GARBA_SEASON_UPDATED', 'GARBA_SEASON', item.id, {
+      year: body.year,
+      status: body.status,
+    });
     return item;
   }
 
@@ -863,7 +1092,16 @@ export class AdminService {
       prisma.confession.count({ where: { status: 'ARCHIVED' } }),
       prisma.auditLog.findMany({
         where: {
-          entity: { in: ['CONFESSION', 'REPORT', 'GARBA_POST', 'GARBA_COMMENT', 'GARBA_REPORT', 'GARBA_SEASON'] },
+          entity: {
+            in: [
+              'CONFESSION',
+              'REPORT',
+              'GARBA_POST',
+              'GARBA_COMMENT',
+              'GARBA_REPORT',
+              'GARBA_SEASON',
+            ],
+          },
         },
         orderBy: { createdAt: 'desc' },
         take: 6,

@@ -185,19 +185,31 @@ export class ConfessionsService {
           OR: [
             { status: 'ACTIVE' },
             { status: 'PUBLISHED' },
-            { status: 'SCHEDULED', startAt: { lte: now }, OR: [{ endAt: null }, { endAt: { gt: now } }] },
+            {
+              status: 'SCHEDULED',
+              startAt: { lte: now },
+              OR: [{ endAt: null }, { endAt: { gt: now } }],
+            },
           ],
         },
         orderBy: [{ startAt: 'desc' }, { updatedAt: 'desc' }],
       });
-      const eligible = candidates.filter((theme: any) =>
-        theme.status === 'SCHEDULED' && theme.startAt && theme.startAt <= now && (!theme.endAt || theme.endAt > now),
+      const eligible = candidates.filter(
+        (theme: any) =>
+          theme.status === 'SCHEDULED' &&
+          theme.startAt &&
+          theme.startAt <= now &&
+          (!theme.endAt || theme.endAt > now),
       );
       const active = candidates.filter((theme: any) => theme.status === 'ACTIVE');
       const published = candidates.filter((theme: any) => theme.status === 'PUBLISHED');
       return toPublicTheme(eligible[0] ?? active[0] ?? published[0] ?? fallback);
     } catch {
-      return toPublicTheme({ ...fallback, slug: fallback.id, radius: Number.parseInt(fallback.radius, 10) });
+      return toPublicTheme({
+        ...fallback,
+        slug: fallback.id,
+        radius: Number.parseInt(fallback.radius, 10),
+      });
     }
   }
 

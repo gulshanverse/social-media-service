@@ -51,43 +51,91 @@ export class AdminController {
   @Get('garba') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) garbaDashboard() {
     return this.service.garbaDashboard();
   }
-  @Get('garba/posts') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) garbaPosts(@Query() query: AdminGarbaQueryDto) {
+  @Get('garba/posts') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) garbaPosts(
+    @Query() query: AdminGarbaQueryDto,
+  ) {
     return this.service.garbaPosts(query);
   }
-  @Get('garba/posts/:id') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) garbaPost(@Param('id') id: string) {
+  @Get('garba/posts/:id') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) garbaPost(
+    @Param('id') id: string,
+  ) {
     return this.service.garbaPost(id);
   }
-  @Patch('garba/posts/:id') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) garbaEdit(@Param('id') id: string, @Body() body: UpdateGarbaPostDto, @Req() req: { user?: ReturnType<typeof requireUser> }) {
+  @Patch('garba/posts/:id') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) garbaEdit(
+    @Param('id') id: string,
+    @Body() body: UpdateGarbaPostDto,
+    @Req() req: { user?: ReturnType<typeof requireUser> },
+  ) {
     return this.service.updateGarbaPost(id, body, requireUser(req));
   }
-  @Post('garba/posts/:id/:action') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) garbaTransition(@Param('id') id: string, @Param('action') action: 'approve' | 'reject' | 'archive' | 'restore', @Req() req: { user?: ReturnType<typeof requireUser> }) {
+  @Post('garba/posts/:id/:action')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR)
+  garbaTransition(
+    @Param('id') id: string,
+    @Param('action') action: 'approve' | 'reject' | 'archive' | 'restore',
+    @Req() req: { user?: ReturnType<typeof requireUser> },
+  ) {
     return this.service.garbaTransition(id, action, requireUser(req));
   }
-  @Post('garba/posts/:id/comments-lock') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) garbaLockComments(@Param('id') id: string, @Body() body: { locked: boolean }, @Req() req: { user?: ReturnType<typeof requireUser> }) {
+  @Post('garba/posts/:id/comments-lock')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR)
+  garbaLockComments(
+    @Param('id') id: string,
+    @Body() body: { locked: boolean },
+    @Req() req: { user?: ReturnType<typeof requireUser> },
+  ) {
     return this.service.garbaLockComments(id, body.locked === true, requireUser(req));
   }
-  @Get('garba/comments') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) garbaComments(@Query() query: AdminGarbaCommentQueryDto) {
+  @Get('garba/comments') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) garbaComments(
+    @Query() query: AdminGarbaCommentQueryDto,
+  ) {
     return this.service.garbaComments(query);
   }
-  @Post('garba/comments/:id/:action') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) garbaCommentTransition(@Param('id') id: string, @Param('action') action: 'approve' | 'reject' | 'archive' | 'restore', @Req() req: { user?: ReturnType<typeof requireUser> }) {
+  @Post('garba/comments/:id/:action')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR)
+  garbaCommentTransition(
+    @Param('id') id: string,
+    @Param('action') action: 'approve' | 'reject' | 'archive' | 'restore',
+    @Req() req: { user?: ReturnType<typeof requireUser> },
+  ) {
     return this.service.garbaCommentTransition(id, action, requireUser(req));
   }
-  @Patch('garba/comments/:id') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) garbaCommentEdit(@Param('id') id: string, @Body() body: UpdateGarbaCommentDto, @Req() req: { user?: ReturnType<typeof requireUser> }) {
+  @Patch('garba/comments/:id') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) garbaCommentEdit(
+    @Param('id') id: string,
+    @Body() body: UpdateGarbaCommentDto,
+    @Req() req: { user?: ReturnType<typeof requireUser> },
+  ) {
     return this.service.updateGarbaComment(id, body, requireUser(req));
   }
-  @Delete('garba/comments/:id') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) garbaCommentDelete(@Param('id') id: string, @Req() req: { user?: ReturnType<typeof requireUser> }) {
+  @Delete('garba/comments/:id')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR)
+  garbaCommentDelete(
+    @Param('id') id: string,
+    @Req() req: { user?: ReturnType<typeof requireUser> },
+  ) {
     return this.service.deleteGarbaComment(id, requireUser(req));
   }
-  @Get('garba/reports') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) garbaReports(@Query() query: AdminReportQueryDto) {
+  @Get('garba/reports') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) garbaReports(
+    @Query() query: AdminReportQueryDto,
+  ) {
     return this.service.garbaReports(query);
   }
-  @Post('garba/reports/:id/:action') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) garbaReportAction(@Param('id') id: string, @Param('action') action: 'resolve' | 'dismiss', @Req() req: { user?: ReturnType<typeof requireUser> }) {
+  @Post('garba/reports/:id/:action')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR)
+  garbaReportAction(
+    @Param('id') id: string,
+    @Param('action') action: 'resolve' | 'dismiss',
+    @Req() req: { user?: ReturnType<typeof requireUser> },
+  ) {
     return this.service.garbaReportAction(id, action, requireUser(req));
   }
   @Get('garba/seasons') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) garbaSeasons() {
     return this.service.garbaSeasonSettings();
   }
-  @Patch('garba/seasons') @Roles(AdminRole.SUPER_ADMIN) updateGarbaSeason(@Body() body: UpdateGarbaSeasonDto, @Req() req: { user?: ReturnType<typeof requireUser> }) {
+  @Patch('garba/seasons') @Roles(AdminRole.SUPER_ADMIN) updateGarbaSeason(
+    @Body() body: UpdateGarbaSeasonDto,
+    @Req() req: { user?: ReturnType<typeof requireUser> },
+  ) {
     return this.service.updateGarbaSeason(body, requireUser(req));
   }
   @Get('confessions') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) queue(
@@ -185,14 +233,20 @@ export class AdminController {
   @Get('themes/:id/export') @Roles(AdminRole.SUPER_ADMIN, AdminRole.DESIGNER) exportTheme(
     @Param('id') id: string,
     @Req() req: { user?: ReturnType<typeof requireUser> },
-  ) { return this.service.exportTheme(id, requireUser(req)); }
-  @Post('themes/import/preview') @Roles(AdminRole.SUPER_ADMIN, AdminRole.DESIGNER) previewThemeImport(
-    @Body() body: ImportThemeDto,
-  ) { return this.service.previewThemeImport(body); }
+  ) {
+    return this.service.exportTheme(id, requireUser(req));
+  }
+  @Post('themes/import/preview')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.DESIGNER)
+  previewThemeImport(@Body() body: ImportThemeDto) {
+    return this.service.previewThemeImport(body);
+  }
   @Post('themes/import') @Roles(AdminRole.SUPER_ADMIN, AdminRole.DESIGNER) importTheme(
     @Body() body: ImportThemeDto,
     @Req() req: { user?: ReturnType<typeof requireUser> },
-  ) { return this.service.importTheme(body, requireUser(req)); }
+  ) {
+    return this.service.importTheme(body, requireUser(req));
+  }
   @Patch('themes/:id') @Roles(AdminRole.SUPER_ADMIN, AdminRole.DESIGNER) updateTheme(
     @Param('id') id: string,
     @Body() body: UpdateThemeDto,
@@ -203,27 +257,37 @@ export class AdminController {
   @Post('themes/:id/publish') @Roles(AdminRole.SUPER_ADMIN, AdminRole.DESIGNER) publishTheme(
     @Param('id') id: string,
     @Req() req: { user?: ReturnType<typeof requireUser> },
-  ) { return this.service.publishTheme(id, requireUser(req)); }
+  ) {
+    return this.service.publishTheme(id, requireUser(req));
+  }
   @Post('themes/:id/activate') @Roles(AdminRole.SUPER_ADMIN, AdminRole.DESIGNER) activateTheme(
     @Param('id') id: string,
     @Req() req: { user?: ReturnType<typeof requireUser> },
-  ) { return this.service.activateTheme(id, requireUser(req)); }
+  ) {
+    return this.service.activateTheme(id, requireUser(req));
+  }
   @Post('themes/:id/duplicate') @Roles(AdminRole.SUPER_ADMIN, AdminRole.DESIGNER) duplicateTheme(
     @Param('id') id: string,
     @Req() req: { user?: ReturnType<typeof requireUser> },
-  ) { return this.service.duplicateTheme(id, requireUser(req)); }
+  ) {
+    return this.service.duplicateTheme(id, requireUser(req));
+  }
   @Delete('themes/:id') @Roles(AdminRole.SUPER_ADMIN, AdminRole.DESIGNER) deleteTheme(
     @Param('id') id: string,
     @Req() req: { user?: ReturnType<typeof requireUser> },
-  ) { return this.service.deleteTheme(id, requireUser(req)); }
-  @Post('themes/:id/favorite') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR, AdminRole.DESIGNER) favoriteTheme(
-    @Param('id') id: string,
-    @Req() req: { user?: ReturnType<typeof requireUser> },
-  ) { return this.service.favoriteTheme(id, requireUser(req)); }
-  @Delete('themes/:id/favorite') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR, AdminRole.DESIGNER) unfavoriteTheme(
-    @Param('id') id: string,
-    @Req() req: { user?: ReturnType<typeof requireUser> },
-  ) { return this.service.unfavoriteTheme(id, requireUser(req)); }
+  ) {
+    return this.service.deleteTheme(id, requireUser(req));
+  }
+  @Post('themes/:id/favorite')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR, AdminRole.DESIGNER)
+  favoriteTheme(@Param('id') id: string, @Req() req: { user?: ReturnType<typeof requireUser> }) {
+    return this.service.favoriteTheme(id, requireUser(req));
+  }
+  @Delete('themes/:id/favorite')
+  @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR, AdminRole.DESIGNER)
+  unfavoriteTheme(@Param('id') id: string, @Req() req: { user?: ReturnType<typeof requireUser> }) {
+    return this.service.unfavoriteTheme(id, requireUser(req));
+  }
   @Get('profile-settings') @Roles(AdminRole.SUPER_ADMIN, AdminRole.DESIGNER) profileSettings() {
     return this.service.profileSettings();
   }

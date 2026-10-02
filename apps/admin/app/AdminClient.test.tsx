@@ -145,7 +145,15 @@ describe('admin workspace behavior', () => {
         if (url.includes('/admin/auth/refresh')) return response({ accessToken: 'test-token' });
         if (url.includes('/admin/auth/me')) return response(admin);
         if (url.includes('/admin/garba'))
-          return response({ total: 4, pending: 2, published: 1, rejected: 1, archived: 0, comments: 3, openReports: 0 });
+          return response({
+            total: 4,
+            pending: 2,
+            published: 1,
+            rejected: 1,
+            archived: 0,
+            comments: 3,
+            openReports: 0,
+          });
         return response({});
       }),
     );
@@ -164,14 +172,24 @@ describe('admin workspace behavior', () => {
       vi.fn(async (input: RequestInfo | URL) => {
         const url = String(input);
         if (url.includes('/admin/garba'))
-          return response({ total: 4, pending: 2, published: 1, rejected: 1, archived: 0, comments: 3, openReports: 0 });
+          return response({
+            total: 4,
+            pending: 2,
+            published: 1,
+            rejected: 1,
+            archived: 0,
+            comments: 3,
+            openReports: 0,
+          });
         return response({ items: [], page: 1, limit: 20, total: 0, hasMore: false });
       }),
     );
 
     render(<GarbaAdmin admin={admin} />);
 
-    await waitFor(() => expect(screen.getByRole('link', { name: /Total posts: 4/i })).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByRole('link', { name: /Total posts: 4/i })).toBeInTheDocument(),
+    );
     fireEvent.click(screen.getByRole('link', { name: /Total posts: 4/i }));
 
     expect(navigation.push).toHaveBeenCalledWith('/garba?tab=posts&status=ALL');
