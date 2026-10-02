@@ -1090,3 +1090,29 @@ button:disabled {
   }
 }
 .admin-tabs { display:flex; flex-wrap:wrap; gap:8px; margin:24px 0; padding-bottom:14px; border-bottom:1px solid #26334d; }.admin-tabs button.active { background:#ff9a3c; }.garba-settings-form { max-width:720px; display:grid; gap:16px; }.garba-settings-form h2,.garba-settings-form p { margin:0; }
+
+/* Garba operations dashboard */
+.garba-dashboard { max-width: 1180px; }
+.garba-hero { display:flex; align-items:flex-end; justify-content:space-between; gap:24px; padding: 8px 0 6px; }
+.garba-hero h1 { margin: 7px 0 8px; letter-spacing:-.035em; }
+.garba-hero .muted { margin:0; max-width:540px; }
+.live-dot { display:inline-block; width:7px; height:7px; margin:0 6px 1px 8px; border-radius:50%; background:#7ee2a8; box-shadow:0 0 0 4px #7ee2a820; }
+.garba-visit-link { display:inline-flex; align-items:center; gap:10px; border:1px solid #d8833c66; border-radius:12px; padding:12px 16px; color:#ffd29f; background:#d8833c12; font-weight:700; white-space:nowrap; transition:transform .2s ease, border-color .2s ease, background .2s ease; }
+.garba-visit-link:hover, .garba-visit-link:focus-visible { border-color:#ffad61; background:#d8833c22; transform:translateY(-2px); }
+.section-heading { display:flex; align-items:end; justify-content:space-between; gap:16px; margin:30px 0 13px; }
+.section-heading h2 { margin:4px 0 0; font-size:1.05rem; }
+.section-heading .eyebrow { margin:0; }
+.garba-stats { grid-template-columns:repeat(4, minmax(0, 1fr)); gap:13px; }
+.garba-metric { position:relative; display:flex; flex-direction:column; min-height:164px; padding:18px; border:1px solid #293751; border-radius:16px; background:#151e30; color:inherit; overflow:hidden; transition:transform .2s ease, border-color .2s ease, box-shadow .2s ease, background .2s ease; }
+.garba-metric:hover, .garba-metric:focus-visible { transform:translateY(-3px); border-color:#657491; background:#19243a; box-shadow:0 12px 30px #0003; }
+.garba-metric:focus-visible, .quick-action:focus-visible, .garba-visit-link:focus-visible { outline:3px solid #ffad61; outline-offset:3px; }
+.metric-label { display:flex; justify-content:space-between; gap:10px; color:#bac6d9; font-size:.88rem; font-weight:700; }
+.metric-arrow { color:#ffb36b; font-size:1rem; opacity:.8; }
+.garba-metric strong { margin:11px 0 5px; font-size:2.25rem; letter-spacing:-.06em; }
+.garba-metric small { color:#8492aa; font-size:.78rem; }
+.metric-action { margin-top:auto; padding-top:15px; color:#ffb36b; font-size:.78rem; font-weight:700; }
+.garba-metric--orange { border-top:2px solid #ff9b55; }.garba-metric--green { border-top:2px solid #68d391; }.garba-metric--red { border-top:2px solid #ef8585; }.garba-metric--blue { border-top:2px solid #79b8ff; }.garba-metric--purple { border-top:2px solid #b09aff; }.garba-metric--slate { border-top:2px solid #8290a8; }.garba-metric--gold { border-top:2px solid #e2bd67; }
+.quick-actions-heading { margin-top:34px; }.quick-actions { display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:11px; }.quick-action { display:flex; align-items:center; gap:11px; min-height:72px; padding:13px; border:1px solid #293751; border-radius:14px; background:#121b2b; color:inherit; transition:transform .2s ease, border-color .2s ease, background .2s ease; }.quick-action:hover { transform:translateY(-2px); border-color:#53627c; background:#18243a; }.quick-action-icon { display:grid; flex:none; place-items:center; width:30px; height:30px; border-radius:9px; color:#ffc17f; background:#e19a521c; font-weight:800; }.quick-action strong, .quick-action small { display:block; }.quick-action strong { font-size:.82rem; }.quick-action small { margin-top:3px; color:#8391a8; font-size:.68rem; line-height:1.3; }.quick-action-arrow { margin-left:auto; color:#8492aa; }
+@media (max-width:900px) { .garba-stats { grid-template-columns:repeat(3, minmax(0,1fr)); }.quick-actions { grid-template-columns:repeat(2, minmax(0,1fr)); } }
+@media (max-width:600px) { .garba-hero { align-items:flex-start; flex-direction:column; }.garba-visit-link { width:100%; justify-content:center; }.section-heading { align-items:flex-start; flex-direction:column; }.garba-stats { grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px; }.garba-metric { min-height:150px; padding:14px; }.garba-metric strong { font-size:1.9rem; }.quick-actions { grid-template-columns:1fr; } }
+@media (prefers-reduced-motion: reduce) { .garba-metric, .quick-action, .garba-visit-link { transition:none; } }
