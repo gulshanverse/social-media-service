@@ -47,6 +47,11 @@ export class ConfessionsController {
     return this.confessions.profileSettings();
   }
 
+  @Get('theme/active')
+  activeTheme() {
+    return this.confessions.resolvePublicTheme();
+  }
+
   @Get(':publicId')
   findOne(@Param('publicId') publicId: string) {
     return this.confessions.findPublished(publicId);

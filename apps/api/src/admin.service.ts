@@ -7,6 +7,7 @@ import {
   GarbaPostCategory,
   GarbaPostStatus,
   ReportStatus,
+  ThemeStatus,
 } from '@prisma/client';
 import { prisma, recordAudit, AdminIdentity } from './admin-auth';
 import {
@@ -46,13 +47,22 @@ export function assertEditableConfession(status: ConfessionStatus) {
 
 @Injectable()
 export class AdminService {
-  async queue(query: AdminQueueQueryDto) {
+  async queue(query: AdminQueueQueryDto, actor?: AdminIdentity) {
     const page = Math.max(1, query.page ?? 1);
     const limit = Math.min(50, Math.max(1, query.limit ?? 20));
     const where = {
       status: query.status ?? ConfessionStatus.PENDING,
       ...(query.category ? { category: query.category } : {}),
-      ...(query.theme ? { theme: { id: query.theme } } : {}),
+      ...((query.theme || query.variant || query.mode || (query.favorites && actor))
+        ? {
+            theme: {
+              ...(query.theme ? { id: query.theme } : {}),
+              ...(query.variant ? { layoutVariant: query.variant } : {}),
+              ...(query.mode ? { mode: query.mode } : {}),
+              ...(query.favorites && actor ? { favorites: { some: { adminId: actor.id } } } : {}),
+            },
+          }
+        : {}),
       ...(query.search
         ? {
             OR: [
@@ -79,7 +89,7 @@ export class AdminService {
           updatedAt: true,
           publishedAt: true,
           reportCount: true,
-          theme: { select: { slug: true, name: true } },
+          theme: { select: { id: true, slug: true, name: true, layoutVariant: true, mode: true, status: true } },
           editor: { select: { id: true, email: true, role: true } },
         },
       }),
@@ -439,6 +449,15 @@ export class AdminService {
       accentColor: true,
       fontFamily: true,
       radius: true,
+      borderStyle: true,
+      logoVisibility: true,
+      handleVisibility: true,
+      layoutVariant: true,
+      mode: true,
+      status: true,
+      startAt: true,
+      endAt: true,
+      favorites: { select: { adminId: true } },
     } as const;
     const [items, total] = await Promise.all([
       prisma.theme.findMany({
@@ -458,6 +477,12 @@ export class AdminService {
     } catch (error) {
       throw new BadRequestException(error instanceof Error ? error.message : 'Invalid theme.');
     }
+    const startAt = body.startAt ? new Date(body.startAt) : null;
+    const endAt = body.endAt ? new Date(body.endAt) : null;
+    if (startAt && endAt && startAt >= endAt)
+      throw new BadRequestException('startAt must be before endAt.');
+    if (body.status === ThemeStatus.SCHEDULED && !startAt)
+      throw new BadRequestException('Scheduled themes require startAt.');
     const data = {
       slug: normalized.slug,
       name: normalized.name,
@@ -471,6 +496,10 @@ export class AdminService {
       logoVisibility: normalized.logoVisibility,
       handleVisibility: normalized.handleVisibility,
       layoutVariant: normalized.layoutVariant,
+      mode: body.mode?.trim() || 'dark',
+      status: body.status ?? ThemeStatus.DRAFT,
+      startAt,
+      endAt,
     };
     const item = await prisma.theme.create({ data });
     await recordAudit(actor.id, 'THEME_CREATE', 'THEME', item.id);
@@ -478,37 +507,91 @@ export class AdminService {
     return item;
   }
   async updateTheme(id: string, body: UpdateThemeDto, actor: AdminIdentity) {
-    const existing = await prisma.theme.findUnique({ where: { id }, select: { id: true } });
+    const existing = await prisma.theme.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Theme not found.');
     let normalized;
     try {
       normalized = normalizeTheme({
         id,
         slug: id,
-        name: body.name ?? 'Theme',
-        background: body.background ?? '#000',
-        gradient: body.gradient ?? 'none',
-        textColor: body.textColor ?? '#fff',
-        accentColor: body.accentColor ?? '#fff',
-        fontFamily: body.fontFamily ?? 'Inter',
-        radius: body.radius ?? 0,
+        name: body.name ?? existing.name ?? 'Theme',
+        background: body.background ?? existing.background ?? '#000',
+        gradient: body.gradient ?? existing.gradient ?? 'none',
+        textColor: body.textColor ?? existing.textColor ?? '#fff',
+        accentColor: body.accentColor ?? existing.accentColor ?? '#fff',
+        fontFamily: body.fontFamily ?? existing.fontFamily ?? 'Inter',
+        radius: body.radius ?? existing.radius ?? 0,
         borderStyle: body.borderStyle as 'solid' | 'dashed' | 'dotted' | 'double' | 'none' | undefined,
-        logoVisibility: body.logoVisibility,
-        handleVisibility: body.handleVisibility,
-        layoutVariant: body.layoutVariant,
+        logoVisibility: body.logoVisibility ?? existing.logoVisibility ?? true,
+        handleVisibility: body.handleVisibility ?? existing.handleVisibility ?? true,
+        layoutVariant: body.layoutVariant ?? existing.layoutVariant ?? 'classic',
       });
     } catch (error) {
       throw new BadRequestException(error instanceof Error ? error.message : 'Invalid theme.');
     }
+    const startAt = body.startAt === undefined ? (existing.startAt ?? null) : new Date(body.startAt);
+    const endAt = body.endAt === undefined ? (existing.endAt ?? null) : new Date(body.endAt);
+    if (startAt && endAt && startAt >= endAt)
+      throw new BadRequestException('startAt must be before endAt.');
+    if ((body.status ?? existing.status ?? ThemeStatus.DRAFT) === ThemeStatus.SCHEDULED && !startAt)
+      throw new BadRequestException('Scheduled themes require startAt.');
     const data = Object.fromEntries(
       Object.entries(body)
         .filter(([, value]) => value !== undefined)
-        .map(([key]) => [key, normalized[key as keyof typeof normalized]]),
+        .map(([key, value]) => [
+          key,
+          key === 'startAt' ? startAt : key === 'endAt' ? endAt : key === 'mode' || key === 'status' ? value : normalized[key as keyof typeof normalized],
+        ]),
     );
     const item = await prisma.theme.update({ where: { id }, data });
     await recordAudit(actor.id, 'THEME_UPDATE', 'THEME', id, { changedFields: Object.keys(data) });
     increment('theme_mutations_total');
     return item;
+  }
+  async publishTheme(id: string, actor: AdminIdentity) {
+    return this.setThemeStatus(id, ThemeStatus.PUBLISHED, actor);
+  }
+  async activateTheme(id: string, actor: AdminIdentity) {
+    const current = await prisma.theme.findUnique({ where: { id }, select: { id: true } });
+    if (!current) throw new NotFoundException('Theme not found.');
+    await prisma.theme.updateMany({ where: { status: ThemeStatus.ACTIVE, id: { not: id } }, data: { status: ThemeStatus.PUBLISHED } });
+    return this.setThemeStatus(id, ThemeStatus.ACTIVE, actor);
+  }
+  private async setThemeStatus(id: string, status: ThemeStatus, actor: AdminIdentity) {
+    const current = await prisma.theme.findUnique({ where: { id }, select: { status: true } });
+    if (!current) throw new NotFoundException('Theme not found.');
+    const item = await prisma.theme.update({ where: { id }, data: { status } });
+    await recordAudit(actor.id, `THEME_${status}`, 'THEME', id, { previousStatus: current.status });
+    increment('theme_mutations_total');
+    return item;
+  }
+  async duplicateTheme(id: string, actor: AdminIdentity) {
+    const source = await prisma.theme.findUnique({ where: { id } });
+    if (!source) throw new NotFoundException('Theme not found.');
+    const { id: _id, createdAt: _createdAt, updatedAt: _updatedAt, favorites: _favorites, confessions: _confessions, ...copy } = source as any;
+    const item = await prisma.theme.create({ data: { ...copy, slug: `${source.slug}-copy-${Date.now().toString(36)}`.slice(0, 80), name: `${source.name} Copy`, status: ThemeStatus.DRAFT, startAt: null, endAt: null } });
+    await recordAudit(actor.id, 'THEME_DUPLICATE', 'THEME', item.id, { sourceId: id });
+    return item;
+  }
+  async deleteTheme(id: string, actor: AdminIdentity) {
+    const source = await prisma.theme.findUnique({ where: { id }, select: { id: true, status: true } });
+    if (!source) throw new NotFoundException('Theme not found.');
+    if (source.status === ThemeStatus.ACTIVE)
+      throw new BadRequestException('Active themes cannot be deleted. Activate another theme first.');
+    const used = await prisma.confession.count({ where: { themeId: id } });
+    if (used > 0) throw new BadRequestException('Themes used by confessions cannot be deleted.');
+    await prisma.theme.delete({ where: { id } });
+    await recordAudit(actor.id, 'THEME_DELETE', 'THEME', id);
+    return { id, deleted: true };
+  }
+  async favoriteTheme(id: string, actor: AdminIdentity) {
+    await prisma.theme.findUniqueOrThrow({ where: { id }, select: { id: true } });
+    await prisma.themeFavorite.upsert({ where: { adminId_themeId: { adminId: actor.id, themeId: id } }, create: { adminId: actor.id, themeId: id }, update: {} });
+    return { id, favorite: true };
+  }
+  async unfavoriteTheme(id: string, actor: AdminIdentity) {
+    await prisma.themeFavorite.deleteMany({ where: { adminId: actor.id, themeId: id } });
+    return { id, favorite: false };
   }
   async profileSettings() {
     const settings = await prisma.collegeConfessionProfileSettings.findUnique({

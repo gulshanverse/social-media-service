@@ -91,8 +91,9 @@ export class AdminController {
   }
   @Get('confessions') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) queue(
     @Query() query: AdminQueueQueryDto,
+    @Req() req: { user?: ReturnType<typeof requireUser> },
   ) {
-    return this.service.queue(query);
+    return this.service.queue(query, requireUser(req));
   }
   @Get('confessions/:id') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) detail(
     @Param('id') id: string,
@@ -187,6 +188,30 @@ export class AdminController {
   ) {
     return this.service.updateTheme(id, body, requireUser(req));
   }
+  @Post('themes/:id/publish') @Roles(AdminRole.SUPER_ADMIN, AdminRole.DESIGNER) publishTheme(
+    @Param('id') id: string,
+    @Req() req: { user?: ReturnType<typeof requireUser> },
+  ) { return this.service.publishTheme(id, requireUser(req)); }
+  @Post('themes/:id/activate') @Roles(AdminRole.SUPER_ADMIN, AdminRole.DESIGNER) activateTheme(
+    @Param('id') id: string,
+    @Req() req: { user?: ReturnType<typeof requireUser> },
+  ) { return this.service.activateTheme(id, requireUser(req)); }
+  @Post('themes/:id/duplicate') @Roles(AdminRole.SUPER_ADMIN, AdminRole.DESIGNER) duplicateTheme(
+    @Param('id') id: string,
+    @Req() req: { user?: ReturnType<typeof requireUser> },
+  ) { return this.service.duplicateTheme(id, requireUser(req)); }
+  @Delete('themes/:id') @Roles(AdminRole.SUPER_ADMIN, AdminRole.DESIGNER) deleteTheme(
+    @Param('id') id: string,
+    @Req() req: { user?: ReturnType<typeof requireUser> },
+  ) { return this.service.deleteTheme(id, requireUser(req)); }
+  @Post('themes/:id/favorite') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR, AdminRole.DESIGNER) favoriteTheme(
+    @Param('id') id: string,
+    @Req() req: { user?: ReturnType<typeof requireUser> },
+  ) { return this.service.favoriteTheme(id, requireUser(req)); }
+  @Delete('themes/:id/favorite') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR, AdminRole.DESIGNER) unfavoriteTheme(
+    @Param('id') id: string,
+    @Req() req: { user?: ReturnType<typeof requireUser> },
+  ) { return this.service.unfavoriteTheme(id, requireUser(req)); }
   @Get('profile-settings') @Roles(AdminRole.SUPER_ADMIN, AdminRole.DESIGNER) profileSettings() {
     return this.service.profileSettings();
   }

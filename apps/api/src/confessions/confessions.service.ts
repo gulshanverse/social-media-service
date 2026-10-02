@@ -30,6 +30,8 @@ type ThemeRecord = {
   logoVisibility?: boolean;
   handleVisibility?: boolean;
   layoutVariant?: string;
+  mode?: string;
+  status?: string;
 };
 type ConfessionRecord = {
   id?: string;
@@ -173,6 +175,30 @@ export class ConfessionsService {
     };
   }
 
+  async resolvePublicTheme(now = new Date()) {
+    const fallback = themes.find((item) => item.id === 'midnight')!;
+    try {
+      const candidates = await (sharedPrisma.theme as any).findMany({
+        where: {
+          OR: [
+            { status: 'ACTIVE' },
+            { status: 'PUBLISHED' },
+            { status: 'SCHEDULED', startAt: { lte: now }, OR: [{ endAt: null }, { endAt: { gt: now } }] },
+          ],
+        },
+        orderBy: [{ startAt: 'desc' }, { updatedAt: 'desc' }],
+      });
+      const eligible = candidates.filter((theme: any) =>
+        theme.status === 'SCHEDULED' && theme.startAt && theme.startAt <= now && (!theme.endAt || theme.endAt > now),
+      );
+      const active = candidates.filter((theme: any) => theme.status === 'ACTIVE');
+      const published = candidates.filter((theme: any) => theme.status === 'PUBLISHED');
+      return toPublicTheme(eligible[0] ?? active[0] ?? published[0] ?? fallback);
+    } catch {
+      return toPublicTheme({ ...fallback, slug: fallback.id, radius: Number.parseInt(fallback.radius, 10) });
+    }
+  }
+
   async create(dto: CreateConfessionDto, clientKey: string): Promise<SubmissionResult> {
     const content = dto.content?.trim();
     if (!content) throw new BadRequestException('Confession content is required.');
@@ -198,7 +224,7 @@ export class ConfessionsService {
       );
     const themeId = dto.themeId ?? 'midnight';
     const theme = await this.database.theme.findUnique({ where: { id: themeId } });
-    if (!theme || !themes.some((item) => item.id === themeId))
+    if (!theme || (!themes.some((item) => item.id === themeId) && theme.status === 'DRAFT'))
       throw new BadRequestException('Please choose a valid theme.');
     const publicId = `${Date.now().toString(36)}-${crypto.randomUUID().slice(0, 8)}`;
     await this.database.confession.create({

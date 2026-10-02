@@ -32,6 +32,13 @@ enum ConfessionStatus {
   ARCHIVED
 }
 
+enum ThemeStatus {
+  DRAFT
+  PUBLISHED
+  ACTIVE
+  SCHEDULED
+}
+
 enum GarbaPostStatus {
   PENDING
   PUBLISHED
@@ -75,6 +82,7 @@ model AdminUser {
   auditLogs    AuditLog[]     @relation("AuditActor")
   reports      Report[]       @relation("ReportReviewer")
   sessions     AdminSession[]
+  themeFavorites ThemeFavorite[]
 }
 
 model AdminSession {
@@ -107,9 +115,29 @@ model Theme {
   logoVisibility   Boolean      @default(true)
   handleVisibility Boolean      @default(true)
   layoutVariant    String       @default("classic")
+  mode             String       @default("dark")
+  status           ThemeStatus  @default(ACTIVE)
+  startAt          DateTime?
+  endAt            DateTime?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
   confessions      Confession[]
+  favorites        ThemeFavorite[]
+
+  @@index([status, startAt, endAt])
+  @@index([mode, layoutVariant])
+}
+
+model ThemeFavorite {
+  id        String    @id @default(cuid())
+  adminId   String
+  themeId   String
+  admin     AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  theme     Theme     @relation(fields: [themeId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+
+  @@unique([adminId, themeId])
+  @@index([adminId, createdAt])
 }
 
 model Confession {

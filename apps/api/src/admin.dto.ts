@@ -26,6 +26,7 @@ import {
   GarbaPostCategory,
   GarbaPostStatus,
   ReportStatus,
+  ThemeStatus,
 } from '@prisma/client';
 
 export class LoginDto {
@@ -59,6 +60,10 @@ export class CreateThemeDto {
   @IsOptional() @IsBoolean() logoVisibility?: boolean;
   @IsOptional() @IsBoolean() handleVisibility?: boolean;
   @IsOptional() @IsString() @MinLength(1) @MaxLength(40) layoutVariant?: string;
+  @IsOptional() @IsString() @MinLength(1) @MaxLength(40) mode?: string;
+  @IsOptional() @IsEnum(ThemeStatus) status?: ThemeStatus;
+  @IsOptional() @IsISO8601() startAt?: string;
+  @IsOptional() @IsISO8601() endAt?: string;
 }
 export class UpdateThemeDto {
   @IsOptional() @IsString() @MinLength(1) @MaxLength(120) name?: string;
@@ -77,6 +82,10 @@ export class UpdateThemeDto {
   @IsOptional() @IsBoolean() logoVisibility?: boolean;
   @IsOptional() @IsBoolean() handleVisibility?: boolean;
   @IsOptional() @IsString() @MinLength(1) @MaxLength(40) layoutVariant?: string;
+  @IsOptional() @IsString() @MinLength(1) @MaxLength(40) mode?: string;
+  @IsOptional() @IsEnum(ThemeStatus) status?: ThemeStatus;
+  @IsOptional() @IsISO8601() startAt?: string;
+  @IsOptional() @IsISO8601() endAt?: string;
 }
 export class UpdateProfileSettingsDto {
   @IsOptional() @IsString() @MinLength(1) @MaxLength(80) handle?: string;
@@ -106,6 +115,9 @@ export class AdminQueueQueryDto extends ListQueryDto {
   @IsOptional() @IsEnum(ConfessionCategory) category?: ConfessionCategory;
   @IsOptional() @IsString() @MaxLength(100) theme?: string;
   @IsOptional() @IsString() @MaxLength(120) search?: string;
+  @IsOptional() @IsString() @MaxLength(40) variant?: string;
+  @IsOptional() @IsString() @MaxLength(40) mode?: string;
+  @IsOptional() @Transform(({ value }) => value === true || value === 'true') @IsBoolean() favorites?: boolean;
   @IsOptional() @IsIn(['newest', 'oldest']) order?: 'newest' | 'oldest';
 }
 export class AdminReportQueryDto extends ListQueryDto {
