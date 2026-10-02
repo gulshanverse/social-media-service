@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import AdminClient, { Confessions, Dashboard, Nav } from './AdminClient';
+import AdminClient, { Confessions, Dashboard, GarbaAdmin, Nav } from './AdminClient';
 
 const navigation = vi.hoisted(() => ({ pathname: '/', push: vi.fn() }));
 
@@ -155,6 +155,27 @@ describe('admin workspace behavior', () => {
     expect(await screen.findByRole('heading', { name: 'Garba moderation' })).toBeInTheDocument();
     expect(await screen.findByText('4')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Garba' })).toHaveAttribute('href', '/garba');
+  });
+
+  it('keeps ALL explicit when opening Total posts from Garba overview', async () => {
+    window.history.pushState({}, '', '/garba');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes('/admin/garba'))
+          return response({ total: 4, pending: 2, published: 1, rejected: 1, archived: 0, comments: 3, openReports: 0 });
+        return response({ items: [], page: 1, limit: 20, total: 0, hasMore: false });
+      }),
+    );
+
+    render(<GarbaAdmin admin={admin} />);
+
+    await waitFor(() => expect(screen.getByRole('link', { name: /Total posts: 4/i })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('link', { name: /Total posts: 4/i }));
+
+    expect(navigation.push).toHaveBeenCalledWith('/garba?tab=posts&status=ALL');
+    expect(screen.getByDisplayValue('ALL')).toBeInTheDocument();
   });
 
   it('keeps the existing sign-in flow when the Garba admin route is unauthenticated', async () => {

@@ -1433,7 +1433,7 @@ export function GarbaAdmin({ admin }: { admin: Admin }) {
     setPostDetail(null);
     setTab(nextTab);
     if (nextStatus) setStatus(nextStatus);
-    const query = qs({ tab: nextTab === 'overview' ? undefined : nextTab, status: nextTab === 'posts' && nextStatus && nextStatus !== 'ALL' ? nextStatus : undefined });
+    const query = qs({ tab: nextTab === 'overview' ? undefined : nextTab, status: nextTab === 'posts' && nextStatus ? nextStatus : undefined });
     setLocationQuery(new URLSearchParams(query));
     router.push(`/garba${query ? `?${query}` : ''}`);
   }
