@@ -75,7 +75,7 @@ export class GarbaService {
     if (!post) throw new NotFoundException('This Garba post is unavailable.');
     if (post.commentsLocked) throw new BadRequestException('Comments are locked for this post.');
     if (dto.parentId) { const parent = await prisma.garbaComment.findFirst({ where: { id: dto.parentId, postId: post.id, parentId: null } }); if (!parent) throw new BadRequestException('Reply target is unavailable.'); }
-    return prisma.garbaComment.create({ data: { postId: post.id, parentId: dto.parentId, content: dto.content.trim(), authorHash: hash(ip), status: 'PENDING' } });
+    return prisma.garbaComment.create({ data: { postId: post.id, parentId: dto.parentId, content: dto.content.trim(), authorHash: hash(ip), status: 'PUBLISHED' } });
   }
 
   async report(publicId: string, dto: CreateGarbaReportDto, ip: string) {

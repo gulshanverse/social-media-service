@@ -10,3 +10,5 @@ export const createGarbaPost = (payload: Record<string, string>) => request<{ me
 export const reportGarba = (id: string, reason: string) => request<{ message: string }>(`/garba/${encodeURIComponent(id)}/report`, { method: 'POST', body: JSON.stringify({ reason }) });
 export const commentGarba = (id: string, content: string, parentId?: string) => request<{ message: string }>(`/garba/${encodeURIComponent(id)}/comments`, { method: 'POST', body: JSON.stringify({ content, ...(parentId ? { parentId } : {}) }) });
 export const reportGarbaComment = (id: string, commentId: string, reason: string) => request<{ message: string }>(`/garba/${encodeURIComponent(id)}/comments/${encodeURIComponent(commentId)}/report`, { method: 'POST', body: JSON.stringify({ reason }) });
+
+export const reactGarba = (id: string) => request<{ reacted: boolean; count: number }>(`/garba/${encodeURIComponent(id)}/react`, { method: 'POST' });

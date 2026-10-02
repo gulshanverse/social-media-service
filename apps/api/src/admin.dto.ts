@@ -111,6 +111,9 @@ export class UpdateGarbaPostDto {
   @IsOptional() @IsString() @MaxLength(30) instagramHandle?: string;
   @IsOptional() @IsISO8601() eventDate?: string;
 }
+export class UpdateGarbaCommentDto {
+  @IsString() @MinLength(1) @MaxLength(500) content!: string;
+}
 export class AdminGarbaCommentQueryDto extends ListQueryDto {
   @IsOptional() @IsEnum(GarbaCommentStatus) status?: GarbaCommentStatus;
   @IsOptional() @IsString() @MaxLength(120) search?: string;

@@ -36,6 +36,7 @@ import {
   AdminGarbaCommentQueryDto,
   AdminGarbaQueryDto,
   UpdateGarbaPostDto,
+  UpdateGarbaCommentDto,
   UpdateGarbaSeasonDto,
 } from './admin.dto';
 
@@ -69,6 +70,12 @@ export class AdminController {
   }
   @Post('garba/comments/:id/:action') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) garbaCommentTransition(@Param('id') id: string, @Param('action') action: 'approve' | 'reject' | 'archive' | 'restore', @Req() req: { user?: ReturnType<typeof requireUser> }) {
     return this.service.garbaCommentTransition(id, action, requireUser(req));
+  }
+  @Patch('garba/comments/:id') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) garbaCommentEdit(@Param('id') id: string, @Body() body: UpdateGarbaCommentDto, @Req() req: { user?: ReturnType<typeof requireUser> }) {
+    return this.service.updateGarbaComment(id, body, requireUser(req));
+  }
+  @Delete('garba/comments/:id') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) garbaCommentDelete(@Param('id') id: string, @Req() req: { user?: ReturnType<typeof requireUser> }) {
+    return this.service.deleteGarbaComment(id, requireUser(req));
   }
   @Get('garba/reports') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) garbaReports(@Query() query: AdminReportQueryDto) {
     return this.service.garbaReports(query);

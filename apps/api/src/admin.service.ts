@@ -19,6 +19,7 @@ import {
   AdminGarbaCommentQueryDto,
   AdminGarbaQueryDto,
   UpdateGarbaPostDto,
+  UpdateGarbaCommentDto,
   UpdateGarbaSeasonDto,
 } from './admin.dto';
 import { increment } from './observability';
@@ -547,7 +548,18 @@ export class AdminService {
   }
 
   async garbaPost(id: string) {
-    const item = await prisma.garbaPost.findUnique({ where: { id }, include: { reports: { orderBy: { createdAt: 'desc' } }, comments: { orderBy: { createdAt: 'asc' }, include: { replies: true } } } });
+    const item = await prisma.garbaPost.findUnique({
+      where: { id },
+      include: {
+        reports: { orderBy: { createdAt: 'desc' } },
+        comments: {
+          where: { parentId: null },
+          orderBy: { createdAt: 'asc' },
+          include: { replies: { orderBy: { createdAt: 'asc' } } },
+        },
+        _count: { select: { comments: true, reactions: true } },
+      },
+    });
     if (!item) throw new NotFoundException('Garba post not found.');
     return item;
   }
@@ -592,6 +604,24 @@ export class AdminService {
     return { items, page, limit, total, hasMore: page * limit < total };
   }
 
+  async updateGarbaComment(id: string, body: UpdateGarbaCommentDto, actor: AdminIdentity) {
+    const current = await prisma.garbaComment.findUnique({ where: { id }, select: { status: true } });
+    if (!current) throw new NotFoundException('Garba comment or reply not found.');
+    if (current.status === GarbaCommentStatus.REJECTED) throw new BadRequestException('Rejected Garba comments cannot be edited.');
+    const content = body.content.trim();
+    if (!content) throw new BadRequestException('Comment content cannot be empty.');
+    const item = await prisma.garbaComment.update({ where: { id }, data: { content } });
+    await recordAudit(actor.id, 'GARBA_COMMENT_EDITED', 'GARBA_COMMENT', id);
+    return item;
+  }
+  async deleteGarbaComment(id: string, actor: AdminIdentity) {
+    const current = await prisma.garbaComment.findUnique({ where: { id }, select: { parentId: true } });
+    if (!current) throw new NotFoundException('Garba comment or reply not found.');
+    await prisma.garbaComment.delete({ where: { id } });
+    await recordAudit(actor.id, current.parentId ? 'GARBA_REPLY_DELETED' : 'GARBA_COMMENT_DELETED', 'GARBA_COMMENT', id);
+    increment('moderation_actions_total');
+    return { id, deleted: true };
+  }
   async garbaCommentTransition(id: string, action: 'approve' | 'reject' | 'archive' | 'restore', actor: AdminIdentity) {
     const current = await prisma.garbaComment.findUnique({ where: { id }, select: { status: true, parentId: true } });
     if (!current) throw new NotFoundException('Garba comment or reply not found.');
