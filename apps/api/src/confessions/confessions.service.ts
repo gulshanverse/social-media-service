@@ -32,6 +32,7 @@ type ThemeRecord = {
   layoutVariant?: string;
   mode?: string;
   status?: string;
+  tokens?: Record<string, string> | null;
 };
 type ConfessionRecord = {
   id?: string;
@@ -111,7 +112,7 @@ function toPublicTheme(theme: ThemeRecord) {
   const fallback = themes.find((item) => item.id === 'midnight')!;
   let normalized;
   try {
-    normalized = normalizeTheme(theme);
+    normalized = normalizeTheme({ ...theme, tokens: theme.tokens ?? undefined });
   } catch {
     normalized = normalizeTheme({ ...fallback, slug: fallback.id });
   }
@@ -128,6 +129,7 @@ function toPublicTheme(theme: ThemeRecord) {
     logoVisibility: normalized.logoVisibility,
     handleVisibility: normalized.handleVisibility,
     layoutVariant: normalized.layoutVariant,
+    tokens: normalized.visualTokens,
   };
 }
 
@@ -274,6 +276,7 @@ export class ConfessionsService {
               logoVisibility: true,
               handleVisibility: true,
               layoutVariant: true,
+              tokens: true,
             },
           },
         },
@@ -319,6 +322,7 @@ export class ConfessionsService {
             logoVisibility: true,
             handleVisibility: true,
             layoutVariant: true,
+            tokens: true,
           },
         },
       },

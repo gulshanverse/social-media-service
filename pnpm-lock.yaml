@@ -35,6 +35,9 @@ importers:
       '@ggv/config':
         specifier: workspace:^
         version: link:../../packages/config
+      '@ggv/themes':
+        specifier: workspace:*
+        version: link:../../packages/themes
       '@ggv/types':
         specifier: workspace:*
         version: link:../../packages/types

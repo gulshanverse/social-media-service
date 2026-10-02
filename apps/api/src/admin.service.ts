@@ -458,6 +458,7 @@ export class AdminService {
       startAt: true,
       endAt: true,
       favorites: { select: { adminId: true } },
+      tokens: true,
     } as const;
     const [items, total] = await Promise.all([
       prisma.theme.findMany({
@@ -500,6 +501,7 @@ export class AdminService {
       status: body.status ?? ThemeStatus.DRAFT,
       startAt,
       endAt,
+      tokens: normalized.visualTokens,
     };
     const item = await prisma.theme.create({ data });
     await recordAudit(actor.id, 'THEME_CREATE', 'THEME', item.id);
@@ -525,6 +527,7 @@ export class AdminService {
         logoVisibility: body.logoVisibility ?? existing.logoVisibility ?? true,
         handleVisibility: body.handleVisibility ?? existing.handleVisibility ?? true,
         layoutVariant: body.layoutVariant ?? existing.layoutVariant ?? 'classic',
+        tokens: body.tokens ?? (existing.tokens as Record<string, string> | undefined),
       });
     } catch (error) {
       throw new BadRequestException(error instanceof Error ? error.message : 'Invalid theme.');
@@ -540,7 +543,7 @@ export class AdminService {
         .filter(([, value]) => value !== undefined)
         .map(([key, value]) => [
           key,
-          key === 'startAt' ? startAt : key === 'endAt' ? endAt : key === 'mode' || key === 'status' ? value : normalized[key as keyof typeof normalized],
+          key === 'startAt' ? startAt : key === 'endAt' ? endAt : key === 'mode' || key === 'status' ? value : key === 'tokens' ? normalized.visualTokens : normalized[key as keyof typeof normalized],
         ]),
     );
     const item = await prisma.theme.update({ where: { id }, data });

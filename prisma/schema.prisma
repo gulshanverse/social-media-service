@@ -119,6 +119,7 @@ model Theme {
   status           ThemeStatus  @default(ACTIVE)
   startAt          DateTime?
   endAt            DateTime?
+  tokens           Json?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
   confessions      Confession[]

@@ -1,10 +1,11 @@
 'use client';
 
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { appConfig } from '@ggv/config';
 import type { PublicConfession, PublicTheme } from '@ggv/types';
+import { themeToCssVariables } from '@ggv/themes';
 import { ConfessionCard as SharedConfessionCard, Logo } from '@ggv/ui';
 import ProfilePage from './ProfilePage';
 
@@ -31,6 +32,7 @@ type Theme = {
   startAt?: string | null;
   endAt?: string | null;
   favorites?: { adminId: string }[];
+  tokens?: Record<string, string>;
 };
 type PageData<T> = { items: T[]; page: number; limit: number; total: number; hasMore: boolean };
 let runtimeToken = '';
@@ -158,6 +160,7 @@ function asPublicTheme(theme: Partial<Theme> | null | undefined): PublicTheme | 
     accentColor: theme.accentColor || '#00b8ff',
     fontFamily: theme.fontFamily || 'Inter',
     radius: `${theme.radius ?? 28}px`,
+    tokens: theme.tokens,
   };
 }
 export function Nav({ admin, onNavigate }: { admin: Admin; onNavigate?: () => void }) {
@@ -1254,6 +1257,47 @@ export function AuditLogs() {
     </section>
   );
 }
+const TOKEN_GROUPS: Record<string, string[]> = {
+  Identity: ['buttonVariant'],
+  Background: ['backgroundImage', 'gradientType', 'gradientAngle', 'gradientOpacity'],
+  Typography: ['headingFont', 'bodyFont', 'monospaceFont', 'headingWeight', 'bodyWeight', 'buttonWeight', 'letterSpacing', 'headingLetterSpacing', 'bodyLetterSpacing', 'lineHeight', 'headingLineHeight', 'bodyLineHeight'],
+  Text: ['primaryText', 'secondaryText', 'mutedText', 'disabledText', 'headingText', 'linkText', 'linkHover', 'placeholderText'],
+  Accent: ['accentHover', 'accentActive', 'accentSoft', 'accentContrast', 'secondaryAccent'],
+  Surfaces: ['surface', 'surfaceHover', 'surfaceActive', 'surfaceElevated', 'card', 'cardHover', 'input', 'inputHover', 'inputFocus', 'popover', 'modal', 'overlay'],
+  Borders: ['border', 'borderHover', 'borderActive', 'divider', 'focusRing', 'glassBorder'],
+  Buttons: ['buttonBackground', 'buttonText', 'buttonHover', 'buttonActive', 'buttonDisabled', 'buttonBorder', 'buttonShadow'],
+  Status: ['success', 'successSoft', 'warning', 'warningSoft', 'danger', 'dangerSoft', 'info', 'infoSoft'],
+  Effects: ['shadow', 'shadowSmall', 'shadowMedium', 'shadowLarge', 'glow', 'glowColor', 'glowIntensity', 'glowBlur', 'blur', 'backdropBlur', 'glassOpacity', 'noiseOpacity', 'highlightOpacity'],
+  Shape: ['cardRadius', 'buttonRadius', 'inputRadius', 'badgeRadius', 'modalRadius'],
+};
+const COLOR_TOKENS = new Set(['primaryText', 'secondaryText', 'mutedText', 'disabledText', 'headingText', 'linkText', 'linkHover', 'placeholderText', 'accentHover', 'accentActive', 'accentSoft', 'accentContrast', 'secondaryAccent', 'surface', 'surfaceHover', 'surfaceActive', 'surfaceElevated', 'card', 'cardHover', 'input', 'inputHover', 'inputFocus', 'popover', 'modal', 'border', 'borderHover', 'borderActive', 'divider', 'focusRing', 'glassBorder', 'buttonBackground', 'buttonText', 'buttonHover', 'buttonActive', 'buttonDisabled', 'buttonBorder', 'success', 'successSoft', 'warning', 'warningSoft', 'danger', 'dangerSoft', 'info', 'infoSoft', 'glowColor']);
+const visualTokenDefaults: Record<string, string> = Object.fromEntries(Object.values(TOKEN_GROUPS).flat().map((key) => [key, COLOR_TOKENS.has(key) ? '#ffffff' : key === 'buttonVariant' ? 'solid' : '0']));
+function tokenLabel(key: string) { return key.replace(/[A-Z]/g, (letter) => ` ${letter}`).replace(/^./, (letter) => letter.toUpperCase()); }
+function VisualTokenEditor({ tokens, onChange }: { tokens: Record<string, string>; onChange: (tokens: Record<string, string>) => void }) {
+  return <div className="visual-token-sections">
+    {Object.entries(TOKEN_GROUPS).map(([group, keys]) => <fieldset className="token-section" key={group}>
+      <legend>{group}</legend>
+      <div className="token-grid">{keys.map((key) => {
+        const value = tokens[key] ?? visualTokenDefaults[key];
+        const isColor = COLOR_TOKENS.has(key) && /^#[0-9a-f]{6}$/i.test(value);
+        return <label key={key} className="token-control"><span>{tokenLabel(key)}</span><div className="token-input-row">{isColor && <input aria-label={`${tokenLabel(key)} swatch`} type="color" value={value} onChange={(event) => onChange({ ...tokens, [key]: event.target.value })} />}<input aria-label={tokenLabel(key)} value={value} onChange={(event) => onChange({ ...tokens, [key]: event.target.value })} /></div></label>;
+      })}</div>
+    </fieldset>)}
+  </div>;
+}
+function ThemeWorkspacePreview({ theme, viewport, onViewport }: { theme: Partial<Theme>; viewport: 'desktop' | 'tablet' | 'mobile'; onViewport: (value: 'desktop' | 'tablet' | 'mobile') => void }) {
+  const publicTheme = asPublicTheme(theme);
+  const variables = publicTheme ? themeToCssVariables(publicTheme as any) : {};
+  const style = { ...variables, background: 'var(--theme-surface, #101522)', color: 'var(--theme-primary-text, var(--theme-text, #fff))' } as CSSProperties;
+  return <section className={`theme-workspace-preview viewport-${viewport}`} aria-label="Isolated draft preview">
+    <div className="preview-toolbar"><strong>Draft preview</strong><span className="muted">Public theme is unchanged</span><div className="viewport-switcher">{(['desktop', 'tablet', 'mobile'] as const).map((value) => <button type="button" className={viewport === value ? '' : 'secondary'} key={value} onClick={() => onViewport(value)}>{value}</button>)}</div></div>
+    <div className="preview-canvas" style={style}>
+      <div className="preview-context landing-context"><span className="eyebrow">LANDING</span><h2 style={{ color: 'var(--theme-heading-text, var(--theme-text, #fff))' }}>A calmer confession wall</h2><p style={{ color: 'var(--theme-secondary-text, var(--theme-text, #fff))' }}>Share a thought safely with your campus.</p><div className="preview-buttons"><button style={{ background: 'var(--theme-button-background, var(--theme-accent, #00b8ff))', color: 'var(--theme-button-text, #070a12)' }}>Send anonymously</button><button className="secondary">Browse feed</button></div></div>
+      {publicTheme && <SharedConfessionCard confession={{ publicId: 'draft-preview', content: 'This card is rendered from the current draft tokens.', category: 'COLLEGE_LIFE', theme: publicTheme, publishedAt: new Date().toISOString() }} className="theme-preview" />}
+      <div className="preview-context form-context"><label>Input state<input placeholder="Your anonymous thought" /></label><span className="preview-badge">PUBLISHED</span><button className="secondary">Open dialog</button></div>
+    </div>
+  </section>;
+}
 const emptyTheme = {
   slug: '',
   name: '',
@@ -1268,6 +1312,7 @@ const emptyTheme = {
   status: 'DRAFT' as const,
   startAt: '',
   endAt: '',
+  tokens: visualTokenDefaults,
 };
 export function Themes({ admin }: { admin: Admin }) {
   const [data, setData] = useState<PageData<Theme> | null>(null);
@@ -1277,7 +1322,12 @@ export function Themes({ admin }: { admin: Admin }) {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
+  const [savedForm, setSavedForm] = useState<any>(emptyTheme);
+  const [viewport, setViewport] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
+  const [advancedJson, setAdvancedJson] = useState(JSON.stringify(emptyTheme.tokens, null, 2));
+  const [advancedError, setAdvancedError] = useState('');
   const canWrite = admin.role === 'SUPER_ADMIN' || admin.role === 'DESIGNER';
+  const dirty = JSON.stringify(form) !== JSON.stringify(savedForm);
   async function themeAction(id: string, action: string, method = 'POST') {
     const labels: Record<string, string> = { publish: 'Publish', activate: 'Activate', duplicate: 'Duplicate', delete: 'Delete', favorite: 'Favorite', unfavorite: 'Unfavorite' };
     if (action === 'delete' && !confirm('Delete this theme? Themes used by confessions or currently active are protected.')) return;
@@ -1298,17 +1348,31 @@ export function Themes({ admin }: { admin: Admin }) {
   useEffect(() => {
     load();
   }, [page]);
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty]);
   async function save(e: FormEvent) {
     e.preventDefault();
     setError('');
     setMessage('');
+    let draft = form;
+    try { draft = { ...form, tokens: JSON.parse(advancedJson), status: 'DRAFT' }; }
+    catch { setAdvancedError('Advanced / Raw Tokens must contain valid JSON.'); return; }
     try {
       await api(editing ? `/admin/themes/${editing}` : '/admin/themes', {
         method: editing ? 'PATCH' : 'POST',
-        body: JSON.stringify(form),
+        body: JSON.stringify(draft),
       });
-      setMessage(editing ? 'Theme updated successfully.' : 'Theme created successfully.');
+      setMessage(editing ? 'Draft saved successfully.' : 'Draft created successfully.');
+      setForm(draft);
+      setSavedForm(draft);
       setForm(emptyTheme);
+      setSavedForm(emptyTheme);
+      setAdvancedJson(JSON.stringify(emptyTheme.tokens, null, 2));
+      setAdvancedError('');
       setEditing(null);
       if (!editing) setPage(1);
       else load();
@@ -1348,7 +1412,7 @@ export function Themes({ admin }: { admin: Admin }) {
               </div>
               {canWrite && (
                 <div className="actions">
-                  <button className="secondary" onClick={() => { setEditing(t.id); setForm({ ...emptyTheme, ...t, startAt: t.startAt?.slice(0, 16) || '', endAt: t.endAt?.slice(0, 16) || '' }); }}>Edit</button>
+                  <button className="secondary" onClick={() => { const next = { ...emptyTheme, ...t, tokens: { ...visualTokenDefaults, ...(t.tokens || {}) }, startAt: t.startAt?.slice(0, 16) || '', endAt: t.endAt?.slice(0, 16) || '' }; setEditing(t.id); setForm(next); setSavedForm(next); setAdvancedJson(JSON.stringify(next.tokens, null, 2)); setAdvancedError(''); }}>Edit</button>
                   {t.status === 'DRAFT' && <button onClick={() => themeAction(t.id, 'publish')}>Publish</button>}
                   {t.status !== 'ACTIVE' && <button onClick={() => themeAction(t.id, 'activate')}>Activate</button>}
                   <button className="secondary" onClick={() => themeAction(t.id, 'duplicate')}>Duplicate</button>
@@ -1446,8 +1510,16 @@ export function Themes({ admin }: { admin: Admin }) {
               <input type="datetime-local" value={form.endAt || ''} onChange={(e) => setForm({ ...form, endAt: e.target.value })} />
             </label>
           </div>
-          <ThemePreview theme={form} label={form.name || 'Live preview'} />
-          <button>{editing ? 'Save theme' : 'Create theme'}</button>
+          <VisualTokenEditor tokens={form.tokens || visualTokenDefaults} onChange={(tokens) => { setForm({ ...form, tokens }); setAdvancedJson(JSON.stringify(tokens, null, 2)); setAdvancedError(''); }} />
+          <details className="advanced-token-editor">
+            <summary>Advanced / Raw Tokens</summary>
+            <p className="muted">Optional advanced mode. Uses the same canonical token schema and server validation.</p>
+            <textarea aria-label="Advanced raw tokens" value={advancedJson} onChange={(event) => { const value = event.target.value; setAdvancedJson(value); try { const tokens = JSON.parse(value); if (!tokens || Array.isArray(tokens) || typeof tokens !== 'object') throw new Error(); setForm({ ...form, tokens }); setAdvancedError(''); } catch { setAdvancedError('JSON is invalid or must be an object; the last valid draft remains active.'); } }} rows={12} spellCheck={false} />
+            {advancedError && <span className="notice error">{advancedError}</span>}
+          </details>
+          <div className="dirty-bar" role="status"><strong>{dirty ? 'Unsaved changes' : 'Saved snapshot'}</strong>{dirty && <button type="button" className="secondary" onClick={() => { setForm(savedForm); setAdvancedJson(JSON.stringify(savedForm.tokens || {}, null, 2)); setAdvancedError(''); }}>Discard changes</button>}</div>
+          <ThemeWorkspacePreview theme={form} viewport={viewport} onViewport={setViewport} />
+          <button disabled={!dirty}>Save Draft</button>
         </form>
       )}
     </section>

@@ -26,6 +26,7 @@ export type PublicTheme = {
   logoVisibility?: boolean;
   handleVisibility?: boolean;
   layoutVariant?: string;
+  tokens?: Record<string, string>;
 };
 export type PublicConfession = {
   publicId: string;

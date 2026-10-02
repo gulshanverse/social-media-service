@@ -17,6 +17,7 @@ import {
   IsUrl,
   IsISO8601,
   IsBoolean,
+  IsObject,
   validateSync,
 } from 'class-validator';
 import {
@@ -64,6 +65,7 @@ export class CreateThemeDto {
   @IsOptional() @IsEnum(ThemeStatus) status?: ThemeStatus;
   @IsOptional() @IsISO8601() startAt?: string;
   @IsOptional() @IsISO8601() endAt?: string;
+  @IsOptional() @IsObject() tokens?: Record<string, string>;
 }
 export class UpdateThemeDto {
   @IsOptional() @IsString() @MinLength(1) @MaxLength(120) name?: string;
@@ -86,6 +88,7 @@ export class UpdateThemeDto {
   @IsOptional() @IsEnum(ThemeStatus) status?: ThemeStatus;
   @IsOptional() @IsISO8601() startAt?: string;
   @IsOptional() @IsISO8601() endAt?: string;
+  @IsOptional() @IsObject() tokens?: Record<string, string>;
 }
 export class UpdateProfileSettingsDto {
   @IsOptional() @IsString() @MinLength(1) @MaxLength(80) handle?: string;
