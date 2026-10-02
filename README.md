@@ -2,7 +2,7 @@
 
 # Social Media Service
 
-**A production-grade anonymous user-generated content platform for campus communities.**
+**A production-grade user-generated content(UGC) platform for communities.**
 
 The `social-media-service` repository contains the production monorepo for an anonymous content platform: a moderation-first public web experience, administrative workspace, and NestJS API.
 
