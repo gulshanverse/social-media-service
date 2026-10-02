@@ -1089,4 +1089,23 @@ button:disabled {
     transition: none;
   }
 }
-.admin-tabs { display:flex; flex-wrap:wrap; gap:8px; margin:24px 0; padding-bottom:14px; border-bottom:1px solid #26334d; }.admin-tabs button.active { background:#ff9a3c; }.garba-settings-form { max-width:720px; display:grid; gap:16px; }.garba-settings-form h2,.garba-settings-form p { margin:0; }
+.admin-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 24px 0;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #26334d;
+}
+.admin-tabs button.active {
+  background: #ff9a3c;
+}
+.garba-settings-form {
+  max-width: 720px;
+  display: grid;
+  gap: 16px;
+}
+.garba-settings-form h2,
+.garba-settings-form p {
+  margin: 0;
+}

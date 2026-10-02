@@ -10,14 +10,32 @@ async function run() {
   const calls: Array<{ category?: string; page: number }> = [];
   const testingModule = await Test.createTestingModule({
     controllers: [GarbaController],
-    providers: [{ provide: GarbaService, useValue: { list: async (category?: string, page = 1) => { calls.push({ category, page }); return { items: [], category, page, limit: 12, total: 0, hasMore: false }; } } }],
+    providers: [
+      {
+        provide: GarbaService,
+        useValue: {
+          list: async (category?: string, page = 1) => {
+            calls.push({ category, page });
+            return { items: [], category, page, limit: 12, total: 0, hasMore: false };
+          },
+        },
+      },
+    ],
   }).compile();
   const app = testingModule.createNestApplication();
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
+  app.useGlobalPipes(
+    new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
+  );
   await app.init();
   try {
     const server = app.getHttpServer();
-    for (const path of ['/garba', '/garba?page=1', '/garba?page=2', '/garba?category=GENERAL', '/garba?category=GENERAL&page=1']) {
+    for (const path of [
+      '/garba',
+      '/garba?page=1',
+      '/garba?page=2',
+      '/garba?category=GENERAL',
+      '/garba?category=GENERAL&page=1',
+    ]) {
       await request(server).get(path).expect(200);
     }
     await request(server).get('/garba?page=abc').expect(400);
