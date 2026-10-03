@@ -105,14 +105,14 @@ export default async function CollegeConfessionPage() {
 
         <section className="college-community-note" aria-label="Community invitation">
           <p>👇 Join your college confession community 👇</p>
-          <Link className="college-community-button" href={settings.communityPath}>
-            {settings.communityButtonText}
-          </Link>
           <Link
-            className={readLiveConfessionButtonClassName(buttonConfig)}
-            href="/send"
+            className={`college-community-button ${readLiveConfessionButtonClassName(buttonConfig)}`}
+            href={settings.communityPath}
             style={readLiveConfessionButtonCssVariables(buttonConfig) as React.CSSProperties}
           >
+            {settings.communityButtonText}
+          </Link>
+          <Link className="college-own-messages" href="/send">
             {settings.bottomButtonText}
           </Link>
         </section>

@@ -996,7 +996,7 @@ button:disabled {
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-.read-live-admin-preview .college-own-messages {
+.read-live-admin-preview .read-live-confession-button {
   width: 100%;
   min-height: 48px;
   padding: 14px;
@@ -1012,7 +1012,7 @@ button:disabled {
   text-align: center;
   box-shadow: var(--read-live-button-glow, 0 8px 18px rgba(23, 19, 29, 0.18));
 }
-.read-live-admin-preview .college-own-messages::after {
+.read-live-admin-preview .read-live-confession-button::after {
   position: absolute;
   inset: 1px;
   border-radius: inherit;
@@ -1054,7 +1054,7 @@ button:disabled {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .read-live-admin-preview .college-own-messages {
+  .read-live-admin-preview .read-live-confession-button {
     animation: none;
   }
 }

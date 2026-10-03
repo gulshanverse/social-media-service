@@ -85,17 +85,17 @@ function PhonePreview({ settings }: { settings: Settings }) {
         <div className="profile-preview-anonymous">🔒 anonymous q&amp;a</div>
         <div className="profile-preview-send">SEND!</div>
         <p>👇 Join your college confession community 👇</p>
-        <div className="profile-preview-bottom">{settings.communityButtonText}</div>
         <div
-          className={readLiveConfessionButtonClassName(settings.readLiveConfessionButton)}
+          className={`profile-preview-bottom ${readLiveConfessionButtonClassName(settings.readLiveConfessionButton)}`}
           style={
             readLiveConfessionButtonCssVariables(
               settings.readLiveConfessionButton,
             ) as React.CSSProperties
           }
         >
-          {settings.bottomButtonText}
+          {settings.communityButtonText}
         </div>
+        <div className="profile-preview-bottom">{settings.bottomButtonText}</div>
       </div>
     </div>
   );

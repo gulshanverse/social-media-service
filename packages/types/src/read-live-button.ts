@@ -99,7 +99,7 @@ export function readLiveConfessionButtonCssVariables(
 
 export function readLiveConfessionButtonClassName(value: ReadLiveConfessionButtonConfig): string {
   return [
-    'college-own-messages',
+    'read-live-confession-button',
     `read-live-button--${value.animation}`,
     `read-live-button--speed-${value.animationSpeed}`,
   ].join(' ');

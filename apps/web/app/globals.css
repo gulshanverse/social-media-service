@@ -1091,6 +1091,7 @@ body:has(.college-profile-page) > .site-footer {
 
 .college-send-button,
 .college-own-messages,
+.read-live-confession-button,
 .college-secondary-action {
   min-height: 48px;
   border: 0;
@@ -1145,7 +1146,7 @@ body:has(.college-profile-page) > .site-footer {
   font-weight: 800;
 }
 
-.college-own-messages {
+.read-live-confession-button {
   width: 100%;
   color: #fff;
   background: var(--read-live-button-background, linear-gradient(90deg, #ff6b35, #ef233c, #ff2d75));
@@ -1160,7 +1161,7 @@ body:has(.college-profile-page) > .site-footer {
     box-shadow 0.2s ease;
 }
 
-.college-own-messages::after {
+.read-live-confession-button::after {
   position: absolute;
   inset: 1px;
   border-radius: inherit;
@@ -1169,17 +1170,17 @@ body:has(.college-profile-page) > .site-footer {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
 }
 
-.college-own-messages:hover {
+.read-live-confession-button:hover {
   background: var(--read-live-button-background, linear-gradient(90deg, #ff6b35, #ef233c, #ff2d75));
   filter: brightness(1.08);
   transform: scale(1.02);
 }
 
-.college-own-messages:active {
+.read-live-confession-button:active {
   transform: scale(0.99);
 }
 
-.college-own-messages:focus-visible {
+.read-live-confession-button:focus-visible {
   outline: 3px solid rgba(255, 255, 255, 0.95);
   outline-offset: 3px;
 }
@@ -1308,6 +1309,7 @@ body:has(.college-profile-page) > .site-footer {
   .college-dice,
   .college-send-button,
   .college-own-messages,
+  .read-live-confession-button,
   .college-secondary-action {
     transition: none;
   }
@@ -1340,6 +1342,9 @@ body:has(.college-profile-page) > .site-footer {
 }
 .college-community-button:hover {
   background: rgba(255, 255, 255, 0.14);
+}
+.college-community-button.read-live-confession-button:hover {
+  background: var(--read-live-button-background, linear-gradient(90deg, #ff6b35, #ef233c, #ff2d75));
 }
 .college-theme-pink-flame {
   background: linear-gradient(145deg, #ec0a73 0%, #ff4275 52%, #ff8b16 100%);
