@@ -24,7 +24,7 @@ The `social-media-service` repository contains the production monorepo for an an
 The repository does not currently contain production screenshots. Do not substitute fabricated image URLs. Before the screenshot gallery is considered complete, capture and add the following real views from the deployed application:
 
 1. Public landing page
-2. Anonymous content submission interface
+2. Content submission interface
 3. Public content feed
 4. Individual content detail view
 5. Admin moderation workspace
