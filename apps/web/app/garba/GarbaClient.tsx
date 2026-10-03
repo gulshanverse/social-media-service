@@ -70,9 +70,12 @@ function SubmitForm({ onDone }: { onDone: () => void }) {
     setMessage('');
     const form = new FormData(formElement);
     try {
-      const result = await createGarbaPost(
-        Object.fromEntries([...form.entries()].map(([key, value]) => [key, String(value)])),
+      const payload = Object.fromEntries(
+        [...form.entries()]
+          .map(([key, value]) => [key, String(value)] as const)
+          .filter(([key, value]) => key === 'category' || key === 'content' || value.trim() !== ''),
       );
+      const result = await createGarbaPost(payload);
       setMessage(result.message);
       formElement.reset();
       onDone();

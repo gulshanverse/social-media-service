@@ -1,3 +1,4 @@
+import { Transform } from 'class-transformer';
 import { IsEnum, IsISO8601, IsOptional, IsString, Length, MaxLength } from 'class-validator';
 
 export enum GarbaPostCategory {
@@ -12,9 +13,20 @@ export enum GarbaPostCategory {
 export class CreateGarbaPostDto {
   @IsEnum(GarbaPostCategory) category!: GarbaPostCategory;
   @IsString() @Length(10, 2000) content!: string;
-  @IsOptional() @IsISO8601() eventDate?: string;
-  @IsOptional() @IsString() @MaxLength(160) location?: string;
-  @IsOptional() @IsString() @MaxLength(30) instagramHandle?: string;
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' && !value.trim() ? undefined : value))
+  @IsISO8601()
+  eventDate?: string;
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' && !value.trim() ? undefined : value))
+  @IsString()
+  @MaxLength(160)
+  location?: string;
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' && !value.trim() ? undefined : value))
+  @IsString()
+  @MaxLength(30)
+  instagramHandle?: string;
 }
 
 export class CreateGarbaCommentDto {

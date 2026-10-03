@@ -9,9 +9,14 @@ async function run() {
   let reaction: any = null;
   let locked = false;
   let created: any;
+  let createdPost: any;
   const database: any = {
     garbaPost: {
       findFirst: async () => ({ id: 'post-1', commentsLocked: locked }),
+      create: async ({ data }: any) => {
+        createdPost = { publicId: 'post-created', ...data };
+        return createdPost;
+      },
     },
     garbaReaction: {
       findUnique: async () => reaction,
@@ -35,6 +40,23 @@ async function run() {
   setPrismaForTests(database);
   try {
     const service = new GarbaService();
+    const result = await service.create(
+      {
+        category: 'FRIENDS',
+        content:
+          "Need a garba partner for the Navratri. I got an extra ticket so anyone who's interested in coming with me on garba text me on jellOyfish01",
+        eventDate: undefined,
+        location: undefined,
+        instagramHandle: 'jellOyfish01',
+      } as any,
+      '127.0.0.10',
+    );
+    assert.equal(result.status, 'PENDING');
+    assert.equal(createdPost.category, 'FRIENDS');
+    assert.equal(createdPost.content.startsWith('Need a garba partner'), true);
+    assert.equal(createdPost.eventDate, undefined);
+    assert.equal(createdPost.location, undefined);
+    assert.equal(createdPost.instagramHandle, 'jellOyfish01');
     assert.deepEqual(await service.react('post-1', '127.0.0.1'), { reacted: true, count: 1 });
     assert.deepEqual(await service.react('post-1', '127.0.0.1'), { reacted: false, count: 0 });
     await service.comment('post-1', { content: 'A published test comment' } as any, '127.0.0.1');

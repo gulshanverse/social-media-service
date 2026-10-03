@@ -27,7 +27,11 @@ export class SafeApiExceptionFilter implements ExceptionFilter {
       if (typeof payload === 'string') message = payload;
       else if (payload && typeof payload === 'object' && 'message' in payload) {
         const raw = (payload as { message?: unknown }).message;
-        message = Array.isArray(raw) ? 'Invalid request.' : typeof raw === 'string' ? raw : message;
+        message = Array.isArray(raw)
+          ? raw.filter((item): item is string => typeof item === 'string').join(' ')
+          : typeof raw === 'string'
+            ? raw
+            : message;
       }
       if (
         status === HttpStatus.BAD_REQUEST &&

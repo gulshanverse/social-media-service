@@ -38,6 +38,37 @@ describe('public Garba post form', () => {
     garbaApi.getGarba.mockResolvedValue(emptyFeed);
   });
 
+  it('omits blank optional fields from the Friends submission payload', async () => {
+    garbaApi.createGarbaPost.mockResolvedValue({
+      message: 'Your Garba post is awaiting moderation.',
+    });
+    render(<GarbaClient />);
+    fireEvent.change(screen.getByRole('combobox', { name: /post type/i }), {
+      target: { value: 'FRIENDS' },
+    });
+    fireEvent.change(screen.getByRole('textbox', { name: /what's happening/i }), {
+      target: {
+        value:
+          "Need a garba partner for the Navratri. I got an extra ticket so anyone who's interested in coming with me on garba text me on jellOyfish01",
+      },
+    });
+    fireEvent.change(screen.getByLabelText(/instagram handle/i), {
+      target: { value: 'jellOyfish01' },
+    });
+
+    const form = screen.getByRole('heading', { name: 'Share your Garba plan' }).closest('form');
+    if (!form) throw new Error('Garba post form was not rendered.');
+    fireEvent.submit(form);
+
+    await waitFor(() => expect(garbaApi.createGarbaPost).toHaveBeenCalledTimes(1));
+    expect(garbaApi.createGarbaPost).toHaveBeenCalledWith({
+      category: 'FRIENDS',
+      content:
+        "Need a garba partner for the Navratri. I got an extra ticket so anyone who's interested in coming with me on garba text me on jellOyfish01",
+      instagramHandle: 'jellOyfish01',
+    });
+  });
+
   it('posts once, resets every field, keeps the success notice, and ends loading', async () => {
     let resolvePost!: (result: { message: string }) => void;
     garbaApi.createGarbaPost.mockImplementation(
