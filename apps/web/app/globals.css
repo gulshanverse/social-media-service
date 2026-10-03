@@ -1148,8 +1148,79 @@ body:has(.college-profile-page) > .site-footer {
 .college-own-messages {
   width: 100%;
   color: #fff;
-  background: #17131d;
+  background: var(--read-live-button-background, linear-gradient(90deg, #ff6b35, #ef233c, #ff2d75));
   font-size: 0.95rem;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--read-live-button-glow, 0 8px 18px rgba(23, 19, 29, 0.18));
+  text-shadow: 0 1px 2px rgba(23, 19, 29, 0.35);
+  transition:
+    transform 0.2s ease,
+    filter 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.college-own-messages::after {
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  content: '';
+  pointer-events: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+.college-own-messages:hover {
+  background: var(--read-live-button-background, linear-gradient(90deg, #ff6b35, #ef233c, #ff2d75));
+  filter: brightness(1.08);
+  transform: scale(1.02);
+}
+
+.college-own-messages:active {
+  transform: scale(0.99);
+}
+
+.college-own-messages:focus-visible {
+  outline: 3px solid rgba(255, 255, 255, 0.95);
+  outline-offset: 3px;
+}
+
+.read-live-button--subtle {
+  animation: read-live-button-breathe 3.8s ease-in-out infinite;
+}
+
+.read-live-button--dynamic {
+  background-size: 200% 200%;
+  animation:
+    read-live-button-gradient 4s ease infinite,
+    read-live-button-breathe 3.8s ease-in-out infinite;
+}
+
+.read-live-button--speed-slow {
+  animation-duration: 5.5s;
+}
+
+.read-live-button--speed-fast {
+  animation-duration: 2.4s;
+}
+
+@keyframes read-live-button-breathe {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.06);
+  }
+}
+
+@keyframes read-live-button-gradient {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
 }
 
 .college-profile-legal {

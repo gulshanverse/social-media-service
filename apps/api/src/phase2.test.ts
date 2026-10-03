@@ -13,6 +13,11 @@ import {
   themeToCssVariables,
   validatePresets,
 } from '@ggv/themes';
+import {
+  defaultReadLiveConfessionButton,
+  normalizeReadLiveConfessionButton,
+  readLiveConfessionButtonCssVariables,
+} from '@ggv/types';
 
 async function run() {
   const scheduled = plainToInstance(CreateThemeDto, {
@@ -94,6 +99,26 @@ async function run() {
       tokens: { ...normalized.visualTokens, primaryText: '#fff' },
     }).length > 0,
     true,
+  );
+  assert.deepEqual(normalizeReadLiveConfessionButton(undefined), defaultReadLiveConfessionButton);
+  const safeButton = normalizeReadLiveConfessionButton({
+    colorMode: 'animated-gradient',
+    colors: ['#ff6b35', 'url(javascript:bad)', '#ef233c', '#ff2d75', '#000000'],
+    gradientDirection: 'to-bottom-right',
+    glowEnabled: true,
+    glowColor: '#8B5CF6',
+    glowIntensity: 'high',
+    animation: 'dynamic',
+    animationSpeed: 'fast',
+  });
+  assert.deepEqual(safeButton.colors, ['#ff6b35', '#ef233c', '#ff2d75', '#000000']);
+  assert.match(
+    readLiveConfessionButtonCssVariables(safeButton)['--read-live-button-background'],
+    /linear-gradient/,
+  );
+  assert.equal(
+    normalizeReadLiveConfessionButton({ colors: ['url(javascript:bad)'] }).colors.length,
+    3,
   );
   console.log('phase 2 lifecycle DTO and filter regression tests passed');
 }

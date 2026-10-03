@@ -9,7 +9,12 @@ import {
 import { createHash } from 'node:crypto';
 import { ConfessionStatus } from '@prisma/client';
 import { normalizeTheme, themes } from '@ggv/themes';
-import type { PublicConfession, PublicConfessionPage, SubmissionResult } from '@ggv/types';
+import {
+  normalizeReadLiveConfessionButton,
+  type PublicConfession,
+  type PublicConfessionPage,
+  type SubmissionResult,
+} from '@ggv/types';
 import { CreateConfessionDto, ListConfessionsQueryDto } from './dto';
 import { reportReasons } from './report.dto';
 import { SubmissionRateLimiter } from './rate-limit';
@@ -57,6 +62,7 @@ export type ConfessionsPrisma = {
       profileImageUrl?: string | null;
       themePreset?: string;
       prompts?: unknown;
+      readLiveConfessionButton?: unknown;
     } | null>;
   };
   theme: {
@@ -174,6 +180,9 @@ export class ConfessionsService {
       cardTextSize: settings?.cardTextSize ?? 16,
       previewLines: settings?.previewLines ?? 5,
       prompts: prompts.length ? prompts : ['Are u talking to anyone??'],
+      readLiveConfessionButton: normalizeReadLiveConfessionButton(
+        settings?.readLiveConfessionButton,
+      ),
     };
   }
 

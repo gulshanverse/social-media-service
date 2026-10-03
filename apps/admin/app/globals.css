@@ -951,6 +951,113 @@ button:disabled {
 .profile-preview-bottom {
   margin-top: 10px;
 }
+.read-live-button-settings {
+  display: grid;
+  gap: 12px;
+  padding-top: 4px;
+}
+.read-live-button-settings h2 {
+  margin-bottom: 0;
+}
+.read-live-colors,
+.read-live-control-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.read-live-color-control {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+.read-live-color-control input[type='color'] {
+  width: 48px;
+  height: 40px;
+  padding: 3px;
+}
+.read-live-inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.read-live-admin-preview {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid #26334d;
+  border-radius: 16px;
+  background: #0f172a;
+}
+.read-live-admin-preview > span {
+  color: #94a3b8;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.read-live-admin-preview .college-own-messages {
+  width: 100%;
+  min-height: 48px;
+  padding: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--read-live-button-background, linear-gradient(90deg, #ff6b35, #ef233c, #ff2d75));
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-align: center;
+  box-shadow: var(--read-live-button-glow, 0 8px 18px rgba(23, 19, 29, 0.18));
+}
+.read-live-admin-preview .college-own-messages::after {
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  content: '';
+  pointer-events: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+.read-live-admin-preview .read-live-button--subtle {
+  animation: read-live-admin-breathe 3.8s ease-in-out infinite;
+}
+.read-live-admin-preview .read-live-button--dynamic {
+  background-size: 200% 200%;
+  animation:
+    read-live-admin-gradient 4s ease infinite,
+    read-live-admin-breathe 3.8s ease-in-out infinite;
+}
+@keyframes read-live-admin-breathe {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.06);
+  }
+}
+@keyframes read-live-admin-gradient {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+@media (max-width: 620px) {
+  .read-live-colors,
+  .read-live-control-grid {
+    grid-template-columns: 1fr;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .read-live-admin-preview .college-own-messages {
+    animation: none;
+  }
+}
 @media (max-width: 900px) {
   .profile-settings-layout {
     grid-template-columns: 1fr;

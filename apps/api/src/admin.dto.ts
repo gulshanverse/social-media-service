@@ -110,6 +110,7 @@ export class UpdateProfileSettingsDto {
   @IsOptional() @IsInt() @Min(14) @Max(20) cardTextSize?: number;
   @IsOptional() @IsInt() @Min(3) @Max(6) previewLines?: number;
   @IsOptional() @IsArray() @ArrayMaxSize(20) @IsString({ each: true }) prompts?: string[];
+  @IsOptional() @IsObject() readLiveConfessionButton?: Record<string, unknown>;
 }
 export class RefreshDto {}
 export class ListQueryDto {

@@ -1,4 +1,9 @@
-import type { PublicConfession, PublicConfessionPage, SubmissionResult } from '@ggv/types';
+import type {
+  PublicConfession,
+  PublicConfessionPage,
+  ReadLiveConfessionButtonConfig,
+  SubmissionResult,
+} from '@ggv/types';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
@@ -34,6 +39,7 @@ export type PublicProfileSettings = {
   cardTextSize: number;
   previewLines: number;
   prompts: string[];
+  readLiveConfessionButton: ReadLiveConfessionButtonConfig;
 };
 export const getProfileSettings = () =>
   request<PublicProfileSettings>('/confessions/profile-settings', { cache: 'no-store' });

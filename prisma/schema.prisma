@@ -216,6 +216,7 @@ model CollegeConfessionProfileSettings {
   cardTextSize        Int      @default(16)
   previewLines        Int      @default(5)
   prompts             Json
+  readLiveConfessionButton Json?
   updatedAt           DateTime @updatedAt
   updatedBy           String?
 

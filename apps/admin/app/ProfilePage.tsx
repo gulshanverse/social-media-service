@@ -2,6 +2,18 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from './AdminClient';
+import {
+  defaultReadLiveConfessionButton,
+  normalizeReadLiveConfessionButton,
+  readLiveButtonAnimations,
+  readLiveButtonAnimationSpeeds,
+  readLiveButtonColorModes,
+  readLiveButtonDirections,
+  readLiveButtonGlowIntensities,
+  readLiveConfessionButtonClassName,
+  readLiveConfessionButtonCssVariables,
+  type ReadLiveConfessionButtonConfig,
+} from '@ggv/types';
 
 type Settings = {
   handle: string;
@@ -16,6 +28,7 @@ type Settings = {
   cardTextSize: number;
   previewLines: number;
   prompts: string[];
+  readLiveConfessionButton: ReadLiveConfessionButtonConfig;
 };
 
 const PROFILE_URL = 'https://www.confessions.live/collegeconfession';
@@ -32,6 +45,19 @@ const defaults: Settings = {
   cardTextSize: 16,
   previewLines: 5,
   prompts: ['Are u talking to anyone??'],
+  readLiveConfessionButton: defaultReadLiveConfessionButton,
+};
+
+const buttonPresets: Record<string, string[]> = {
+  '🔥 Fire': ['#FF6B35', '#EF233C', '#FF2D75'],
+  '💗 Candy': ['#FF2D75', '#D500F9', '#8B5CF6'],
+  '🌌 Aurora': ['#22D3EE', '#2563EB', '#7C3AED'],
+  '🌅 Sunset': ['#FACC15', '#F97316', '#EC4899', '#8B5CF6'],
+  '💎 Ocean': ['#22D3EE', '#2563EB', '#4338CA'],
+  '👑 Royal': ['#FACC15', '#7C3AED', '#D500F9'],
+  '⚡ Neon': ['#A3E635', '#22D3EE', '#7C3AED'],
+  '🌹 Rose': ['#EF233C', '#FF2D75', '#E11D48'],
+  '🌈 Rainbow': ['#EF233C', '#F97316', '#FACC15', '#22D3EE'],
 };
 
 function PhonePreview({ settings }: { settings: Settings }) {
@@ -60,7 +86,16 @@ function PhonePreview({ settings }: { settings: Settings }) {
         <div className="profile-preview-send">SEND!</div>
         <p>👇 Join your college confession community 👇</p>
         <div className="profile-preview-bottom">{settings.communityButtonText}</div>
-        <div className="profile-preview-bottom">{settings.bottomButtonText}</div>
+        <div
+          className={readLiveConfessionButtonClassName(settings.readLiveConfessionButton)}
+          style={
+            readLiveConfessionButtonCssVariables(
+              settings.readLiveConfessionButton,
+            ) as React.CSSProperties
+          }
+        >
+          {settings.bottomButtonText}
+        </div>
       </div>
     </div>
   );
@@ -88,6 +123,9 @@ export default function ProfilePage() {
           ...defaults,
           ...value,
           prompts: value.prompts?.length ? value.prompts : defaults.prompts,
+          readLiveConfessionButton: normalizeReadLiveConfessionButton(
+            value.readLiveConfessionButton,
+          ),
         };
         setSettings(next);
         setSavedSettings(next);
@@ -118,6 +156,33 @@ export default function ProfilePage() {
       'prompts',
       settings.prompts.map((item, i) => (i === index ? value : item)),
     );
+  }
+  function updateButton<K extends keyof ReadLiveConfessionButtonConfig>(
+    key: K,
+    value: ReadLiveConfessionButtonConfig[K],
+  ) {
+    update('readLiveConfessionButton', {
+      ...settings.readLiveConfessionButton,
+      [key]: value,
+    });
+  }
+  function updateButtonColor(index: number, color: string) {
+    updateButton(
+      'colors',
+      settings.readLiveConfessionButton.colors.map((item, colorIndex) =>
+        colorIndex === index ? color : item,
+      ),
+    );
+  }
+  function applyButtonPreset(colors: string[]) {
+    update('readLiveConfessionButton', {
+      ...settings.readLiveConfessionButton,
+      colorMode: 'gradient',
+      colors,
+      glowEnabled: true,
+      glowIntensity: 'medium',
+      animation: 'subtle',
+    });
   }
   async function chooseImage(file: File | undefined) {
     if (!file) return;
@@ -163,6 +228,7 @@ export default function ProfilePage() {
         cardTextSize: Number(settings.cardTextSize),
         previewLines: Number(settings.previewLines),
         prompts: settings.prompts.filter((item) => item.trim()),
+        readLiveConfessionButton: settings.readLiveConfessionButton,
       };
       const saved = await api('/admin/profile-settings', {
         method: 'PATCH',
@@ -172,6 +238,7 @@ export default function ProfilePage() {
         ...defaults,
         ...saved,
         prompts: saved.prompts?.length ? saved.prompts : defaults.prompts,
+        readLiveConfessionButton: normalizeReadLiveConfessionButton(saved.readLiveConfessionButton),
       };
       setSettings(next);
       setSavedSettings(next);
@@ -325,6 +392,214 @@ export default function ProfilePage() {
               required
             />
           </label>
+
+          <div className="read-live-button-settings">
+            <h2>Read Live Confession Button</h2>
+            <p className="muted">
+              Customize the existing button&apos;s colors and effects. Its text, destination, and
+              position stay unchanged.
+            </p>
+            <label>
+              Color Mode
+              <select
+                value={settings.readLiveConfessionButton.colorMode}
+                onChange={(event) =>
+                  updateButton(
+                    'colorMode',
+                    event.target.value as ReadLiveConfessionButtonConfig['colorMode'],
+                  )
+                }
+              >
+                {readLiveButtonColorModes.map((mode) => (
+                  <option key={mode} value={mode}>
+                    {mode === 'animated-gradient'
+                      ? 'Animated Gradient'
+                      : mode[0].toUpperCase() + mode.slice(1)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Preset Color Style
+              <select
+                defaultValue=""
+                onChange={(event) => {
+                  const colors = buttonPresets[event.target.value];
+                  if (colors) applyButtonPreset(colors);
+                  event.target.value = '';
+                }}
+              >
+                <option value="">Choose a preset…</option>
+                {Object.keys(buttonPresets).map((preset) => (
+                  <option key={preset} value={preset}>
+                    {preset}
+                  </option>
+                ))}
+                <option value="custom">✨ Custom</option>
+              </select>
+            </label>
+            <div className="read-live-colors" aria-label="Button colors">
+              {settings.readLiveConfessionButton.colors.map((color, index) => (
+                <label key={`${index}-${color}`}>
+                  Color {index + 1}
+                  <span className="read-live-color-control">
+                    <input
+                      type="color"
+                      value={color}
+                      onChange={(event) =>
+                        updateButtonColor(index, event.target.value.toUpperCase())
+                      }
+                      aria-label={`Button color ${index + 1}`}
+                    />
+                    <input
+                      value={color}
+                      pattern="#[0-9A-Fa-f]{6}"
+                      maxLength={7}
+                      onChange={(event) => updateButtonColor(index, event.target.value)}
+                      aria-label={`Button color ${index + 1} hex value`}
+                    />
+                  </span>
+                </label>
+              ))}
+            </div>
+            <div className="read-live-inline-actions">
+              {settings.readLiveConfessionButton.colors.length < 4 && (
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() =>
+                    updateButton('colors', [...settings.readLiveConfessionButton.colors, '#8B5CF6'])
+                  }
+                >
+                  + Add Color
+                </button>
+              )}
+              {settings.readLiveConfessionButton.colors.length > 2 && (
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() =>
+                    updateButton('colors', settings.readLiveConfessionButton.colors.slice(0, -1))
+                  }
+                >
+                  − Remove Color
+                </button>
+              )}
+            </div>
+            <label>
+              Gradient Direction
+              <select
+                value={settings.readLiveConfessionButton.gradientDirection}
+                onChange={(event) =>
+                  updateButton(
+                    'gradientDirection',
+                    event.target.value as ReadLiveConfessionButtonConfig['gradientDirection'],
+                  )
+                }
+              >
+                {readLiveButtonDirections.map((direction) => (
+                  <option key={direction} value={direction}>
+                    {direction === 'to-right'
+                      ? 'Left → Right'
+                      : direction === 'to-left'
+                        ? 'Right → Left'
+                        : direction === 'to-bottom'
+                          ? 'Top → Bottom'
+                          : direction === 'to-bottom-right'
+                            ? 'Diagonal ↘'
+                            : 'Diagonal ↗'}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="read-live-control-grid">
+              <label>
+                Glow
+                <select
+                  value={String(settings.readLiveConfessionButton.glowEnabled)}
+                  onChange={(event) => updateButton('glowEnabled', event.target.value === 'true')}
+                >
+                  <option value="true">On</option>
+                  <option value="false">Off</option>
+                </select>
+              </label>
+              <label>
+                Glow Intensity
+                <select
+                  value={settings.readLiveConfessionButton.glowIntensity}
+                  onChange={(event) =>
+                    updateButton(
+                      'glowIntensity',
+                      event.target.value as ReadLiveConfessionButtonConfig['glowIntensity'],
+                    )
+                  }
+                >
+                  {readLiveButtonGlowIntensities.map((intensity) => (
+                    <option key={intensity} value={intensity}>
+                      {intensity[0].toUpperCase() + intensity.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Glow Color
+                <input
+                  type="color"
+                  value={settings.readLiveConfessionButton.glowColor}
+                  onChange={(event) => updateButton('glowColor', event.target.value.toUpperCase())}
+                />
+              </label>
+              <label>
+                Animation
+                <select
+                  value={settings.readLiveConfessionButton.animation}
+                  onChange={(event) =>
+                    updateButton(
+                      'animation',
+                      event.target.value as ReadLiveConfessionButtonConfig['animation'],
+                    )
+                  }
+                >
+                  {readLiveButtonAnimations.map((animation) => (
+                    <option key={animation} value={animation}>
+                      {animation[0].toUpperCase() + animation.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Animation Speed
+                <select
+                  value={settings.readLiveConfessionButton.animationSpeed}
+                  onChange={(event) =>
+                    updateButton(
+                      'animationSpeed',
+                      event.target.value as ReadLiveConfessionButtonConfig['animationSpeed'],
+                    )
+                  }
+                >
+                  {readLiveButtonAnimationSpeeds.map((speed) => (
+                    <option key={speed} value={speed}>
+                      {speed[0].toUpperCase() + speed.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="read-live-admin-preview">
+              <span>Live Preview</span>
+              <div
+                className={readLiveConfessionButtonClassName(settings.readLiveConfessionButton)}
+                style={
+                  readLiveConfessionButtonCssVariables(
+                    settings.readLiveConfessionButton,
+                  ) as React.CSSProperties
+                }
+              >
+                {settings.bottomButtonText}
+              </div>
+            </div>
+          </div>
 
           <h2>Profile Image</h2>
           <div className="profile-upload-row">

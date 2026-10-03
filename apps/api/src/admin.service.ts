@@ -31,6 +31,7 @@ import {
   normalizeTheme,
   portableToCreateInput,
 } from '@ggv/themes';
+import { normalizeReadLiveConfessionButton } from '@ggv/types';
 
 export function assertOpenReportTransition(status: ReportStatus, action: 'resolve' | 'dismiss') {
   if (status !== ReportStatus.OPEN)
@@ -716,7 +717,12 @@ export class AdminService {
       where: { id: 'default' },
     });
     if (!settings) throw new NotFoundException('Profile settings are not initialized.');
-    return settings;
+    return {
+      ...settings,
+      readLiveConfessionButton: normalizeReadLiveConfessionButton(
+        settings.readLiveConfessionButton,
+      ),
+    };
   }
   async updateProfileSettings(body: UpdateProfileSettingsDto, actor: AdminIdentity) {
     const data = Object.fromEntries(
@@ -726,7 +732,9 @@ export class AdminService {
           key,
           key === 'prompts'
             ? (value as string[]).map((item) => item.trim()).filter(Boolean)
-            : value,
+            : key === 'readLiveConfessionButton'
+              ? normalizeReadLiveConfessionButton(value)
+              : value,
         ]),
     );
     if (data.prompts && (data.prompts as string[]).length === 0)

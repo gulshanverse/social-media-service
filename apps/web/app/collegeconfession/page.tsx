@@ -2,6 +2,12 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import CollegeConfessionComposer from './CollegeConfessionComposer';
 import { publicPageMetadata } from '../../lib/metadata';
+import {
+  normalizeReadLiveConfessionButton,
+  readLiveConfessionButtonClassName,
+  readLiveConfessionButtonCssVariables,
+  type ReadLiveConfessionButtonConfig,
+} from '@ggv/types';
 
 export const metadata: Metadata = publicPageMetadata({
   title: 'Create a Confession',
@@ -23,6 +29,7 @@ export type ProfileSettings = {
   cardTextSize: number;
   previewLines: number;
   prompts: string[];
+  readLiveConfessionButton: ReadLiveConfessionButtonConfig;
 };
 
 const fallbackSettings: ProfileSettings = {
@@ -44,6 +51,7 @@ const fallbackSettings: ProfileSettings = {
     'What is your biggest college secret?',
     'Who do you secretly want to talk to?',
   ],
+  readLiveConfessionButton: normalizeReadLiveConfessionButton(undefined),
 };
 
 async function getProfileSettings(): Promise<ProfileSettings> {
@@ -53,7 +61,14 @@ async function getProfileSettings(): Promise<ProfileSettings> {
       next: { revalidate: 30 },
     });
     if (!response.ok) return fallbackSettings;
-    return { ...fallbackSettings, ...(await response.json()) };
+    const responseSettings = await response.json();
+    return {
+      ...fallbackSettings,
+      ...responseSettings,
+      readLiveConfessionButton: normalizeReadLiveConfessionButton(
+        responseSettings.readLiveConfessionButton,
+      ),
+    };
   } catch {
     return fallbackSettings;
   }
@@ -61,6 +76,7 @@ async function getProfileSettings(): Promise<ProfileSettings> {
 
 export default async function CollegeConfessionPage() {
   const settings = await getProfileSettings();
+  const buttonConfig = normalizeReadLiveConfessionButton(settings.readLiveConfessionButton);
   return (
     <main className={`college-profile-page college-theme-${settings.themePreset}`}>
       <div className="college-profile-card">
@@ -92,7 +108,11 @@ export default async function CollegeConfessionPage() {
           <Link className="college-community-button" href={settings.communityPath}>
             {settings.communityButtonText}
           </Link>
-          <Link className="college-own-messages" href="/send">
+          <Link
+            className={readLiveConfessionButtonClassName(buttonConfig)}
+            href="/send"
+            style={readLiveConfessionButtonCssVariables(buttonConfig) as React.CSSProperties}
+          >
             {settings.bottomButtonText}
           </Link>
         </section>
