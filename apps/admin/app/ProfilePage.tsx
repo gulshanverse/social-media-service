@@ -60,6 +60,15 @@ const buttonPresets: Record<string, string[]> = {
   '🌈 Rainbow': ['#EF233C', '#F97316', '#FACC15', '#22D3EE'],
 };
 
+function getSelectedButtonPreset(colors: string[]) {
+  const preset = Object.entries(buttonPresets).find(
+    ([, presetColors]) =>
+      presetColors.length === colors.length &&
+      presetColors.every((color, index) => color === colors[index]),
+  );
+  return preset?.[0] ?? 'custom';
+}
+
 function PhonePreview({ settings }: { settings: Settings }) {
   return (
     <div className={`profile-phone-preview college-theme-${settings.themePreset}`}>
@@ -396,8 +405,8 @@ export default function ProfilePage() {
           <div className="read-live-button-settings">
             <h2>Read Live Confession Button</h2>
             <p className="muted">
-              Customize the existing button&apos;s colors and effects. Its text, destination, and
-              position stay unchanged.
+              Customize the appearance of the “Read Live Confession” button shown on your public
+              College Confession page.
             </p>
             <label>
               Color Mode
@@ -422,14 +431,12 @@ export default function ProfilePage() {
             <label>
               Preset Color Style
               <select
-                defaultValue=""
+                value={getSelectedButtonPreset(settings.readLiveConfessionButton.colors)}
                 onChange={(event) => {
                   const colors = buttonPresets[event.target.value];
                   if (colors) applyButtonPreset(colors);
-                  event.target.value = '';
                 }}
               >
-                <option value="">Choose a preset…</option>
                 {Object.keys(buttonPresets).map((preset) => (
                   <option key={preset} value={preset}>
                     {preset}
@@ -596,7 +603,7 @@ export default function ProfilePage() {
                   ) as React.CSSProperties
                 }
               >
-                {settings.bottomButtonText}
+                💚 Read Live Confession 🔥
               </div>
             </div>
           </div>
