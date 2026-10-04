@@ -101,7 +101,7 @@ export type ConfessionsPrisma = {
       where: { confessionId: string; reporterHash: string; status: 'OPEN' };
     }): Promise<{ id: string } | null>;
     create(args: {
-      data: { confessionId: string; reason: string; reporterHash: string };
+      data: { confessionId: string; reason: string; details?: string; reporterHash: string };
     }): Promise<unknown>;
   };
 };
@@ -356,9 +356,14 @@ export class ConfessionsService {
     return toPublicConfession(confession);
   }
 
-  async report(publicId: string, reason: string, clientKey: string) {
+  async report(publicId: string, reason: string, clientKey: string, details?: string) {
     if (!reportReasons.includes(reason as (typeof reportReasons)[number]))
       throw new BadRequestException('Please choose a valid report reason.');
+    const trimmedDetails = details?.trim();
+    if (reason === 'OTHER' && !trimmedDetails)
+      throw new BadRequestException('Please explain why you are reporting this confession.');
+    if (trimmedDetails && trimmedDetails.length > 1000)
+      throw new BadRequestException('Report details must be 1000 characters or fewer.');
     const confession = await this.database.confession.findFirst({
       where: { publicId, status: ConfessionStatus.PUBLISHED },
       select: { id: true },
@@ -375,7 +380,12 @@ export class ConfessionsService {
         message: 'Thanks. Your report is already with the moderation team.',
       };
     await this.database.report.create({
-      data: { confessionId: confession.id, reason, reporterHash },
+      data: {
+        confessionId: confession.id,
+        reason,
+        ...(reason === 'OTHER' && trimmedDetails ? { details: trimmedDetails } : {}),
+        reporterHash,
+      },
     });
     await this.database.confession.update({
       where: { publicId },

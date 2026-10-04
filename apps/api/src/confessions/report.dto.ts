@@ -1,4 +1,4 @@
-import { IsIn, IsString, MaxLength } from 'class-validator';
+import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export const reportReasons = [
   'HARASSMENT',
@@ -15,4 +15,9 @@ export class CreateReportDto {
   @MaxLength(40)
   @IsIn(reportReasons)
   reason!: (typeof reportReasons)[number];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  details?: string;
 }

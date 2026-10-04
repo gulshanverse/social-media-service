@@ -19,6 +19,7 @@ const theme = {
   radius: 28,
 };
 const publishedRecord = {
+  id: 'internal-1',
   publicId: 'published-1',
   content: 'A published thought',
   category: 'CRUSH',
@@ -195,6 +196,52 @@ async function run() {
     validate(plainToInstance(CreateConfessionDto, { content: 'x'.repeat(5001) })),
   );
   assert.ok(oversized.some((error) => error.property === 'content'));
+
+  const reports: Array<Record<string, unknown>> = [];
+  const reportDatabase = createDatabase({
+    report: {
+      findFirst: async () => null,
+      create: async ({ data }) => {
+        reports.push(data);
+        return data;
+      },
+    },
+  }).database;
+  const reportService = new ConfessionsService(reportDatabase, new SubmissionRateLimiter());
+  await assert.rejects(
+    () => reportService.report('published-1', 'OTHER', 'reporter'),
+    BadRequestException,
+  );
+  await assert.rejects(
+    () => reportService.report('published-1', 'OTHER', 'reporter', ' '.repeat(3)),
+    BadRequestException,
+  );
+  await assert.rejects(
+    () => reportService.report('published-1', 'OTHER', 'reporter', 'x'.repeat(1001)),
+    BadRequestException,
+  );
+  await reportService.report('published-1', 'OTHER', 'reporter', '  More context here  ');
+  assert.deepEqual(reports[0], {
+    confessionId: 'internal-1',
+    reason: 'OTHER',
+    details: 'More context here',
+    reporterHash: '41d6d5322a9b546a16bdf2213c7e4b017bec5e4e13f31095b4bcfa09849b8732',
+  });
+  const normalReportDatabase = createDatabase({
+    report: {
+      findFirst: async () => null,
+      create: async ({ data }) => {
+        reports.push(data);
+        return data;
+      },
+    },
+  }).database;
+  await new ConfessionsService(normalReportDatabase, new SubmissionRateLimiter()).report(
+    'published-1',
+    'SPAM',
+    'normal-reporter',
+  );
+  assert.equal('details' in reports[1], false);
 
   const limiter = new SubmissionRateLimiter();
   assert.equal(limiter.check('student', 2, 60, 0).allowed, true);

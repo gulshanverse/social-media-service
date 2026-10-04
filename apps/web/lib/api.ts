@@ -57,11 +57,11 @@ export type PublicProfileSettings = {
 };
 export const getProfileSettings = () =>
   request<PublicProfileSettings>('/confessions/profile-settings', { cache: 'no-store' });
-export const reportConfession = (publicId: string, reason: string) =>
+export const reportConfession = (publicId: string, reason: string, details?: string) =>
   request<{ status: string; message: string }>(
     `/confessions/${encodeURIComponent(publicId)}/report`,
     {
       method: 'POST',
-      body: JSON.stringify({ reason }),
+      body: JSON.stringify({ reason, ...(details === undefined ? {} : { details }) }),
     },
   );

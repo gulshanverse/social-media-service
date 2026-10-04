@@ -380,6 +380,7 @@ export class AdminService {
         select: {
           id: true,
           reason: true,
+          details: true,
           status: true,
           createdAt: true,
           resolvedAt: true,
@@ -397,6 +398,7 @@ export class AdminService {
       select: {
         id: true,
         reason: true,
+        details: true,
         status: true,
         createdAt: true,
         resolvedAt: true,

@@ -13,14 +13,19 @@ const reasons = [
   ['PERSONAL_INFORMATION', 'Personal information'],
   ['OTHER', 'Other'],
 ];
+const maxDetailsLength = 1000;
 
 export function ReportForm() {
-  const [publicId, setPublicId] = useState(() =>
-    typeof window === 'undefined'
-      ? ''
-      : (new URLSearchParams(window.location.search).get('confession') ?? ''),
-  );
+  const [publicId, setPublicId] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    return (
+      parsePublicConfessionId(
+        new URLSearchParams(window.location.search).get('confession') ?? '',
+      ) ?? ''
+    );
+  });
   const [reason, setReason] = useState('HARASSMENT');
+  const [details, setDetails] = useState('');
   const [state, setState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
   async function submit(event: React.FormEvent<HTMLFormElement>) {
@@ -29,10 +34,16 @@ export function ReportForm() {
     setMessage('');
     try {
       const confessionId = parsePublicConfessionId(publicId);
-      if (!confessionId) {
+      if (!confessionId)
         throw new Error('Enter a valid College Confession link or public confession ID.');
-      }
-      const result = await reportConfession(confessionId, reason);
+      const trimmedDetails = details.trim();
+      if (reason === 'OTHER' && !trimmedDetails)
+        throw new Error('Please explain why you are reporting this confession.');
+      const result = await reportConfession(
+        confessionId,
+        reason,
+        reason === 'OTHER' ? trimmedDetails : undefined,
+      );
       setMessage(result.message);
       setState('success');
     } catch (error) {
@@ -51,13 +62,38 @@ export function ReportForm() {
         required
       />
       <label htmlFor="report-reason">Reason</label>
-      <select id="report-reason" value={reason} onChange={(event) => setReason(event.target.value)}>
+      <select
+        id="report-reason"
+        value={reason}
+        onChange={(event) => {
+          setReason(event.target.value);
+          setMessage('');
+          setState('idle');
+        }}
+      >
         {reasons.map(([value, label]) => (
           <option key={value} value={value}>
             {label}
           </option>
         ))}
       </select>
+      {reason === 'OTHER' && (
+        <>
+          <label htmlFor="report-details">Explain your concern</label>
+          <textarea
+            id="report-details"
+            value={details}
+            onChange={(event) => setDetails(event.target.value.slice(0, maxDetailsLength))}
+            maxLength={maxDetailsLength}
+            rows={5}
+            aria-describedby="report-details-count"
+            required
+          />
+          <p id="report-details-count" className="muted">
+            {details.length}/{maxDetailsLength}
+          </p>
+        </>
+      )}
       {message && (
         <p
           className={state === 'error' ? 'form-error' : 'form-success'}

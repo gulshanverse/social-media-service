@@ -173,6 +173,7 @@ model Report {
   confessionId String
   confession   Confession   @relation(fields: [confessionId], references: [id])
   reason       String
+  details      String?
   status       ReportStatus @default(OPEN)
   reporterHash String?
   reviewerId   String?

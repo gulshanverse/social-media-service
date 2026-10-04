@@ -1170,6 +1170,7 @@ export function Reports() {
                 Report {r.id} · {formatDate(r.createdAt)}
               </span>
               <p>{r.reason}</p>
+              {r.details && <p className="muted">{r.details}</p>}
               <Link href={`/confessions/${r.confession.id}`} className="inline-link">
                 Open confession context →
               </Link>

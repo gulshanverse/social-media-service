@@ -77,6 +77,6 @@ export class ConfessionsController {
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
-    return this.confessions.report(publicId, dto.reason, request.ip || 'anonymous');
+    return this.confessions.report(publicId, dto.reason, request.ip || 'anonymous', dto.details);
   }
 }
