@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { ReportForm } from '../components/ReportForm';
 import { LegalPage, LegalSection, LegalParagraph, LegalList } from '../components/SiteFooter';
 
@@ -311,7 +312,9 @@ export function ReportPage() {
       title="Report a confession"
       intro="Send a link to a published confession and choose the closest reason. Your report is placed in the private moderation queue."
     >
-      <ReportForm />
+      <Suspense fallback={null}>
+        <ReportForm />
+      </Suspense>
       <LegalSection title="Need more help?">
         <LegalParagraph>
           See the <Link href="/contact">Contact page</Link> for other support options. Authorized

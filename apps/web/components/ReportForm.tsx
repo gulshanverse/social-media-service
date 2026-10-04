@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { reportConfession } from '../lib/api';
 import { parsePublicConfessionId } from '../lib/report-link';
 
@@ -18,16 +19,17 @@ const maxDetailsLength = 1000;
 export function ReportForm() {
   const [publicId, setPublicId] = useState('');
   const publicIdEdited = useRef(false);
+  const searchParams = useSearchParams();
+  const confessionParam = searchParams.get('confession');
   const [reason, setReason] = useState('HARASSMENT');
   const [details, setDetails] = useState('');
   const [state, setState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
   useEffect(() => {
-    if (publicIdEdited.current) return;
-    const queryValue = new URLSearchParams(window.location.search).get('confession') ?? '';
-    const parsedPublicId = parsePublicConfessionId(queryValue);
+    if (publicIdEdited.current || publicId.trim() || !confessionParam) return;
+    const parsedPublicId = parsePublicConfessionId(confessionParam);
     if (parsedPublicId) setPublicId(parsedPublicId);
-  }, []);
+  }, [confessionParam, publicId]);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();

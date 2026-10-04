@@ -4,15 +4,24 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ReportForm } from '../../components/ReportForm';
 import { reportConfession } from '../../lib/api';
 
+const navigation = vi.hoisted(() => ({ confessionParam: null as string | null }));
+
 vi.mock('../../lib/api', () => ({ reportConfession: vi.fn() }));
+vi.mock('next/navigation', () => ({
+  useSearchParams: () => ({
+    get: (key: string) => (key === 'confession' ? navigation.confessionParam : null),
+  }),
+}));
 
 describe('ReportForm', () => {
   beforeEach(() => {
     vi.mocked(reportConfession).mockReset();
+    navigation.confessionParam = null;
     window.history.replaceState({}, '', '/report');
   });
 
   it('prefills a valid public confession ID after hydration', async () => {
+    navigation.confessionParam = 'https://www.confessions.live/confessions/pub-123';
     window.history.replaceState(
       {},
       '',
@@ -22,12 +31,21 @@ describe('ReportForm', () => {
     expect(await screen.findByLabelText('Public confession link or ID')).toHaveValue('pub-123');
   });
 
+  it('prefills when Next.js search params change during client navigation', async () => {
+    const { rerender } = render(<ReportForm />);
+    expect(screen.getByLabelText('Public confession link or ID')).toHaveValue('');
+    navigation.confessionParam = 'abc';
+    rerender(<ReportForm />);
+    expect(await screen.findByLabelText('Public confession link or ID')).toHaveValue('abc');
+  });
+
   it('leaves the target empty without a query parameter', () => {
     render(<ReportForm />);
     expect(screen.getByLabelText('Public confession link or ID')).toHaveValue('');
   });
 
   it('lets the user edit a prefilled target and safely ignores an untrusted query parameter', () => {
+    navigation.confessionParam = 'https://www.confessions.live/confessions/pub-123';
     window.history.replaceState(
       {},
       '',
@@ -47,6 +65,7 @@ describe('ReportForm', () => {
   });
 
   it('leaves the target empty for an invalid query parameter', async () => {
+    navigation.confessionParam = 'https://evil.example/confessions/secret';
     window.history.replaceState(
       {},
       '',
