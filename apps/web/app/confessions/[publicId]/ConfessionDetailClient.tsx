@@ -7,16 +7,23 @@ import { ConfessionCard } from '../../../components/ConfessionCard';
 import { ShareMenu } from '../../../components/ShareMenu';
 import { getConfession } from '../../../lib/api';
 
-export default function ConfessionDetailClient({ publicId }: { publicId: string }) {
-  const [confession, setConfession] = useState<PublicConfession | null>(null);
+export default function ConfessionDetailClient({
+  publicId,
+  initialConfession,
+}: {
+  publicId: string;
+  initialConfession?: PublicConfession;
+}) {
+  const [confession, setConfession] = useState<PublicConfession | null>(initialConfession ?? null);
   const [error, setError] = useState('');
   useEffect(() => {
+    if (initialConfession) return;
     getConfession(publicId)
       .then(setConfession)
       .catch((caught) =>
         setError(caught instanceof Error ? caught.message : 'Confession not found.'),
       );
-  }, [publicId]);
+  }, [initialConfession, publicId]);
   return (
     <main className="site-shell">
       <section className="detail-page">

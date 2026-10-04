@@ -204,6 +204,73 @@ export function GuidelinesPage() {
   );
 }
 
+export function SafetyPage() {
+  return (
+    <LegalPage
+      eyebrow="SAFETY & MODERATION"
+      title="Keep the community safe."
+      intro="College Confession is an independent community platform. These are the safety practices that guide what can be shared, what moderators review, and how to raise a concern."
+    >
+      <LegalSection title="Anonymous does not mean untraceable">
+        <LegalParagraph>
+          You do not need an account, public profile, name, or email to submit. The service still
+          processes ordinary technical information to operate and limit abuse, and details in a post
+          can identify you or someone else. Do not share names, handles, contact information, class
+          schedules, or clues about where and when a person can be found.
+        </LegalParagraph>
+      </LegalSection>
+      <LegalSection title="Protect personal information">
+        <LegalParagraph>
+          Do not post phone numbers, addresses, passwords, private messages, social handles, or
+          identifying appearance-and-location details about yourself or another person without
+          permission. Masking part of a name may not make someone unidentifiable when the
+          surrounding details point to them.
+        </LegalParagraph>
+      </LegalSection>
+      <LegalSection title="What does not belong here">
+        <LegalList>
+          <li>
+            Harassment, bullying, threats, hate, targeted abuse, or calls to confront someone.
+          </li>
+          <li>
+            Requests to identify, locate, contact, follow, or reveal another person&apos;s account.
+          </li>
+          <li>
+            Sexually explicit or exploitative content, especially anything involving minors or
+            non-consent.
+          </li>
+          <li>Illegal or dangerous material, scams, spam, malicious links, or impersonation.</li>
+        </LegalList>
+      </LegalSection>
+      <LegalSection title="Human moderation before publication">
+        <LegalParagraph>
+          New confessions are held in a private pending queue. An authorized moderator may approve a
+          post, edit it for safety, or reject it before it appears on the public wall. Publication
+          is not guaranteed, and review cannot promise that every unsafe detail will be recognized.
+        </LegalParagraph>
+      </LegalSection>
+      <LegalSection title="How to report content">
+        <LegalParagraph>
+          For a published confession, use the <Link href="/report">Report Content page</Link>,
+          include its public link or ID, and choose the closest reason. The report enters a private
+          moderation queue. A moderator may dismiss it, edit or reject pending material, or archive
+          or remove a published post. A report does not guarantee immediate removal, a particular
+          outcome, or a response time.
+        </LegalParagraph>
+      </LegalSection>
+      <LegalSection title="General support and urgent situations">
+        <LegalParagraph>
+          The <Link href="/contact">Contact page</Link> explains the currently supported routes.
+          There is no verified general support inbox or contact form configured at this time, so use
+          the report form for concerns about a published post. College Confession is not an
+          emergency response service; if someone is in immediate danger, contact local emergency
+          services first.
+        </LegalParagraph>
+      </LegalSection>
+    </LegalPage>
+  );
+}
+
 export function ContactPage() {
   return (
     <LegalPage

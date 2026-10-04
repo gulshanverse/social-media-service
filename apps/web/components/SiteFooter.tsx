@@ -36,6 +36,7 @@ export function SiteFooter() {
           <section className="footer-nav-group" aria-labelledby="footer-safety">
             <h2 id="footer-safety">Safety &amp; trust</h2>
             <Link href="/community-guidelines">Guidelines</Link>
+            <Link href="/safety">Safety &amp; moderation</Link>
             <Link href="/report">Report content</Link>
             <Link href="/privacy">Privacy</Link>
             <Link href="/terms">Terms</Link>

@@ -12,6 +12,7 @@ export default function robots(): MetadataRoute.Robots {
           '/how-it-works',
           '/faq',
           '/community-guidelines',
+          '/safety',
           '/privacy',
           '/terms',
           '/contact',

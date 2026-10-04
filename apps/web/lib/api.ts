@@ -7,13 +7,27 @@ import type {
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
+export class ApiRequestError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+  ) {
+    super(message);
+    this.name = 'ApiRequestError';
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${apiUrl}${path}`, {
     ...init,
     headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
   });
   const body = (await response.json().catch(() => null)) as { message?: string } | null;
-  if (!response.ok) throw new Error(body?.message ?? 'Something went wrong. Please try again.');
+  if (!response.ok)
+    throw new ApiRequestError(
+      body?.message ?? 'Something went wrong. Please try again.',
+      response.status,
+    );
   return body as T;
 }
 

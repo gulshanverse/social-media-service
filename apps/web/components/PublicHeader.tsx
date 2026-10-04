@@ -12,6 +12,7 @@ const links = [
   ['/how-it-works', 'How it works'],
   ['/faq', 'FAQ'],
   ['/community-guidelines', 'Community guidelines'],
+  ['/safety', 'Safety & moderation'],
   ['/privacy', 'Privacy'],
   ['/terms', 'Terms'],
   ['/contact', 'Contact'],
