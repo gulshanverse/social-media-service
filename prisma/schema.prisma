@@ -325,7 +325,6 @@ enum VibeSessionStatus {
 model VibeIdentity {
   id              String                @id @default(cuid())
   emailHash       String                @unique
-  emailCiphertext String
   ageConfirmed    Boolean               @default(false)
   status          VibeIdentityStatus    @default(ACTIVE)
   createdAt       DateTime              @default(now())

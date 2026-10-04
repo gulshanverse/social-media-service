@@ -17,6 +17,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../admin-auth';
 import { SubmissionRateLimiter } from '../confessions/rate-limit';
 import {
@@ -25,6 +26,7 @@ import {
   type EmailProvider,
 } from './email-provider';
 import {
+  atomicallyClaimMagicLink,
   createToken,
   emailHash,
   hashValue,
@@ -33,6 +35,7 @@ import {
   setSessionCookie,
   clearSessionCookie,
   VibeAuthGuard,
+  VibeCsrfGuard,
   type VibeRequest,
 } from './auth';
 import { AnswerDto, EligibilityDto, MagicLinkDto, ProfileDto, VIBE_INTENTS } from './dto';
@@ -153,30 +156,38 @@ export class VibeAuthController {
   ) {
     if (!token || typeof token !== 'string' || token.length > 200)
       throw new HttpException('Invalid sign-in link.', HttpStatus.BAD_REQUEST);
-    const link = await prisma.vibeMagicLink.findUnique({ where: { tokenHash: hashValue(token) } });
+    const tokenHash = hashValue(token);
+    const link = await prisma.vibeMagicLink.findUnique({ where: { tokenHash } });
     if (!link || link.usedAt || link.expiresAt <= new Date())
       throw new HttpException('Invalid or expired sign-in link.', HttpStatus.UNAUTHORIZED);
-    const identity = link.identityId
-      ? await prisma.vibeIdentity.findUnique({ where: { id: link.identityId } })
-      : await prisma.vibeIdentity.create({
-          data: { emailHash: link.emailHash, emailCiphertext: link.emailHash },
-        });
-    if (!identity || identity.status !== 'ACTIVE')
-      throw new HttpException('Unable to sign in.', HttpStatus.UNAUTHORIZED);
     const sessionToken = createToken();
-    await prisma.$transaction([
-      prisma.vibeMagicLink.update({
+    const identity = await prisma.$transaction(async (tx) => {
+      const claimedAt = new Date();
+      const claimed = await atomicallyClaimMagicLink(
+        (args) => tx.vibeMagicLink.updateMany(args),
+        link.id,
+        claimedAt,
+      );
+      if (!claimed)
+        throw new HttpException('Invalid or expired sign-in link.', HttpStatus.UNAUTHORIZED);
+      const identity = link.identityId
+        ? await tx.vibeIdentity.findUnique({ where: { id: link.identityId } })
+        : await tx.vibeIdentity.create({ data: { emailHash: link.emailHash } });
+      if (!identity || identity.status !== 'ACTIVE')
+        throw new HttpException('Unable to sign in.', HttpStatus.UNAUTHORIZED);
+      await tx.vibeMagicLink.update({
         where: { id: link.id },
-        data: { usedAt: new Date(), identityId: identity.id },
-      }),
-      prisma.vibeIdentitySession.create({
+        data: { identityId: identity.id },
+      });
+      await tx.vibeIdentitySession.create({
         data: {
           identityId: identity.id,
           tokenHash: hashValue(sessionToken),
           expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         },
-      }),
-    ]);
+      });
+      return identity;
+    });
     setSessionCookie(response, sessionToken);
     return {
       authenticated: true,
@@ -188,14 +199,18 @@ export class VibeAuthController {
       ),
     };
   }
-  @Post('eligibility') async eligibility(@Body() dto: EligibilityDto, @Req() request: VibeRequest) {
+  @Post('eligibility')
+  @UseGuards(VibeAuthGuard, VibeCsrfGuard)
+  async eligibility(@Body() dto: EligibilityDto, @Req() request: VibeRequest) {
     const identity = await requireIdentity(request);
     if (!dto.ageConfirmed)
       throw new HttpException('You must confirm you are 18 or older.', HttpStatus.BAD_REQUEST);
     await prisma.vibeIdentity.update({ where: { id: identity.id }, data: { ageConfirmed: true } });
     return { ageConfirmed: true };
   }
-  @Post('logout') @UseGuards(VibeAuthGuard) async logout(
+  @Post('logout')
+  @UseGuards(VibeAuthGuard, VibeCsrfGuard)
+  async logout(
     @Req() request: VibeRequest,
     @Res({ passthrough: true }) response: Response,
   ) {
@@ -215,7 +230,7 @@ export class VibeAuthController {
 }
 
 @Controller('vibematch')
-@UseGuards(VibeAuthGuard)
+@UseGuards(VibeAuthGuard, VibeCsrfGuard)
 export class VibeMatchController {
   private readonly limiter = new SubmissionRateLimiter();
   @Get('colleges') colleges() {
@@ -334,6 +349,17 @@ export class VibeMatchController {
     @Req() request: VibeRequest,
   ) {
     const session = await this.ownedSession(id, request);
+    const existingByKey = await prisma.vibeSessionAnswer.findUnique({
+      where: { sessionId_idempotencyKey: { sessionId: id, idempotencyKey: dto.idempotencyKey } },
+    });
+    if (existingByKey) {
+      if (existingByKey.optionId !== dto.optionId)
+        throw new HttpException(
+          'That idempotency key was already used for a different answer.',
+          HttpStatus.CONFLICT,
+        );
+      return { session: await this.sessionPayload(id, session.profileId), duplicate: true };
+    }
     const questionId = (session.questionIds as string[])[session.currentRound];
     const question = findQuestion(questionId);
     const option = question && findOption(question, dto.optionId);
@@ -342,31 +368,66 @@ export class VibeMatchController {
         'That answer is not available for this round.',
         HttpStatus.BAD_REQUEST,
       );
-    const previous = await prisma.vibeSessionAnswer.findUnique({
-      where: { sessionId_questionId: { sessionId: id, questionId } },
-    });
-    if (previous) return { session: publicSession(session, session.answers), duplicate: true };
-    const answers = await prisma.vibeSessionAnswer.create({
-      data: {
-        sessionId: id,
-        round: session.currentRound,
-        questionId,
-        optionId: option.id,
-        contribution: option.dnaContribution,
-        idempotencyKey: dto.idempotencyKey,
-      },
-    });
-    const count = await prisma.vibeSessionAnswer.count({ where: { sessionId: id } });
-    const updated = await prisma.vibeSession.update({
-      where: { id },
-      data: {
-        currentRound: count >= session.totalRounds ? session.totalRounds : count,
-        status: count >= session.totalRounds ? 'COMPLETED' : 'PLAYING',
-        completedAt: count >= session.totalRounds ? new Date() : null,
-      },
-    });
-    if (count >= session.totalRounds) await this.completeDna(id, session.scoringVersion);
-    return { session: publicSession(updated, [...session.answers, answers]), duplicate: false };
+    try {
+      const outcome = await prisma.$transaction(async (tx) => {
+        const previous = await tx.vibeSessionAnswer.findUnique({
+          where: { sessionId_questionId: { sessionId: id, questionId } },
+        });
+        if (previous) {
+          if (previous.optionId !== option.id)
+            throw new HttpException('This round has already been answered.', HttpStatus.CONFLICT);
+          return { duplicate: true, completed: false };
+        }
+        await tx.vibeSessionAnswer.create({
+          data: {
+            sessionId: id,
+            round: session.currentRound,
+            questionId,
+            optionId: option.id,
+            contribution: option.dnaContribution,
+            idempotencyKey: dto.idempotencyKey,
+          },
+        });
+        const count = await tx.vibeSessionAnswer.count({ where: { sessionId: id } });
+        await tx.vibeSession.update({
+          where: { id },
+          data: {
+            currentRound: count >= session.totalRounds ? session.totalRounds : count,
+            status: count >= session.totalRounds ? 'COMPLETED' : 'PLAYING',
+            completedAt: count >= session.totalRounds ? new Date() : null,
+          },
+        });
+        return { duplicate: false, completed: count >= session.totalRounds };
+      });
+      if (outcome.completed) await this.completeDna(id, session.scoringVersion);
+      return {
+        session: await this.sessionPayload(id, session.profileId),
+        duplicate: outcome.duplicate,
+      };
+    } catch (error) {
+      if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002')
+        throw error;
+      const racedByKey = await prisma.vibeSessionAnswer.findUnique({
+        where: { sessionId_idempotencyKey: { sessionId: id, idempotencyKey: dto.idempotencyKey } },
+      });
+      if (racedByKey) {
+        if (racedByKey.optionId !== option.id)
+          throw new HttpException(
+            'That idempotency key was already used for a different answer.',
+            HttpStatus.CONFLICT,
+          );
+        return { session: await this.sessionPayload(id, session.profileId), duplicate: true };
+      }
+      const racedByQuestion = await prisma.vibeSessionAnswer.findUnique({
+        where: { sessionId_questionId: { sessionId: id, questionId } },
+      });
+      if (racedByQuestion) {
+        if (racedByQuestion.optionId !== option.id)
+          throw new HttpException('This round has already been answered.', HttpStatus.CONFLICT);
+        return { session: await this.sessionPayload(id, session.profileId), duplicate: true };
+      }
+      throw error;
+    }
   }
   @Post('sessions/:id/complete') async complete(
     @Param('id') id: string,
@@ -463,6 +524,10 @@ export class VibeMatchController {
 
 @Module({
   controllers: [VibeAuthController, VibeMatchController],
-  providers: [VibeAuthGuard, { provide: 'VIBE_EMAIL_PROVIDER', useFactory: createEmailProvider }],
+  providers: [
+    VibeAuthGuard,
+    VibeCsrfGuard,
+    { provide: 'VIBE_EMAIL_PROVIDER', useFactory: createEmailProvider },
+  ],
 })
 export class VibeMatchModule {}

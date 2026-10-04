@@ -4,21 +4,28 @@ export interface EmailProvider {
   sendMagicLink(message: MagicLinkMessage): Promise<void>;
 }
 
-/** Development/test adapter. It never sends external mail and is not selected in production. */
+/** Development/test adapter. It never sends external mail. */
 export class DevelopmentEmailProvider implements EmailProvider {
   public readonly delivered: MagicLinkMessage[] = [];
+
   async sendMagicLink(message: MagicLinkMessage) {
     this.delivered.push(message);
   }
 }
 
+/** Explicit production placeholder; a real provider must be injected before production starts. */
 export class UnconfiguredEmailProvider implements EmailProvider {
   async sendMagicLink() {
-    throw new Error('VIBEMATCH_EMAIL_PROVIDER is not configured.');
+    throw new Error('VibeMatch production EmailProvider is not configured.');
   }
 }
 
-export function createEmailProvider(): EmailProvider {
-  if (process.env.NODE_ENV === 'production') return new UnconfiguredEmailProvider();
-  return new DevelopmentEmailProvider();
+export function createEmailProvider(
+  env: NodeJS.ProcessEnv = process.env,
+  configuredProvider?: EmailProvider,
+): EmailProvider {
+  if (env.NODE_ENV !== 'production') return new DevelopmentEmailProvider();
+  if (!configuredProvider)
+    throw new Error('VibeMatch production EmailProvider must be explicitly configured.');
+  return configuredProvider;
 }
