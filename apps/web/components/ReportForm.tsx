@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { reportConfession } from '../lib/api';
 import { parsePublicConfessionId } from '../lib/report-link';
 
@@ -16,18 +16,19 @@ const reasons = [
 const maxDetailsLength = 1000;
 
 export function ReportForm() {
-  const [publicId, setPublicId] = useState(() => {
-    if (typeof window === 'undefined') return '';
-    return (
-      parsePublicConfessionId(
-        new URLSearchParams(window.location.search).get('confession') ?? '',
-      ) ?? ''
-    );
-  });
+  const [publicId, setPublicId] = useState('');
+  const publicIdEdited = useRef(false);
   const [reason, setReason] = useState('HARASSMENT');
   const [details, setDetails] = useState('');
   const [state, setState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
+  useEffect(() => {
+    if (publicIdEdited.current) return;
+    const queryValue = new URLSearchParams(window.location.search).get('confession') ?? '';
+    const parsedPublicId = parsePublicConfessionId(queryValue);
+    if (parsedPublicId) setPublicId(parsedPublicId);
+  }, []);
+
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setState('loading');
@@ -57,7 +58,10 @@ export function ReportForm() {
       <input
         id="report-link"
         value={publicId}
-        onChange={(event) => setPublicId(event.target.value)}
+        onChange={(event) => {
+          publicIdEdited.current = true;
+          setPublicId(event.target.value);
+        }}
         placeholder="https://www.confessions.live/confessions/..."
         required
       />

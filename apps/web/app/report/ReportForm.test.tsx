@@ -12,22 +12,50 @@ describe('ReportForm', () => {
     window.history.replaceState({}, '', '/report');
   });
 
-  it('prefills a valid public confession ID and ignores an untrusted query parameter', () => {
+  it('prefills a valid public confession ID after hydration', async () => {
     window.history.replaceState(
       {},
       '',
       '/report?confession=https%3A%2F%2Fwww.confessions.live%2Fconfessions%2Fpub-123',
     );
-    const { unmount } = render(<ReportForm />);
-    expect(screen.getByLabelText('Public confession link or ID')).toHaveValue('pub-123');
-    unmount();
+    render(<ReportForm />);
+    expect(await screen.findByLabelText('Public confession link or ID')).toHaveValue('pub-123');
+  });
+
+  it('leaves the target empty without a query parameter', () => {
+    render(<ReportForm />);
+    expect(screen.getByLabelText('Public confession link or ID')).toHaveValue('');
+  });
+
+  it('lets the user edit a prefilled target and safely ignores an untrusted query parameter', () => {
+    window.history.replaceState(
+      {},
+      '',
+      '/report?confession=https%3A%2F%2Fwww.confessions.live%2Fconfessions%2Fpub-123',
+    );
+    render(<ReportForm />);
+    const link = screen.getByLabelText('Public confession link or ID');
+    fireEvent.change(link, { target: { value: 'manual-target' } });
+    expect(link).toHaveValue('manual-target');
+
+    window.history.replaceState(
+      {},
+      '',
+      '/report?confession=https%3A%2F%2Fevil.example%2Fconfessions%2Fsecret',
+    );
+    expect(link).toHaveValue('manual-target');
+  });
+
+  it('leaves the target empty for an invalid query parameter', async () => {
     window.history.replaceState(
       {},
       '',
       '/report?confession=https%3A%2F%2Fevil.example%2Fconfessions%2Fsecret',
     );
     render(<ReportForm />);
-    expect(screen.getByLabelText('Public confession link or ID')).toHaveValue('');
+    await waitFor(() =>
+      expect(screen.getByLabelText('Public confession link or ID')).toHaveValue(''),
+    );
   });
 
   it('requires and trims details for Other while leaving existing reasons unchanged', async () => {
