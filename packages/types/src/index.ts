@@ -45,3 +45,73 @@ export type PublicConfessionPage = {
 };
 export type SubmissionResult = { publicId: string; status: 'PENDING'; message: string };
 export * from './read-live-button';
+
+export const vibeMatchRoundTypes = [
+  'QUICK_PICK',
+  'SCENARIO',
+  'WOULD_YOU_RATHER',
+  'THIS_OR_THAT',
+] as const;
+export type VibeMatchRoundType = (typeof vibeMatchRoundTypes)[number];
+
+export const vibeMatchCategories = [
+  'PERSONALITY',
+  'SOCIAL',
+  'ADVENTURE',
+  'HUMOR',
+  'COMMUNICATION',
+  'LIFESTYLE',
+] as const;
+export type VibeMatchCategory = (typeof vibeMatchCategories)[number];
+
+export const vibeDimensions = [
+  'socialEnergy',
+  'adventure',
+  'spontaneity',
+  'humor',
+  'communication',
+  'intent',
+] as const;
+export type VibeDimension = (typeof vibeDimensions)[number];
+export type VibeDna = Record<VibeDimension, number>;
+export type VibeDnaMapping = Partial<Record<VibeDimension, number>>;
+export type VibeAnswerOption = {
+  id: string;
+  label: string;
+  dnaContribution: VibeDnaMapping;
+};
+export type VibeQuestion = {
+  id: string;
+  prompt: string;
+  category: VibeMatchCategory;
+  roundType: VibeMatchRoundType;
+  answerOptions: VibeAnswerOption[];
+  active: boolean;
+  season: string;
+  difficulty: 1 | 2 | 3;
+  weight: number;
+  dnaMappings: VibeDnaMapping;
+  metadata?: Record<string, string>;
+};
+export type VibeProfile = {
+  id: string;
+  name: string;
+  instagramUsername?: string;
+  college: string;
+  primaryIntent: string;
+  secondaryIntent?: string;
+  ageConfirmed: boolean;
+};
+export type VibeSessionStatus = 'READY' | 'PLAYING' | 'COMPLETED';
+export type VibeSession = {
+  id: string;
+  profileId: string;
+  currentRound: number;
+  totalRounds: number;
+  selectedQuestionIds: string[];
+  answeredQuestionIds: string[];
+  answers: Record<string, string>;
+  dna: VibeDna;
+  status: VibeSessionStatus;
+  seed: number;
+};

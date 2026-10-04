@@ -1,0 +1,213 @@
+import type { VibeQuestion } from '@ggv/types';
+
+export const mockQuestions: VibeQuestion[] = [
+  {
+    id: 'q-campus-event',
+    prompt: 'You spot a campus event with no one you know. Your move?',
+    category: 'ADVENTURE',
+    roundType: 'SCENARIO',
+    active: true,
+    season: 'FOUNDATION',
+    difficulty: 1,
+    weight: 5,
+    dnaMappings: { adventure: 1 },
+    answerOptions: [
+      {
+        id: 'q-campus-event-a',
+        label: 'Walk in. Future me can explain.',
+        dnaContribution: { adventure: 2, spontaneity: 2, socialEnergy: 1 },
+      },
+      {
+        id: 'q-campus-event-b',
+        label: 'Scout the room first.',
+        dnaContribution: { adventure: 1, communication: 1 },
+      },
+      {
+        id: 'q-campus-event-c',
+        label: 'Save it for a better-timed plan.',
+        dnaContribution: { spontaneity: -1, socialEnergy: -1 },
+      },
+    ],
+  },
+  {
+    id: 'q-group-chat',
+    prompt: 'The group chat is suddenly making plans for tonight.',
+    category: 'SOCIAL',
+    roundType: 'QUICK_PICK',
+    active: true,
+    season: 'FOUNDATION',
+    difficulty: 1,
+    weight: 4,
+    dnaMappings: { socialEnergy: 1 },
+    answerOptions: [
+      {
+        id: 'q-group-chat-a',
+        label: 'I am already outside.',
+        dnaContribution: { socialEnergy: 2, spontaneity: 1 },
+      },
+      {
+        id: 'q-group-chat-b',
+        label: 'Give me ten minutes to decide.',
+        dnaContribution: { communication: 1, spontaneity: 0 },
+      },
+      {
+        id: 'q-group-chat-c',
+        label: 'I support the plan spiritually.',
+        dnaContribution: { humor: 1, socialEnergy: -1 },
+      },
+    ],
+  },
+  {
+    id: 'q-weekend',
+    prompt: 'Your ideal free Saturday is…',
+    category: 'LIFESTYLE',
+    roundType: 'THIS_OR_THAT',
+    active: true,
+    season: 'FOUNDATION',
+    difficulty: 1,
+    weight: 3,
+    dnaMappings: { spontaneity: 1 },
+    answerOptions: [
+      {
+        id: 'q-weekend-a',
+        label: 'A loose plan and somewhere new.',
+        dnaContribution: { adventure: 1, spontaneity: 2 },
+      },
+      {
+        id: 'q-weekend-b',
+        label: 'The comfort zone, but elite.',
+        dnaContribution: { socialEnergy: -1, spontaneity: -1 },
+      },
+    ],
+  },
+  {
+    id: 'q-bad-joke',
+    prompt: 'Someone tells a truly terrible joke. You…',
+    category: 'HUMOR',
+    roundType: 'WOULD_YOU_RATHER',
+    active: true,
+    season: 'FOUNDATION',
+    difficulty: 1,
+    weight: 4,
+    dnaMappings: { humor: 1 },
+    answerOptions: [
+      {
+        id: 'q-bad-joke-a',
+        label: 'Commit to the bit.',
+        dnaContribution: { humor: 2, communication: 1 },
+      },
+      {
+        id: 'q-bad-joke-b',
+        label: 'Offer a pity laugh with range.',
+        dnaContribution: { humor: 1, communication: 1 },
+      },
+      {
+        id: 'q-bad-joke-c',
+        label: 'Silence is also feedback.',
+        dnaContribution: { humor: -1, communication: -1 },
+      },
+    ],
+  },
+  {
+    id: 'q-late-reply',
+    prompt: 'A friend replies “my bad, just saw this” six hours later.',
+    category: 'COMMUNICATION',
+    roundType: 'SCENARIO',
+    active: true,
+    season: 'FOUNDATION',
+    difficulty: 2,
+    weight: 4,
+    dnaMappings: { communication: 1 },
+    answerOptions: [
+      {
+        id: 'q-late-reply-a',
+        label: 'Reply normally. No courtroom needed.',
+        dnaContribution: { communication: 2, socialEnergy: 1 },
+      },
+      {
+        id: 'q-late-reply-b',
+        label: 'Send a lovingly dramatic “wow”.',
+        dnaContribution: { humor: 1, communication: 1 },
+      },
+      {
+        id: 'q-late-reply-c',
+        label: 'Match the delay. The experiment begins.',
+        dnaContribution: { spontaneity: 1, communication: -1, humor: 1 },
+      },
+    ],
+  },
+  {
+    id: 'q-road-trip',
+    prompt: 'Would you rather choose the destination or the playlist?',
+    category: 'ADVENTURE',
+    roundType: 'WOULD_YOU_RATHER',
+    active: true,
+    season: 'FOUNDATION',
+    difficulty: 2,
+    weight: 3,
+    dnaMappings: { adventure: 1, communication: 1 },
+    answerOptions: [
+      {
+        id: 'q-road-trip-a',
+        label: 'Destination. We need a plot.',
+        dnaContribution: { adventure: 2, communication: 1 },
+      },
+      {
+        id: 'q-road-trip-b',
+        label: 'Playlist. Vibes are navigation.',
+        dnaContribution: { humor: 1, spontaneity: 1, socialEnergy: 1 },
+      },
+    ],
+  },
+  {
+    id: 'q-unexpected-free-time',
+    prompt: 'You get one unexpected free hour between classes.',
+    category: 'PERSONALITY',
+    roundType: 'QUICK_PICK',
+    active: true,
+    season: 'FOUNDATION',
+    difficulty: 1,
+    weight: 3,
+    dnaMappings: { spontaneity: 1 },
+    answerOptions: [
+      {
+        id: 'q-unexpected-free-time-a',
+        label: 'Text someone and make it a side quest.',
+        dnaContribution: { spontaneity: 2, socialEnergy: 1 },
+      },
+      {
+        id: 'q-unexpected-free-time-b',
+        label: 'Find a good corner and reset.',
+        dnaContribution: { socialEnergy: -1, communication: 1 },
+      },
+      {
+        id: 'q-unexpected-free-time-c',
+        label: 'Finally do the thing I postponed.',
+        dnaContribution: { communication: 1, spontaneity: -1 },
+      },
+    ],
+  },
+  {
+    id: 'q-first-message',
+    prompt: 'Your first message to a new person should be…',
+    category: 'COMMUNICATION',
+    roundType: 'THIS_OR_THAT',
+    active: true,
+    season: 'FOUNDATION',
+    difficulty: 2,
+    weight: 2,
+    dnaMappings: { communication: 1 },
+    answerOptions: [
+      {
+        id: 'q-first-message-a',
+        label: 'A specific question with actual personality.',
+        dnaContribution: { communication: 2, socialEnergy: 1 },
+      },
+      {
+        id: 'q-first-message-b',
+        label: 'A meme. Let the algorithm translate.',
+        dnaContribution: { humor: 2, spontaneity: 1 },
+      },
+    ],
+  },
+];

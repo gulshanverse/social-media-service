@@ -1,0 +1,9 @@
+{
+  "routes": [
+    { "path": "/", "title": "College Confession" },
+    { "path": "/vibematch", "title": "VibeMatch" },
+    { "path": "/vibematch/create", "title": "Create your Vibe" },
+    { "path": "/vibematch/play", "title": "Play VibeMatch" },
+    { "path": "/vibematch/results", "title": "VibeMatch results" }
+  ]
+}
