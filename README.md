@@ -722,7 +722,7 @@ Application code, database migrations, and deployment changes should remain cons
 | CI                       | GitHub Actions quality workflow configured                              |
 | Local infrastructure     | Docker Compose PostgreSQL helper and production-oriented API Dockerfile |
 
-## License: 
+## License:
 
 License information is not currently specified in this repository.
 
