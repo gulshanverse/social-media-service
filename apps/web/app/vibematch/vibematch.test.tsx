@@ -19,17 +19,33 @@ vi.mock('next/navigation', () => ({
 }));
 vi.mock('../../lib/vibematch/storage', () => ({
   vibeStorage: {
-    getProfile: () => ({
-      id: 'profile-1',
-      name: 'Test',
-      college: 'Campus',
-      primaryIntent: 'New friends',
-      ageConfirmed: true,
-    }),
-    getSession: () => null,
-    setSession: vi.fn(),
+    getServerSessionId: () => null,
+    setServerSessionId: vi.fn(),
     clearSession: vi.fn(),
   },
+}));
+let serverRound = 0;
+vi.mock('../../lib/vibematch/api', () => ({
+  createServerSession: vi.fn(async () => ({
+    session: { id: 'server-session-1', status: 'PLAYING', totalRounds: 7, currentRound: 0 },
+    question: mockQuestions[0],
+  })),
+  getCurrentRound: vi.fn(async () => ({
+    session: {
+      id: 'server-session-1',
+      status: 'PLAYING',
+      totalRounds: 7,
+      currentRound: serverRound,
+    },
+    question: mockQuestions[serverRound],
+  })),
+  answerServerSession: vi.fn(async () => {
+    serverRound = 1;
+    return {
+      session: { id: 'server-session-1', status: 'PLAYING', totalRounds: 7, currentRound: 1 },
+      duplicate: false,
+    };
+  }),
 }));
 
 describe('VibeMatch question engine', () => {

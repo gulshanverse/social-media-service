@@ -1,11 +1,15 @@
 'use client';
-
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { VibeProfile } from '@ggv/types';
-import { vibeStorage } from '../../lib/vibematch/storage';
+import { ApiRequestError } from '../../lib/api';
+import {
+  getProfile,
+  requestMagicLink,
+  saveProfile,
+  verifyMagicLink,
+  type ServerProfile,
+} from '../../lib/vibematch/api';
 import { PrivacyNote, VibeMatchShell } from './VibeMatchShell';
-
 const intents = [
   'Someone special',
   'New friends',
@@ -14,40 +18,83 @@ const intents = [
   'Gaming buddy',
   'Just meeting people',
 ];
-
 export function CreateVibeForm() {
   const router = useRouter();
+  const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [instagramUsername, setInstagramUsername] = useState('');
-  const [college, setCollege] = useState('');
+  const [college, setCollege] = useState('vibe-college-generic');
   const [primaryIntent, setPrimaryIntent] = useState('');
   const [secondaryIntent, setSecondaryIntent] = useState('');
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
+  const [profile, setProfile] = useState<ServerProfile | null>(null);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-
-  function submit(event: React.FormEvent<HTMLFormElement>) {
+  const [notice, setNotice] = useState('');
+  useEffect(() => {
+    getProfile()
+      .then((value) => {
+        if (value) {
+          setProfile(value);
+          setName(value.displayName);
+          setInstagramUsername(value.instagramUsername ?? '');
+          setCollege(value.college.id);
+          setPrimaryIntent(value.primaryIntent);
+          setSecondaryIntent(value.secondaryIntent ?? '');
+          setAgeConfirmed(true);
+        }
+      })
+      .catch(() => undefined);
+  }, []);
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!name.trim() || !college.trim() || !primaryIntent) {
-      setError('Add your name, college, and a primary intent to continue.');
+    setError('');
+    setNotice('');
+    if (!email.trim() && !profile) {
+      setError('Enter your email to receive a private sign-in link.');
       return;
     }
-    if (secondaryIntent && secondaryIntent === primaryIntent) {
+    if (!name.trim() || !college || !primaryIntent || !ageConfirmed) {
+      setError('Add your name, college, primary intent, and confirm you are 18 or older.');
+      return;
+    }
+    if (secondaryIntent === primaryIntent) {
       setError('Choose a different secondary intent, or leave it blank.');
       return;
     }
-    const profile: VibeProfile = {
-      id: `profile-${Date.now()}`,
-      name: name.trim(),
-      instagramUsername: instagramUsername.trim().replace(/^@/, '') || undefined,
-      college: college.trim(),
-      primaryIntent,
-      secondaryIntent: secondaryIntent || undefined,
-      ageConfirmed: true,
-    };
-    vibeStorage.setProfile(profile);
-    vibeStorage.clearSession();
-    router.push('/vibematch/play');
+    setBusy(true);
+    try {
+      if (!profile) {
+        const link = await requestMagicLink(email);
+        if (link.developmentToken) await verifyMagicLink(link.developmentToken);
+        else {
+          setNotice(link.message);
+          return;
+        }
+      }
+      await saveProfile(
+        {
+          displayName: name.trim(),
+          instagramUsername: instagramUsername.trim().replace(/^@/, '') || undefined,
+          collegeId: college,
+          primaryIntent,
+          secondaryIntent: secondaryIntent || undefined,
+          ageConfirmed,
+          interests: [],
+        },
+        Boolean(profile),
+      );
+      router.push('/vibematch/play');
+    } catch (cause) {
+      setError(
+        cause instanceof ApiRequestError
+          ? cause.message
+          : 'Unable to save your VibeMatch profile. Please retry.',
+      );
+    } finally {
+      setBusy(false);
+    }
   }
-
   return (
     <VibeMatchShell compact>
       <section className="vibe-form-page" aria-labelledby="create-vibe-title">
@@ -65,13 +112,27 @@ export function CreateVibeForm() {
           </p>
         </div>
         <form className="vibe-form" onSubmit={submit} noValidate>
+          {!profile && (
+            <label>
+              <span>
+                Private email <i>required for sign-in</i>
+              </span>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                autoComplete="email"
+              />
+            </label>
+          )}
           <label>
             <span>
               Name or nickname <i>required</i>
             </span>
             <input
               value={name}
-              onChange={(event) => setName(event.target.value)}
+              onChange={(e) => setName(e.target.value)}
               placeholder="What should we call you?"
               autoComplete="nickname"
             />
@@ -84,7 +145,7 @@ export function CreateVibeForm() {
               <b>@</b>
               <input
                 value={instagramUsername}
-                onChange={(event) => setInstagramUsername(event.target.value)}
+                onChange={(e) => setInstagramUsername(e.target.value)}
                 placeholder="yourhandle"
                 autoComplete="off"
               />
@@ -94,12 +155,7 @@ export function CreateVibeForm() {
             <span>
               College <i>required</i>
             </span>
-            <input
-              value={college}
-              onChange={(event) => setCollege(event.target.value)}
-              placeholder="Where is your campus energy?"
-              autoComplete="organization"
-            />
+            <input value="Campus community" readOnly aria-label="College" />
           </label>
           <fieldset>
             <legend>
@@ -123,31 +179,42 @@ export function CreateVibeForm() {
             <span>
               One more thing <i>optional secondary</i>
             </span>
-            <select
-              value={secondaryIntent}
-              onChange={(event) => setSecondaryIntent(event.target.value)}
-            >
+            <select value={secondaryIntent} onChange={(e) => setSecondaryIntent(e.target.value)}>
               <option value="">Keep it open</option>
               {intents
-                .filter((intent) => intent !== primaryIntent)
+                .filter((i) => i !== primaryIntent)
                 .map((intent) => (
                   <option key={intent}>{intent}</option>
                 ))}
             </select>
           </label>
           <label className="vibe-age-check">
-            <input type="checkbox" checked readOnly />{' '}
+            <input
+              type="checkbox"
+              checked={ageConfirmed}
+              onChange={(e) => setAgeConfirmed(e.target.checked)}
+            />{' '}
             <span>
               I confirm I’m 18 or older and understand this is a social matching experience.
             </span>
           </label>
+          {notice && (
+            <p className="vibe-form-notice" role="status">
+              {notice}
+            </p>
+          )}
           {error && (
             <p className="vibe-form-error" role="alert">
               {error}
             </p>
           )}
-          <button className="vibe-primary-button vibe-primary-button--full" type="submit">
-            Start My Vibe <span aria-hidden="true">→</span>
+          <button
+            className="vibe-primary-button vibe-primary-button--full"
+            type="submit"
+            disabled={busy}
+          >
+            {busy ? 'Saving…' : profile ? 'Save My Vibe' : 'Start My Vibe'}{' '}
+            <span aria-hidden="true">→</span>
           </button>
           <PrivacyNote />
         </form>

@@ -303,3 +303,150 @@ model GarbaReport {
   @@index([status, createdAt])
   @@index([postId])
 }
+enum VibeIdentityStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum VibeProfileStatus {
+  ACTIVE
+  PAUSED
+  HIDDEN
+  DELETED
+}
+
+enum VibeSessionStatus {
+  PLAYING
+  COMPLETED
+  ABANDONED
+}
+
+model VibeIdentity {
+  id              String                @id @default(cuid())
+  emailHash       String                @unique
+  emailCiphertext String
+  ageConfirmed    Boolean               @default(false)
+  status          VibeIdentityStatus    @default(ACTIVE)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  sessions        VibeIdentitySession[]
+  profile         VibeProfile?
+  magicLinks      VibeMagicLink[]
+
+  @@index([status, createdAt])
+}
+
+model VibeIdentitySession {
+  id         String       @id @default(cuid())
+  identityId String
+  identity   VibeIdentity @relation(fields: [identityId], references: [id], onDelete: Cascade)
+  tokenHash  String       @unique
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime     @default(now())
+  lastUsedAt DateTime?
+
+  @@index([identityId, expiresAt])
+  @@index([expiresAt])
+  @@index([revokedAt])
+}
+
+model VibeMagicLink {
+  id         String        @id @default(cuid())
+  identityId String?
+  identity   VibeIdentity? @relation(fields: [identityId], references: [id], onDelete: Cascade)
+  emailHash  String
+  tokenHash  String        @unique
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime      @default(now())
+
+  @@index([emailHash, createdAt])
+  @@index([expiresAt])
+}
+
+model VibeCollege {
+  id        String        @id @default(cuid())
+  slug      String        @unique
+  name      String
+  active    Boolean       @default(true)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  profiles  VibeProfile[]
+
+  @@index([active, name])
+}
+
+model VibeProfile {
+  id                String            @id @default(cuid())
+  identityId        String            @unique
+  identity          VibeIdentity      @relation(fields: [identityId], references: [id], onDelete: Cascade)
+  displayName       String
+  instagramUsername String?
+  collegeId         String
+  college           VibeCollege       @relation(fields: [collegeId], references: [id])
+  primaryIntent     String
+  secondaryIntent   String?
+  interests         Json?
+  status            VibeProfileStatus @default(ACTIVE)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  sessions          VibeSession[]
+
+  @@index([collegeId, status])
+  @@index([status, updatedAt])
+}
+
+model VibeSession {
+  id             String              @id @default(cuid())
+  profileId      String
+  profile        VibeProfile         @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  seed           Int
+  totalRounds    Int
+  currentRound   Int                 @default(0)
+  questionIds    Json
+  status         VibeSessionStatus   @default(PLAYING)
+  scoringVersion String
+  startedAt      DateTime            @default(now())
+  completedAt    DateTime?
+  updatedAt      DateTime            @updatedAt
+  answers        VibeSessionAnswer[]
+  dnaSnapshots   VibeDnaSnapshot[]
+
+  @@index([profileId, status, updatedAt])
+}
+
+model VibeSessionAnswer {
+  id             String      @id @default(cuid())
+  sessionId      String
+  session        VibeSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  round          Int
+  questionId     String
+  optionId       String
+  contribution   Json
+  idempotencyKey String
+  answeredAt     DateTime    @default(now())
+
+  @@unique([sessionId, questionId])
+  @@unique([sessionId, idempotencyKey])
+  @@index([sessionId, round])
+}
+
+model VibeDnaSnapshot {
+  id             String      @id @default(cuid())
+  sessionId      String
+  session        VibeSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  scoringVersion String
+  socialEnergy   Int
+  adventure      Int
+  spontaneity    Int
+  humor          Int
+  communication  Int
+  intent         Int
+  coverage       Int
+  answerCount    Int
+  calculatedAt   DateTime    @default(now())
+
+  @@index([sessionId, calculatedAt])
+}

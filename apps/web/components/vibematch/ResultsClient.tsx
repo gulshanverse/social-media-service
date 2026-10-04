@@ -1,12 +1,11 @@
 'use client';
-
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { vibeDimensions, type VibeDna, type VibeProfile, type VibeSession } from '@ggv/types';
-import { normalizeDna } from '../../lib/vibematch/engine';
+import { useSearchParams } from 'next/navigation';
+import { vibeDimensions } from '@ggv/types';
+import { getServerResult } from '../../lib/vibematch/api';
 import { vibeStorage } from '../../lib/vibematch/storage';
 import { LoadingPanel, VibeMatchShell } from './VibeMatchShell';
-
 const labels: Record<(typeof vibeDimensions)[number], string> = {
   socialEnergy: 'Social energy',
   adventure: 'Adventure',
@@ -15,50 +14,47 @@ const labels: Record<(typeof vibeDimensions)[number], string> = {
   communication: 'Communication',
   intent: 'Intent',
 };
-
-function getTitle(dna: VibeDna) {
-  const scores = normalizeDna(dna);
-  const social = scores.socialEnergy >= 60;
-  const adventure = scores.adventure >= 60;
-  const humor = scores.humor >= 60;
-  if (social && adventure) return 'SOCIAL EXPLORER';
-  if (humor && adventure) return 'CHAOS CURATOR';
-  if (social) return 'CAMPUS CONNECTOR';
-  if (adventure) return 'WILD CARD ENERGY';
-  if (humor) return 'LOW-KEY LEGEND';
-  return 'QUIETLY ICONIC';
-}
-
-function getSummary(dna: VibeDna) {
-  const scores = normalizeDna(dna);
-  const strongest = [...vibeDimensions].sort((a, b) => scores[b] - scores[a])[0];
-  const copy: Record<(typeof vibeDimensions)[number], string> = {
-    socialEnergy: 'You bring a room to life, even when you pretend you did not plan to.',
-    adventure: 'You are curious enough to turn ordinary campus hours into a side quest.',
-    spontaneity: 'Your best plans probably started five minutes before they happened.',
-    humor: 'You notice the bit, commit to the bit, and occasionally become the bit.',
-    communication: 'You bring enough directness to keep the group chat moving.',
-    intent: 'You know what kind of energy you are open to finding next.',
-  };
-  return copy[strongest];
-}
-
 export function ResultsClient() {
-  const [profile, setProfile] = useState<VibeProfile | null>(null);
-  const [session, setSession] = useState<VibeSession | null>(null);
+  const params = useSearchParams();
+  const [result, setResult] = useState<any>(null);
+  const [error, setError] = useState('');
   useEffect(() => {
-    setProfile(vibeStorage.getProfile());
-    setSession(vibeStorage.getSession());
-  }, []);
-
-  const normalized = useMemo(() => (session ? normalizeDna(session.dna) : null), [session]);
-  if (!profile || !session || session.status !== 'COMPLETED' || !normalized)
+    const id = params.get('session') || vibeStorage.getServerSessionId();
+    if (!id) {
+      setError('No completed VibeMatch session was found.');
+      return;
+    }
+    getServerResult(id)
+      .then(setResult)
+      .catch((c) => setError(c instanceof Error ? c.message : 'Unable to load your result.'));
+  }, [params]);
+  const normalized = useMemo(() => result?.result ?? null, [result]);
+  if (error)
+    return (
+      <VibeMatchShell compact>
+        <div className="vibe-loading" role="alert">
+          {error}
+          <Link className="vibe-primary-button" href="/vibematch/create">
+            Return to profile
+          </Link>
+        </div>
+      </VibeMatchShell>
+    );
+  if (!normalized)
     return (
       <VibeMatchShell compact>
         <LoadingPanel label="Pulling together your vibe…" />
       </VibeMatchShell>
     );
-
+  const strongest = [...vibeDimensions].sort((a, b) => normalized[b] - normalized[a])[0];
+  const title =
+    strongest === 'socialEnergy'
+      ? 'CAMPUS CONNECTOR'
+      : strongest === 'adventure'
+        ? 'WILD CARD ENERGY'
+        : strongest === 'humor'
+          ? 'LOW-KEY LEGEND'
+          : 'QUIETLY ICONIC';
   return (
     <VibeMatchShell compact>
       <section className="vibe-results" aria-labelledby="results-title">
@@ -71,12 +67,12 @@ export function ResultsClient() {
             <br />
             <em>taking shape.</em>
           </h1>
-          <p>{getSummary(session.dna)}</p>
+          <p>Your result is saved to your private VibeMatch identity.</p>
         </div>
         <div className="vibe-results__score-card">
           <div className="vibe-results__score-meta">
-            <span>VIBE DNA / {profile.name}</span>
-            <span>VERSION 1.0</span>
+            <span>VIBE DNA / PRIVATE</span>
+            <span>VERSION {normalized.scoringVersion}</span>
           </div>
           <div className="vibe-orbit" aria-hidden="true">
             <div className="vibe-orbit__ring vibe-orbit__ring--outer" />
@@ -89,24 +85,24 @@ export function ResultsClient() {
                 BUILT
               </span>
             </div>
-            {vibeDimensions.map((dimension, index) => (
-              <i key={dimension} className={`vibe-orbit__node vibe-orbit__node--${index}`} />
+            {vibeDimensions.map((d, i) => (
+              <i key={d} className={`vibe-orbit__node vibe-orbit__node--${i}`} />
             ))}
           </div>
           <div className="vibe-results__title">
             <span>YOUR VIBE TITLE</span>
-            <strong>{getTitle(session.dna)}</strong>
+            <strong>{title}</strong>
           </div>
         </div>
         <div className="vibe-dimension-list" aria-label="Vibe DNA dimensions">
-          {vibeDimensions.map((dimension) => (
-            <div className="vibe-dimension" key={dimension}>
+          {vibeDimensions.map((d) => (
+            <div className="vibe-dimension" key={d}>
               <div>
-                <span>{labels[dimension]}</span>
-                <b>{normalized[dimension]}%</b>
+                <span>{labels[d]}</span>
+                <b>{normalized[d]}%</b>
               </div>
               <div className="vibe-dimension__track">
-                <span style={{ width: `${normalized[dimension]}%` }} />
+                <span style={{ width: `${normalized[d]}%` }} />
               </div>
             </div>
           ))}
