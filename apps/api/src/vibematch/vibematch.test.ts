@@ -94,10 +94,10 @@ import {
   );
   assert.throws(
     () =>
-      assertVibeStateChangingOrigin(
-        { method: 'POST', headers: {} } as never,
-        { NODE_ENV: 'production', WEB_ORIGIN: 'https://vibe.example.com' },
-      ),
+      assertVibeStateChangingOrigin({ method: 'POST', headers: {} } as never, {
+        NODE_ENV: 'production',
+        WEB_ORIGIN: 'https://vibe.example.com',
+      }),
     /valid VibeMatch request origin/,
   );
   console.log(
