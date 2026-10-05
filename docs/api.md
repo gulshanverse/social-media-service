@@ -51,3 +51,11 @@ The API exposes `GET /health` and `GET /health/live` for liveness, `GET /health/
 Errors are normalized to `{ statusCode, message, code, requestId }` where a request ID is available. Production responses do not expose stack traces, Prisma errors, SQL, paths, secrets, tokens, cookies, or authorization headers. `429` responses include `Retry-After` where applicable.
 
 Authenticated administrators may call `GET /admin/auth/sessions` to see safe metadata for their own active sessions and `POST /admin/auth/logout-all` to revoke all of their sessions. No session token or hash is returned. Moderators and super administrators may call `POST /admin/confessions/bulk` with `{ ids, action }`; the response contains `requested`, `processed`, `skipped`, and per-ID high-level outcomes. Each record is re-evaluated server-side and stale or invalid records are skipped safely.
+
+## VibeMatch Phase 3 discovery
+
+- `GET /vibematch/discovery` requires the existing HttpOnly VibeMatch session. The server derives requester identity from that session, requires an active/eligible profile and completed game, filters to eligible same-campus candidates before scoring, and returns `{ algorithmVersion, campus, matches }` with at most three privacy-safe match presentations. No arbitrary user-directory or profile-lookup route is provided.
+- `POST /vibematch/blocks` requires the same authenticated session and the Phase 2.1 exact-origin CSRF guard. It accepts `{ matchKey }`, an opaque token from a returned match (not a database ID), and creates an idempotent same-campus identity block. The requester identity is never supplied by the client.
+- `DELETE /vibematch/blocks/:matchKey` uses the same authentication and CSRF protections and removes only the caller's same-campus block, allowing an accidental hide to be undone.
+
+Discovery never returns email, Instagram, internal identity/profile/session IDs, authentication data, moderation/security metadata, Confession history, or Garba history. Match scores are server-calculated deterministic integer percentages. See [VibeMatch Phase 3 matching](vibematch-phase3-matching.md) for eligibility, exact weights, compatibility rules, ordering, and privacy decisions.
