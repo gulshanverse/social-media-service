@@ -332,6 +332,8 @@ model VibeIdentity {
   sessions        VibeIdentitySession[]
   profile         VibeProfile?
   magicLinks      VibeMagicLink[]
+  blocksMade      VibeBlock[]           @relation("VibeBlocker")
+  blocksReceived  VibeBlock[]           @relation("VibeBlocked")
 
   @@index([status, createdAt])
 }
@@ -349,6 +351,18 @@ model VibeIdentitySession {
   @@index([identityId, expiresAt])
   @@index([expiresAt])
   @@index([revokedAt])
+}
+
+model VibeBlock {
+  id                String       @id @default(cuid())
+  blockerIdentityId String
+  blocker           VibeIdentity @relation("VibeBlocker", fields: [blockerIdentityId], references: [id], onDelete: Cascade)
+  blockedIdentityId String
+  blocked           VibeIdentity @relation("VibeBlocked", fields: [blockedIdentityId], references: [id], onDelete: Cascade)
+  createdAt         DateTime     @default(now())
+
+  @@unique([blockerIdentityId, blockedIdentityId])
+  @@index([blockedIdentityId, blockerIdentityId])
 }
 
 model VibeMagicLink {
@@ -381,6 +395,7 @@ model VibeProfile {
   id                String            @id @default(cuid())
   identityId        String            @unique
   identity          VibeIdentity      @relation(fields: [identityId], references: [id], onDelete: Cascade)
+  discoveryKey      String            @unique @default(uuid())
   displayName       String
   instagramUsername String?
   collegeId         String

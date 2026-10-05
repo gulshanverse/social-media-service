@@ -39,3 +39,7 @@ export class AnswerDto {
   @IsString() @MinLength(1) @MaxLength(100) optionId!: string;
   @IsString() @MinLength(8) @MaxLength(100) idempotencyKey!: string;
 }
+
+export class BlockMatchDto {
+  @IsString() @MinLength(36) @MaxLength(64) matchKey!: string;
+}

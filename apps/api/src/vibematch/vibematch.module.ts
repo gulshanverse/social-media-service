@@ -38,7 +38,22 @@ import {
   VibeCsrfGuard,
   type VibeRequest,
 } from './auth';
-import { AnswerDto, EligibilityDto, MagicLinkDto, ProfileDto, VIBE_INTENTS } from './dto';
+import {
+  AnswerDto,
+  BlockMatchDto,
+  EligibilityDto,
+  MagicLinkDto,
+  ProfileDto,
+  VIBE_INTENTS,
+} from './dto';
+import {
+  canDiscover,
+  isValidSnapshot,
+  MATCHING_ALGORITHM_VERSION,
+  selectTopMatches,
+  type MatchParticipant,
+  type Snapshot,
+} from './matching';
 import {
   addContribution,
   emptyDna,
@@ -104,6 +119,119 @@ function publicQuestion(question: any) {
     category: question.category,
     roundType: question.roundType,
     answerOptions: question.answerOptions.map((o: any) => ({ id: o.id, label: o.label })),
+  };
+}
+
+const DISCOVERY_CANDIDATE_POOL_LIMIT = 500;
+const matchSnapshotSelect = {
+  socialEnergy: true,
+  adventure: true,
+  spontaneity: true,
+  humor: true,
+  communication: true,
+  intent: true,
+  coverage: true,
+  answerCount: true,
+} as const;
+const matchSessionInclude = {
+  where: {
+    status: 'COMPLETED' as const,
+    completedAt: { not: null },
+    dnaSnapshots: { some: {} },
+  },
+  orderBy: { completedAt: 'desc' as const },
+  take: 10,
+  include: {
+    _count: { select: { answers: true } },
+    dnaSnapshots: {
+      orderBy: { calculatedAt: 'desc' as const },
+      take: 1,
+      select: matchSnapshotSelect,
+    },
+  },
+};
+const matchProfileSelect = {
+  id: true,
+  identityId: true,
+  discoveryKey: true,
+  displayName: true,
+  collegeId: true,
+  primaryIntent: true,
+  secondaryIntent: true,
+  interests: true,
+  status: true,
+  college: { select: { name: true, active: true } },
+  identity: { select: { status: true, ageConfirmed: true } },
+  sessions: matchSessionInclude,
+} as const;
+
+type MatchSnapshotRecord = {
+  socialEnergy: number;
+  adventure: number;
+  spontaneity: number;
+  humor: number;
+  communication: number;
+  intent: number;
+  coverage: number;
+  answerCount: number;
+};
+type MatchProfileRecord = {
+  id: string;
+  identityId: string;
+  discoveryKey: string;
+  displayName: string;
+  collegeId: string;
+  primaryIntent: string;
+  secondaryIntent: string | null;
+  interests: unknown;
+  status: string;
+  college: { name: string; active: boolean };
+  identity: { status: string; ageConfirmed: boolean };
+  sessions: Array<{
+    status: string;
+    completedAt: Date | null;
+    totalRounds: number;
+    _count: { answers: number };
+    dnaSnapshots: MatchSnapshotRecord[];
+  }>;
+};
+
+function matchingParticipant(profile: MatchProfileRecord): MatchParticipant {
+  const selected = profile.sessions.find((session) => {
+    const snapshot = session.dnaSnapshots[0];
+    return Boolean(
+      session.completedAt &&
+      session._count.answers >= session.totalRounds &&
+      snapshot &&
+      snapshot.answerCount >= session.totalRounds &&
+      isValidSnapshot(snapshot as Snapshot),
+    );
+  });
+  const rawSnapshot = selected?.dnaSnapshots[0];
+  const snapshot: Snapshot | null = rawSnapshot ? { ...rawSnapshot } : null;
+  return {
+    identityId: profile.identityId,
+    matchKey: profile.discoveryKey,
+    displayName: profile.displayName,
+    collegeId: profile.collegeId,
+    collegeName: profile.college.name,
+    profileStatus: profile.status,
+    identityStatus: profile.identity.status,
+    ageConfirmed: profile.identity.ageConfirmed,
+    primaryIntent: profile.primaryIntent,
+    secondaryIntent: profile.secondaryIntent,
+    interests: profile.interests,
+    session: selected
+      ? {
+          status: selected.status,
+          completedAt: selected.completedAt,
+          totalRounds: selected.totalRounds,
+          answerCount: selected._count.answers,
+          snapshot,
+        }
+      : null,
+    blockedByRequester: false,
+    requesterBlockedByCandidate: false,
   };
 }
 
@@ -210,10 +338,7 @@ export class VibeAuthController {
   }
   @Post('logout')
   @UseGuards(VibeAuthGuard, VibeCsrfGuard)
-  async logout(
-    @Req() request: VibeRequest,
-    @Res({ passthrough: true }) response: Response,
-  ) {
+  async logout(@Req() request: VibeRequest, @Res({ passthrough: true }) response: Response) {
     const raw = request.headers.cookie
       ?.split(';')
       .map((p) => p.trim())
@@ -233,12 +358,151 @@ export class VibeAuthController {
 @UseGuards(VibeAuthGuard, VibeCsrfGuard)
 export class VibeMatchController {
   private readonly limiter = new SubmissionRateLimiter();
+  private readonly discoveryLimiter = new SubmissionRateLimiter();
+  private readonly blockLimiter = new SubmissionRateLimiter();
   @Get('colleges') colleges() {
     return prisma.vibeCollege.findMany({
       where: { active: true },
       select: { id: true, slug: true, name: true },
       orderBy: { name: 'asc' },
     });
+  }
+  @Get('discovery') async discovery(@Req() request: VibeRequest) {
+    const identity = await requireIdentity(request);
+    if (!this.discoveryLimiter.check(identity.id, 30, 60).allowed)
+      throw new HttpException(
+        'Too many discovery refreshes. Please try again shortly.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    const requesterRecord = await prisma.vibeProfile.findUnique({
+      where: { identityId: identity.id },
+      select: matchProfileSelect,
+    });
+    if (
+      !requesterRecord ||
+      requesterRecord.status !== 'ACTIVE' ||
+      requesterRecord.identity.status !== 'ACTIVE' ||
+      !requesterRecord.identity.ageConfirmed ||
+      !requesterRecord.college.active
+    )
+      throw new HttpException(
+        'An active, eligible VibeMatch profile is required.',
+        HttpStatus.FORBIDDEN,
+      );
+    const requester = matchingParticipant(requesterRecord);
+    if (!canDiscover(requester))
+      throw new HttpException(
+        'Complete your VibeMatch game before discovering matches.',
+        HttpStatus.BAD_REQUEST,
+      );
+
+    const candidates = await prisma.vibeProfile.findMany({
+      where: {
+        id: { not: requesterRecord.id },
+        collegeId: requesterRecord.collegeId,
+        status: 'ACTIVE',
+        college: { is: { active: true } },
+        identity: {
+          is: {
+            status: 'ACTIVE',
+            ageConfirmed: true,
+            blocksReceived: { none: { blockerIdentityId: identity.id } },
+            blocksMade: { none: { blockedIdentityId: identity.id } },
+          },
+        },
+        sessions: { some: matchSessionInclude.where },
+      },
+      select: matchProfileSelect,
+      orderBy: { id: 'asc' },
+      take: DISCOVERY_CANDIDATE_POOL_LIMIT,
+    });
+    return {
+      algorithmVersion: MATCHING_ALGORITHM_VERSION,
+      campus: requesterRecord.college.name,
+      matches: selectTopMatches(
+        requester,
+        candidates.map((candidate) => matchingParticipant(candidate as MatchProfileRecord)),
+      ),
+    };
+  }
+  @Post('blocks') async blockMatch(@Body() dto: BlockMatchDto, @Req() request: VibeRequest) {
+    const identity = await requireIdentity(request);
+    if (!this.blockLimiter.check(identity.id, 40, 60 * 60).allowed)
+      throw new HttpException(
+        'Too many block requests. Please try again later.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    const requester = await prisma.vibeProfile.findUnique({
+      where: { identityId: identity.id },
+      select: { collegeId: true, status: true, college: { select: { active: true } } },
+    });
+    if (
+      !requester ||
+      requester.status !== 'ACTIVE' ||
+      !requester.college.active ||
+      !identity.ageConfirmed
+    )
+      throw new HttpException(
+        'An active, eligible VibeMatch profile is required.',
+        HttpStatus.FORBIDDEN,
+      );
+    const candidate = await prisma.vibeProfile.findUnique({
+      where: { discoveryKey: dto.matchKey },
+      select: {
+        identityId: true,
+        collegeId: true,
+        status: true,
+        identity: { select: { status: true } },
+      },
+    });
+    if (
+      !candidate ||
+      candidate.identityId === identity.id ||
+      candidate.collegeId !== requester.collegeId ||
+      candidate.status === 'DELETED'
+    )
+      throw new HttpException('VibeMatch profile not found.', HttpStatus.NOT_FOUND);
+    await prisma.vibeBlock.upsert({
+      where: {
+        blockerIdentityId_blockedIdentityId: {
+          blockerIdentityId: identity.id,
+          blockedIdentityId: candidate.identityId,
+        },
+      },
+      create: { blockerIdentityId: identity.id, blockedIdentityId: candidate.identityId },
+      update: {},
+    });
+    return { blocked: true };
+  }
+  @Delete('blocks/:matchKey') async unblockMatch(
+    @Param('matchKey') matchKey: string,
+    @Req() request: VibeRequest,
+  ) {
+    const identity = await requireIdentity(request);
+    if (!/^[0-9a-f-]{36}$/i.test(matchKey))
+      throw new HttpException('VibeMatch profile not found.', HttpStatus.NOT_FOUND);
+    const requester = await prisma.vibeProfile.findUnique({
+      where: { identityId: identity.id },
+      select: { collegeId: true, status: true, college: { select: { active: true } } },
+    });
+    const candidate = await prisma.vibeProfile.findUnique({
+      where: { discoveryKey: matchKey },
+      select: { identityId: true, collegeId: true },
+    });
+    if (
+      !requester ||
+      requester.status !== 'ACTIVE' ||
+      !requester.college.active ||
+      !identity.ageConfirmed ||
+      !candidate ||
+      candidate.identityId === identity.id ||
+      candidate.collegeId !== requester.collegeId
+    )
+      throw new HttpException('VibeMatch profile not found.', HttpStatus.NOT_FOUND);
+    await prisma.vibeBlock.deleteMany({
+      where: { blockerIdentityId: identity.id, blockedIdentityId: candidate.identityId },
+    });
+    return { blocked: false };
   }
   @Get('profile') async getProfile(@Req() request: VibeRequest) {
     const identity = await requireIdentity(request);

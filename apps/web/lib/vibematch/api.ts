@@ -85,3 +85,34 @@ export const getServerResult = (id: string) =>
       scoringVersion: string;
     };
   }>(`/vibematch/sessions/${encodeURIComponent(id)}/result`, { cache: 'no-store' });
+
+export type DiscoveryMatch = {
+  blockToken: string;
+  nickname: string;
+  college: string;
+  score: number;
+  title: string;
+  tagline: string;
+  whyYouMatch: string[];
+  sharedInterests: string[];
+};
+
+export type ServerDiscovery = {
+  algorithmVersion: string;
+  campus: string;
+  matches: DiscoveryMatch[];
+};
+
+export const getDiscovery = () =>
+  request<ServerDiscovery>('/vibematch/discovery', { cache: 'no-store' });
+
+export const blockMatch = (matchKey: string) =>
+  request<{ blocked: boolean }>('/vibematch/blocks', {
+    method: 'POST',
+    body: JSON.stringify({ matchKey }),
+  });
+
+export const unblockMatch = (matchKey: string) =>
+  request<{ blocked: boolean }>(`/vibematch/blocks/${encodeURIComponent(matchKey)}`, {
+    method: 'DELETE',
+  });
