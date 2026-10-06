@@ -3,6 +3,9 @@ const requiredProductionVariables = [
   'JWT_SECRET',
   'JWT_REFRESH_SECRET',
   'WEB_ORIGIN',
+  'RESEND_API_KEY',
+  'VIBEMATCH_EMAIL_FROM',
+  'VIBEMATCH_APP_URL',
   'ADMIN_ORIGIN',
   'PORT',
   'TRUST_PROXY_HOPS',
@@ -36,6 +39,15 @@ function isOrigin(value: string | undefined) {
       !url.search &&
       !url.hash
     );
+  } catch {
+    return false;
+  }
+}
+
+function isHttpsOrigin(value: string | undefined) {
+  if (!isOrigin(value)) return false;
+  try {
+    return new URL(value!).protocol === 'https:';
   } catch {
     return false;
   }
@@ -81,6 +93,7 @@ export function validateProductionEnvironment(env: NodeJS.ProcessEnv = process.e
     invalid.add('JWT_REFRESH_SECRET');
   }
   if (!isOrigin(env.WEB_ORIGIN)) invalid.add('WEB_ORIGIN');
+  if (!isHttpsOrigin(env.VIBEMATCH_APP_URL)) invalid.add('VIBEMATCH_APP_URL');
   if (!isOrigin(env.ADMIN_ORIGIN)) invalid.add('ADMIN_ORIGIN');
   if (!isPositiveInteger(env.PORT, 65535)) invalid.add('PORT');
   if (!isBoundedMetadata(env.APP_VERSION)) invalid.add('APP_VERSION');

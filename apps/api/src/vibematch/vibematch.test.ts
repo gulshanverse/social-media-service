@@ -8,7 +8,11 @@ import {
   isAllowedVibeOrigin,
   normalizeEmail,
 } from './auth';
-import { createEmailProvider, DevelopmentEmailProvider } from './email-provider';
+import {
+  createEmailProvider,
+  DevelopmentEmailProvider,
+  ResendEmailProvider,
+} from './email-provider';
 import {
   addContribution,
   emptyDna,
@@ -61,11 +65,19 @@ import {
     atomicallyClaimMagicLink(atomicUpdate, 'link-1'),
   ]);
   assert.equal(claims.filter(Boolean).length, 1);
-  const configured = { sendMagicLink: async () => undefined };
-  assert.equal(createEmailProvider({ NODE_ENV: 'production' }, configured), configured);
+  assert.ok(createEmailProvider({ NODE_ENV: 'development' }) instanceof DevelopmentEmailProvider);
+  assert.ok(
+    createEmailProvider({
+      NODE_ENV: 'production',
+      RESEND_API_KEY: 'resend-test-key-placeholder',
+      VIBEMATCH_EMAIL_FROM: 'VibeMatch <no-reply@example.test>',
+      VIBEMATCH_APP_URL: 'https://vibe.example.com/',
+      WEB_ORIGIN: 'https://vibe.example.com/',
+    }) instanceof ResendEmailProvider,
+  );
   assert.throws(
     () => createEmailProvider({ NODE_ENV: 'production' }),
-    /must be explicitly configured/,
+    /RESEND_API_KEY, VIBEMATCH_EMAIL_FROM, VIBEMATCH_APP_URL/,
   );
   const validOrigin = {
     method: 'POST',

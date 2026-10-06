@@ -28,10 +28,19 @@ export function CreateVibeForm() {
   const [secondaryIntent, setSecondaryIntent] = useState('');
   const [ageConfirmed, setAgeConfirmed] = useState(false);
   const [profile, setProfile] = useState<ServerProfile | null>(null);
+  const [verifiedFromMagicLink, setVerifiedFromMagicLink] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   useEffect(() => {
+    if (window.location.hash === '#verified') {
+      setVerifiedFromMagicLink(true);
+      window.history.replaceState(
+        window.history.state,
+        '',
+        `${window.location.pathname}${window.location.search}`,
+      );
+    }
     getProfile()
       .then((value) => {
         if (value) {
@@ -50,7 +59,7 @@ export function CreateVibeForm() {
     event.preventDefault();
     setError('');
     setNotice('');
-    if (!email.trim() && !profile) {
+    if (!email.trim() && !profile && !verifiedFromMagicLink) {
       setError('Enter your email to receive a private sign-in link.');
       return;
     }
@@ -64,7 +73,7 @@ export function CreateVibeForm() {
     }
     setBusy(true);
     try {
-      if (!profile) {
+      if (!profile && !verifiedFromMagicLink) {
         const link = await requestMagicLink(email);
         if (link.developmentToken) await verifyMagicLink(link.developmentToken);
         else {
@@ -112,7 +121,7 @@ export function CreateVibeForm() {
           </p>
         </div>
         <form className="vibe-form" onSubmit={submit} noValidate>
-          {!profile && (
+          {!profile && !verifiedFromMagicLink && (
             <label>
               <span>
                 Private email <i>required for sign-in</i>

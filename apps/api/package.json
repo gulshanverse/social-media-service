@@ -7,7 +7,7 @@
     "build": "tsc -p tsconfig.json",
     "lint": "ESLINT_USE_FLAT_CONFIG=false eslint src --ext .ts",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "tsx src/confessions/confessions.test.ts && tsx src/admin.test.ts && tsx src/phase2.test.ts && tsx src/phase4.test.ts && tsx src/phase5.test.ts && tsx src/phase5-http.test.ts && tsx src/phase6.test.ts && tsx src/proxy.test.ts && tsx src/garba/garba-http.test.ts && tsx src/garba/garba.service.test.ts && tsx src/vibematch/vibematch.test.ts && tsx src/vibematch/matching.test.ts"
+    "test": "tsx src/confessions/confessions.test.ts && tsx src/admin.test.ts && tsx src/phase2.test.ts && tsx src/phase4.test.ts && tsx src/phase5.test.ts && tsx src/phase5-http.test.ts && tsx src/phase6.test.ts && tsx src/proxy.test.ts && tsx src/garba/garba-http.test.ts && tsx src/garba/garba.service.test.ts && tsx src/vibematch/vibematch.test.ts && tsx src/vibematch/email-provider.test.ts && tsx src/vibematch/matching.test.ts"
   },
   "dependencies": {
     "@ggv/config": "workspace:*",
@@ -24,6 +24,7 @@
     "express": "^4.22.1",
     "helmet": "^8.3.0",
     "reflect-metadata": "^0.2.2",
+    "resend": "^6.32.1",
     "rxjs": "^7.8.1"
   },
   "devDependencies": {

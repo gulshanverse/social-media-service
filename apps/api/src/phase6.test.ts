@@ -7,6 +7,9 @@ const validProductionEnvironment: NodeJS.ProcessEnv = {
   JWT_SECRET: 'access-key-with-random-material-1234567890',
   JWT_REFRESH_SECRET: 'refresh-key-with-random-material-0987654321',
   WEB_ORIGIN: 'https://web.example.com/',
+  RESEND_API_KEY: 'resend-test-key-placeholder',
+  VIBEMATCH_EMAIL_FROM: 'VibeMatch <no-reply@example.test>',
+  VIBEMATCH_APP_URL: 'https://web.example.com/',
   ADMIN_ORIGIN: 'https://admin.example.com/',
   PORT: '4000',
   TRUST_PROXY_HOPS: '1',
@@ -21,6 +24,22 @@ const validProductionEnvironment: NodeJS.ProcessEnv = {
 };
 
 assert.doesNotThrow(() => validateProductionEnvironment(validProductionEnvironment));
+assert.throws(
+  () =>
+    validateProductionEnvironment({
+      ...validProductionEnvironment,
+      RESEND_API_KEY: undefined,
+    }),
+  /RESEND_API_KEY/,
+);
+assert.throws(
+  () =>
+    validateProductionEnvironment({
+      ...validProductionEnvironment,
+      VIBEMATCH_APP_URL: 'http://web.example.com/',
+    }),
+  /VIBEMATCH_APP_URL/,
+);
 assert.throws(
   () =>
     validateProductionEnvironment({
