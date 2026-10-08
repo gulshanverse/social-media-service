@@ -11,6 +11,7 @@
     "test": "node -e \"console.log('config: no runtime tests')\""
   },
   "devDependencies": {
+    "@types/node": "^22.10.2",
     "eslint": "^9.17.0",
     "typescript": "^5.7.2"
   }
