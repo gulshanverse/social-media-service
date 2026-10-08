@@ -62,6 +62,7 @@ async function run() {
       },
     },
   } as any;
+  database.$transaction = async (callback: (tx: any) => Promise<unknown>) => callback(database);
   try {
     setPrismaForTests(database);
     const service = new AdminService();

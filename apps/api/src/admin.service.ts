@@ -9,6 +9,7 @@ import {
   ReportStatus,
   ThemeStatus,
 } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { hashPassword, prisma, recordAudit, AdminIdentity } from './admin-auth';
 import {
   AdminUserQueryDto,
@@ -270,11 +271,15 @@ export class AdminService {
     return { ...admin, status: this.adminStatus(admin) };
   }
 
-  private async assertCanDisable(target: { id: string; role: AdminRole }, actor: AdminIdentity) {
+  private async assertCanDisable(
+    target: { id: string; role: AdminRole },
+    actor: AdminIdentity,
+    database: Prisma.TransactionClient = prisma,
+  ) {
     if (target.id === actor.id)
       throw new BadRequestException('You cannot disable your own account.');
     if (target.role === AdminRole.SUPER_ADMIN) {
-      const count = await prisma.adminUser.count({
+      const count = await database.adminUser.count({
         where: { role: AdminRole.SUPER_ADMIN, isActive: true, bannedAt: null, deletedAt: null },
       });
       if (count <= 1) throw new BadRequestException('The last SUPER_ADMIN cannot be disabled.');
@@ -282,50 +287,56 @@ export class AdminService {
   }
 
   async changeAdministratorStatus(id: string, body: UpdateAdminStatusDto, actor: AdminIdentity) {
-    const current = await prisma.adminUser.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        isActive: true,
-        bannedAt: true,
-        deletedAt: true,
+    const { current, admin } = await prisma.$transaction(
+      async (database) => {
+        const current = await database.adminUser.findUnique({
+          where: { id },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            role: true,
+            isActive: true,
+            bannedAt: true,
+            deletedAt: true,
+          },
+        });
+        if (!current) throw new NotFoundException('Administrator not found.');
+        if (body.status === 'ACTIVE' && current.deletedAt)
+          throw new BadRequestException('Deleted administrators cannot be activated.');
+        if (body.status !== 'ACTIVE') await this.assertCanDisable(current, actor, database);
+        const data =
+          body.status === 'ACTIVE'
+            ? { isActive: true, bannedAt: null, deletedAt: null }
+            : body.status === 'INACTIVE'
+              ? { isActive: false, bannedAt: null, deletedAt: null }
+              : body.status === 'BANNED'
+                ? { isActive: false, bannedAt: new Date(), deletedAt: null }
+                : { isActive: false, deletedAt: new Date() };
+        const admin = await database.adminUser.update({
+          where: { id },
+          data,
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            role: true,
+            isActive: true,
+            bannedAt: true,
+            deletedAt: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        });
+        if (body.status !== 'ACTIVE')
+          await database.adminSession.updateMany({
+            where: { adminId: id, revokedAt: null },
+            data: { revokedAt: new Date() },
+          });
+        return { current, admin };
       },
-    });
-    if (!current) throw new NotFoundException('Administrator not found.');
-    if (body.status === 'ACTIVE' && current.deletedAt)
-      throw new BadRequestException('Deleted administrators cannot be activated.');
-    if (body.status !== 'ACTIVE') await this.assertCanDisable(current, actor);
-    const data =
-      body.status === 'ACTIVE'
-        ? { isActive: true, bannedAt: null, deletedAt: null }
-        : body.status === 'INACTIVE'
-          ? { isActive: false, bannedAt: null, deletedAt: null }
-          : body.status === 'BANNED'
-            ? { isActive: false, bannedAt: new Date(), deletedAt: null }
-            : { isActive: false, deletedAt: new Date() };
-    const admin = await prisma.adminUser.update({
-      where: { id },
-      data,
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        isActive: true,
-        bannedAt: true,
-        deletedAt: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
-    if (body.status !== 'ACTIVE')
-      await prisma.adminSession.updateMany({
-        where: { adminId: id, revokedAt: null },
-        data: { revokedAt: new Date() },
-      });
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
     const action =
       body.status === 'ACTIVE'
         ? current.bannedAt
