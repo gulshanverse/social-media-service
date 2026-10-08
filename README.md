@@ -2,7 +2,7 @@
 
 # Social Media Service
 
-**A production-grade user-generated content(UGC) platform for communities and events based and community based game .**
+**A production-grade user-generated content(UGC) platform for communities and events based and community based game(VibeMatch) .**
 
 The `social-media-service` repository contains the production monorepo for an anonymous content platform: a moderation-first public web experience, administrative workspace, and NestJS API.
 
