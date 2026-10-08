@@ -51,7 +51,13 @@ export class AdminAuthController {
     const admin = await prisma.adminUser.findUnique({
       where: { email: body.email.toLowerCase().trim() },
     });
-    if (!admin || !admin.isActive || !(await comparePassword(body.password, admin.passwordHash))) {
+    if (
+      !admin ||
+      !admin.isActive ||
+      admin.bannedAt ||
+      admin.deletedAt ||
+      !(await comparePassword(body.password, admin.passwordHash))
+    ) {
       increment('auth_login_failures');
       structuredLog('warn', 'auth.login_failed', {
         requestId: request.header('x-request-id'),
@@ -103,7 +109,9 @@ export class AdminAuthController {
         session.revokedAt ||
         session.expiresAt <= new Date() ||
         session.refreshTokenHash !== hashToken(token) ||
-        !session.admin.isActive
+        !session.admin.isActive ||
+        session.admin.bannedAt ||
+        session.admin.deletedAt
       )
         throw new Error();
       const identity = safeAdmin(session.admin, session.id);

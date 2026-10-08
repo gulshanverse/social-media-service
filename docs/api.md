@@ -59,3 +59,19 @@ Authenticated administrators may call `GET /admin/auth/sessions` to see safe met
 - `DELETE /vibematch/blocks/:matchKey` uses the same authentication and CSRF protections and removes only the caller's same-campus block, allowing an accidental hide to be undone.
 
 Discovery never returns email, Instagram, internal identity/profile/session IDs, authentication data, moderation/security metadata, Confession history, or Garba history. Match scores are server-calculated deterministic integer percentages. See [VibeMatch Phase 3 matching](vibematch-phase3-matching.md) for eligibility, exact weights, compatibility rules, ordering, and privacy decisions.
+
+## Administrator Management
+
+`SUPER_ADMIN` only endpoints manage non-super administrator accounts through the existing `JwtAuthGuard`, `RolesGuard`, and `@Roles(SUPER_ADMIN)` policy:
+
+- `GET /admin/users?page=1&limit=20&search=&role=&status=` lists safe administrator projections.
+- `GET /admin/users/:id` returns profile, lifecycle state, safe session metadata, and related audit activity.
+- `POST /admin/users` creates a `MODERATOR` or `DESIGNER`; the server generates the ID and hashes the password with bcrypt (12 rounds).
+- `PATCH /admin/users/:id` updates email/name.
+- `PATCH /admin/users/:id/role` changes `MODERATOR` ↔ `DESIGNER`.
+- `PATCH /admin/users/:id/status` accepts `ACTIVE`, `INACTIVE`, `BANNED`, or `DELETED`.
+- `POST /admin/users/:id/reset-password` replaces the password and revokes sessions.
+- `POST /admin/users/:id/revoke-sessions` revokes all active sessions.
+- `DELETE /admin/users/:id` performs the same protected soft-delete transition as `status=DELETED`.
+
+Responses never include password hashes, refresh hashes, access tokens, refresh tokens, or other credential material. Unauthenticated callers receive `401`; `MODERATOR` and `DESIGNER` callers receive `403`.

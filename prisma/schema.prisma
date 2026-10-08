@@ -75,6 +75,8 @@ model AdminUser {
   passwordHash String
   name         String?
   isActive     Boolean        @default(true)
+  bannedAt     DateTime?
+  deletedAt    DateTime?
   role         AdminRole      @default(SUPER_ADMIN)
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt

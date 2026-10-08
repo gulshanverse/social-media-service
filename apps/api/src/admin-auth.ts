@@ -157,7 +157,8 @@ export class JwtAuthGuard implements CanActivate {
     )
       throw new UnauthorizedException('Authentication required.');
     const admin = await prisma.adminUser.findUnique({ where: { id: payload.sub } });
-    if (!admin || !admin.isActive) throw new UnauthorizedException('Authentication required.');
+    if (!admin || !admin.isActive || admin.bannedAt || admin.deletedAt)
+      throw new UnauthorizedException('Authentication required.');
     request.user = safeAdmin(admin, typeof payload.sid === 'string' ? payload.sid : undefined);
     return true;
   }

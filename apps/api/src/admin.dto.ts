@@ -21,6 +21,7 @@ import {
   validateSync,
 } from 'class-validator';
 import {
+  AdminRole,
   ConfessionCategory,
   ConfessionStatus,
   GarbaCommentStatus,
@@ -116,6 +117,33 @@ export class RefreshDto {}
 export class ListQueryDto {
   @IsOptional() @Transform(({ value }) => Number(value)) @IsInt() @Min(1) page = 1;
   @IsOptional() @Transform(({ value }) => Number(value)) @IsInt() @Min(1) @Max(100) limit = 20;
+}
+export class AdminUserQueryDto extends ListQueryDto {
+  @IsOptional() @IsString() @MaxLength(120) search?: string;
+  @IsOptional() @IsEnum(AdminRole) role?: AdminRole;
+  @IsOptional()
+  @IsIn(['ACTIVE', 'INACTIVE', 'BANNED', 'DELETED'])
+  status?: 'ACTIVE' | 'INACTIVE' | 'BANNED' | 'DELETED';
+}
+export class CreateAdminUserDto {
+  @IsEmail() email!: string;
+  @IsOptional() @IsString() @MaxLength(120) name?: string;
+  @IsEnum(AdminRole) role!: AdminRole;
+  @IsString() @MinLength(12) @MaxLength(200) password!: string;
+}
+export class UpdateAdminUserDto {
+  @IsOptional() @IsEmail() email?: string;
+  @IsOptional() @IsString() @MaxLength(120) name?: string;
+}
+export class UpdateAdminRoleDto {
+  @IsEnum(AdminRole) role!: AdminRole;
+}
+export class UpdateAdminStatusDto {
+  @IsIn(['ACTIVE', 'INACTIVE', 'BANNED', 'DELETED'])
+  status!: 'ACTIVE' | 'INACTIVE' | 'BANNED' | 'DELETED';
+}
+export class ResetAdminPasswordDto {
+  @IsString() @MinLength(12) @MaxLength(200) password!: string;
 }
 export class AdminQueueQueryDto extends ListQueryDto {
   @IsOptional() @IsEnum(ConfessionStatus) status?: ConfessionStatus;

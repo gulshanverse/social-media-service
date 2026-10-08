@@ -177,6 +177,7 @@ export function Nav({ admin, onNavigate }: { admin: Admin; onNavigate?: () => vo
   if (admin.role !== 'DESIGNER')
     links.push(['/confessions', 'Queue'], ['/reports', 'Reports'], ['/garba', 'Garba']);
   if (admin.role === 'SUPER_ADMIN') links.push(['/audit-logs', 'Audit']);
+  if (admin.role === 'SUPER_ADMIN') links.push(['/users', 'Administrators']);
   links.push(['/themes', 'Themes']);
   if (admin.role === 'SUPER_ADMIN' || admin.role === 'DESIGNER')
     links.push(['/profile-page', 'Profile Page']);
@@ -2906,6 +2907,338 @@ export function GarbaAdmin({ admin }: { admin: Admin }) {
     </section>
   );
 }
+type ManagedAdmin = {
+  id: string;
+  email: string;
+  name: string | null;
+  role: Role;
+  status: 'ACTIVE' | 'INACTIVE' | 'BANNED' | 'DELETED';
+  createdAt: string;
+  updatedAt: string;
+  _count?: { sessions: number };
+};
+export function Administrators() {
+  const [data, setData] = useState<PageData<ManagedAdmin> | null>(null);
+  const [selected, setSelected] = useState<ManagedAdmin | null>(null);
+  const [search, setSearch] = useState('');
+  const [role, setRole] = useState('');
+  const [status, setStatus] = useState('');
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const [showCreate, setShowCreate] = useState(false);
+  const load = () =>
+    api(`/admin/users?${qs({ search, role, status, page: 1, limit: 20 })}`)
+      .then(setData)
+      .catch((e) => setError(e.message));
+  useEffect(() => {
+    void load();
+  }, [role, status]);
+  async function action(path: string, init: RequestInit, confirmation: string) {
+    if (!confirm(confirmation)) return;
+    try {
+      await api(path, init);
+      setMessage('Administrator updated.');
+      setSelected(null);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Request failed.');
+    }
+  }
+  async function create(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    try {
+      await api('/admin/users', {
+        method: 'POST',
+        body: JSON.stringify(Object.fromEntries(form.entries())),
+      });
+      setShowCreate(false);
+      setMessage('Administrator created.');
+      event.currentTarget.reset();
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unable to create administrator.');
+    }
+  }
+  return (
+    <section>
+      <div className="form-heading">
+        <div>
+          <p className="eyebrow">ACCESS CONTROL</p>
+          <h1>Administrators</h1>
+          <p className="muted">
+            Manage administrator accounts without exposing credentials or tokens.
+          </p>
+        </div>
+        <button onClick={() => setShowCreate(true)}>+ Add Administrator</button>
+      </div>
+      <Notice error={error} message={message} />
+      <div className="filters">
+        <input
+          aria-label="Search administrators"
+          placeholder="Search administrators…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <select aria-label="Role filter" value={role} onChange={(e) => setRole(e.target.value)}>
+          <option value="">All roles</option>
+          <option>MODERATOR</option>
+          <option>DESIGNER</option>
+          <option>SUPER_ADMIN</option>
+        </select>
+        <select
+          aria-label="Status filter"
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+        >
+          <option value="">All statuses</option>
+          <option>ACTIVE</option>
+          <option>INACTIVE</option>
+          <option>BANNED</option>
+          <option>DELETED</option>
+        </select>
+        <button className="secondary" onClick={() => void load()}>
+          Search
+        </button>
+      </div>
+      {showCreate && (
+        <form className="panel" onSubmit={create}>
+          <div className="form-heading">
+            <h2>Add administrator</h2>
+            <button type="button" className="secondary" onClick={() => setShowCreate(false)}>
+              Cancel
+            </button>
+          </div>
+          <div className="form-grid">
+            <label>
+              Name
+              <input name="name" required />
+            </label>
+            <label>
+              Email
+              <input name="email" type="email" required />
+            </label>
+            <label>
+              Role
+              <select name="role" defaultValue="MODERATOR">
+                <option>MODERATOR</option>
+                <option>DESIGNER</option>
+              </select>
+            </label>
+            <label>
+              Password
+              <input
+                name="password"
+                type="password"
+                minLength={12}
+                required
+                autoComplete="new-password"
+              />
+            </label>
+          </div>
+          <button>Create administrator</button>
+        </form>
+      )}
+      {!data && <div className="state">Loading administrators…</div>}
+      {data && data.items.length === 0 && (
+        <div className="state empty">No administrators match these filters.</div>
+      )}
+      {data && data.items.length > 0 && (
+        <div className="panel table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Sessions</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.items.map((item) => (
+                <tr key={item.id}>
+                  <td>{item.name || '—'}</td>
+                  <td>{item.email}</td>
+                  <td>
+                    <Status value={item.role} />
+                  </td>
+                  <td>
+                    <Status value={item.status} />
+                  </td>
+                  <td>{item._count?.sessions ?? 0}</td>
+                  <td>
+                    <button className="secondary" onClick={() => setSelected(item)}>
+                      View details
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <Pager data={data} onPage={() => undefined} />
+      {selected && (
+        <div className="panel">
+          <div className="form-heading">
+            <div>
+              <p className="eyebrow">ADMINISTRATOR DETAILS</p>
+              <h2>{selected.name || selected.email}</h2>
+            </div>
+            <button className="secondary" onClick={() => setSelected(null)}>
+              Close
+            </button>
+          </div>
+          <p>
+            {selected.email} · <Status value={selected.role} /> · <Status value={selected.status} />
+          </p>
+          <p className="muted">
+            Created {formatDate(selected.createdAt)} · {selected._count?.sessions ?? 0} active
+            sessions
+          </p>
+          <div className="quick-action-links">
+            {selected.status !== 'DELETED' && (
+              <>
+                <button
+                  className="secondary"
+                  onClick={() => {
+                    const name = window.prompt('Administrator name:', selected.name || '');
+                    const email = window.prompt('Administrator email:', selected.email);
+                    if (name === null || email === null) return;
+                    void action(
+                      `/admin/users/${selected.id}`,
+                      { method: 'PATCH', body: JSON.stringify({ name, email }) },
+                      'Save these administrator profile changes?',
+                    );
+                  }}
+                >
+                  Edit
+                </button>
+                {selected.role !== 'SUPER_ADMIN' && (
+                  <button
+                    className="secondary"
+                    onClick={() => {
+                      const role = window.prompt('Role (MODERATOR or DESIGNER):', selected.role);
+                      if (role !== 'MODERATOR' && role !== 'DESIGNER') return;
+                      void action(
+                        `/admin/users/${selected.id}/role`,
+                        { method: 'PATCH', body: JSON.stringify({ role }) },
+                        'Change this administrator role?',
+                      );
+                    }}
+                  >
+                    Change Role
+                  </button>
+                )}
+              </>
+            )}
+            <button
+              className="secondary"
+              onClick={() =>
+                action(
+                  `/admin/users/${selected.id}/revoke-sessions`,
+                  { method: 'POST' },
+                  'Revoke all sessions for this administrator?',
+                )
+              }
+            >
+              Revoke Sessions
+            </button>
+            {selected.status === 'ACTIVE' && (
+              <>
+                <button
+                  className="secondary"
+                  onClick={() =>
+                    action(
+                      `/admin/users/${selected.id}/status`,
+                      { method: 'PATCH', body: JSON.stringify({ status: 'INACTIVE' }) },
+                      'Deactivate this administrator?',
+                    )
+                  }
+                >
+                  Deactivate
+                </button>
+                <button
+                  className="secondary"
+                  onClick={() =>
+                    action(
+                      `/admin/users/${selected.id}/status`,
+                      { method: 'PATCH', body: JSON.stringify({ status: 'BANNED' }) },
+                      'Ban this administrator?',
+                    )
+                  }
+                >
+                  Ban
+                </button>
+              </>
+            )}
+            {selected.status === 'INACTIVE' && (
+              <button
+                onClick={() =>
+                  action(
+                    `/admin/users/${selected.id}/status`,
+                    { method: 'PATCH', body: JSON.stringify({ status: 'ACTIVE' }) },
+                    'Activate this administrator?',
+                  )
+                }
+              >
+                Activate
+              </button>
+            )}
+            {selected.status === 'BANNED' && (
+              <button
+                onClick={() =>
+                  action(
+                    `/admin/users/${selected.id}/status`,
+                    { method: 'PATCH', body: JSON.stringify({ status: 'ACTIVE' }) },
+                    'Unban this administrator?',
+                  )
+                }
+              >
+                Unban
+              </button>
+            )}
+            {selected.status !== 'DELETED' && (
+              <>
+                <button
+                  className="secondary"
+                  onClick={() =>
+                    action(
+                      `/admin/users/${selected.id}/reset-password`,
+                      {
+                        method: 'POST',
+                        body: JSON.stringify({
+                          password: window.prompt('Enter a new password (12+ characters):'),
+                        }),
+                      },
+                      'Reset this administrator password and revoke sessions?',
+                    )
+                  }
+                >
+                  Reset Password
+                </button>
+                <button
+                  className="danger"
+                  onClick={() =>
+                    action(
+                      `/admin/users/${selected.id}`,
+                      { method: 'DELETE' },
+                      'Soft-delete this administrator?',
+                    )
+                  }
+                >
+                  Delete
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
 export default function AdminClient() {
   const pathname = usePathname();
   const router = useRouter();
@@ -2944,6 +3277,8 @@ export default function AdminClient() {
       <GarbaAdmin admin={admin} />
     ) : pathname === '/audit-logs' || pathname === '/audit' ? (
       <AuditLogs />
+    ) : pathname === '/users' ? (
+      <Administrators />
     ) : pathname === '/themes' ? (
       <Themes admin={admin} />
     ) : pathname === '/profile-page' ? (

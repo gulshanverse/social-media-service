@@ -39,6 +39,12 @@ import {
   UpdateGarbaPostDto,
   UpdateGarbaCommentDto,
   UpdateGarbaSeasonDto,
+  AdminUserQueryDto,
+  CreateAdminUserDto,
+  UpdateAdminUserDto,
+  UpdateAdminRoleDto,
+  UpdateAdminStatusDto,
+  ResetAdminPasswordDto,
 } from './admin.dto';
 
 @Controller('admin')
@@ -47,6 +53,58 @@ export class AdminController {
   constructor(@Inject(AdminService) private readonly service: AdminService) {}
   @Get('dashboard') dashboard() {
     return this.service.dashboardExtended();
+  }
+  @Get('users') @Roles(AdminRole.SUPER_ADMIN) users(@Query() query: AdminUserQueryDto) {
+    return this.service.listAdministrators(query);
+  }
+  @Get('users/:id') @Roles(AdminRole.SUPER_ADMIN) user(@Param('id') id: string) {
+    return this.service.getAdministrator(id);
+  }
+  @Post('users') @Roles(AdminRole.SUPER_ADMIN) createUser(
+    @Body() body: CreateAdminUserDto,
+    @Req() req: { user?: ReturnType<typeof requireUser> },
+  ) {
+    return this.service.createAdministrator(body, requireUser(req));
+  }
+  @Patch('users/:id') @Roles(AdminRole.SUPER_ADMIN) updateUser(
+    @Param('id') id: string,
+    @Body() body: UpdateAdminUserDto,
+    @Req() req: { user?: ReturnType<typeof requireUser> },
+  ) {
+    return this.service.updateAdministrator(id, body, requireUser(req));
+  }
+  @Patch('users/:id/role') @Roles(AdminRole.SUPER_ADMIN) changeUserRole(
+    @Param('id') id: string,
+    @Body() body: UpdateAdminRoleDto,
+    @Req() req: { user?: ReturnType<typeof requireUser> },
+  ) {
+    return this.service.changeAdministratorRole(id, body, requireUser(req));
+  }
+  @Patch('users/:id/status') @Roles(AdminRole.SUPER_ADMIN) changeUserStatus(
+    @Param('id') id: string,
+    @Body() body: UpdateAdminStatusDto,
+    @Req() req: { user?: ReturnType<typeof requireUser> },
+  ) {
+    return this.service.changeAdministratorStatus(id, body, requireUser(req));
+  }
+  @Post('users/:id/reset-password') @Roles(AdminRole.SUPER_ADMIN) resetUserPassword(
+    @Param('id') id: string,
+    @Body() body: ResetAdminPasswordDto,
+    @Req() req: { user?: ReturnType<typeof requireUser> },
+  ) {
+    return this.service.resetAdministratorPassword(id, body, requireUser(req));
+  }
+  @Post('users/:id/revoke-sessions') @Roles(AdminRole.SUPER_ADMIN) revokeUserSessions(
+    @Param('id') id: string,
+    @Req() req: { user?: ReturnType<typeof requireUser> },
+  ) {
+    return this.service.revokeAdministratorSessions(id, requireUser(req));
+  }
+  @Delete('users/:id') @Roles(AdminRole.SUPER_ADMIN) deleteUser(
+    @Param('id') id: string,
+    @Req() req: { user?: ReturnType<typeof requireUser> },
+  ) {
+    return this.service.changeAdministratorStatus(id, { status: 'DELETED' }, requireUser(req));
   }
   @Get('garba') @Roles(AdminRole.SUPER_ADMIN, AdminRole.MODERATOR) garbaDashboard() {
     return this.service.garbaDashboard();

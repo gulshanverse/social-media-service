@@ -9,8 +9,9 @@ import {
   ReportStatus,
   ThemeStatus,
 } from '@prisma/client';
-import { prisma, recordAudit, AdminIdentity } from './admin-auth';
+import { hashPassword, prisma, recordAudit, AdminIdentity } from './admin-auth';
 import {
+  AdminUserQueryDto,
   AdminQueueQueryDto,
   BulkModerationDto,
   CreateThemeDto,
@@ -23,6 +24,11 @@ import {
   UpdateGarbaPostDto,
   UpdateGarbaCommentDto,
   UpdateGarbaSeasonDto,
+  CreateAdminUserDto,
+  UpdateAdminUserDto,
+  UpdateAdminRoleDto,
+  UpdateAdminStatusDto,
+  ResetAdminPasswordDto,
 } from './admin.dto';
 import { increment } from './observability';
 import {
@@ -54,6 +60,343 @@ export function assertEditableConfession(status: ConfessionStatus) {
 
 @Injectable()
 export class AdminService {
+  private adminStatus(admin: { isActive: boolean; bannedAt: Date | null; deletedAt: Date | null }) {
+    if (admin.deletedAt) return 'DELETED' as const;
+    if (admin.bannedAt) return 'BANNED' as const;
+    return admin.isActive ? ('ACTIVE' as const) : ('INACTIVE' as const);
+  }
+
+  private safeManagedAdmin(admin: any) {
+    const { passwordHash: _passwordHash, ...safe } = admin;
+    return { ...safe, status: this.adminStatus(admin) };
+  }
+
+  async listAdministrators(query: AdminUserQueryDto) {
+    const page = Math.max(1, query.page ?? 1);
+    const limit = Math.min(100, Math.max(1, query.limit ?? 20));
+    let where: any = {
+      ...(query.role ? { role: query.role } : {}),
+      ...(query.search
+        ? {
+            OR: [
+              { email: { contains: query.search.trim(), mode: 'insensitive' } },
+              { name: { contains: query.search.trim(), mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+    };
+    if (query.status === 'DELETED') where = { ...where, deletedAt: { not: null } };
+    if (query.status === 'BANNED') where = { ...where, bannedAt: { not: null }, deletedAt: null };
+    if (query.status === 'INACTIVE')
+      where = { ...where, isActive: false, bannedAt: null, deletedAt: null };
+    if (query.status === 'ACTIVE')
+      where = { ...where, isActive: true, bannedAt: null, deletedAt: null };
+    const [items, total] = await Promise.all([
+      prisma.adminUser.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          isActive: true,
+          bannedAt: true,
+          deletedAt: true,
+          createdAt: true,
+          updatedAt: true,
+          _count: { select: { sessions: true } },
+        },
+      }),
+      prisma.adminUser.count({ where }),
+    ]);
+    return {
+      items: items.map((item) => ({ ...item, status: this.adminStatus(item) })),
+      page,
+      limit,
+      total,
+      hasMore: page * limit < total,
+    };
+  }
+
+  async getAdministrator(id: string) {
+    const admin = await prisma.adminUser.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        isActive: true,
+        bannedAt: true,
+        deletedAt: true,
+        createdAt: true,
+        updatedAt: true,
+        sessions: {
+          orderBy: { createdAt: 'desc' },
+          take: 20,
+          select: { id: true, createdAt: true, lastUsedAt: true, expiresAt: true, revokedAt: true },
+        },
+        _count: { select: { sessions: true } },
+      },
+    });
+    if (!admin) throw new NotFoundException('Administrator not found.');
+    const activity = await prisma.auditLog.findMany({
+      where: { entity: 'ADMIN_USER', entityId: id },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+      select: {
+        id: true,
+        action: true,
+        entityId: true,
+        metadata: true,
+        createdAt: true,
+        actor: { select: { id: true, email: true, name: true } },
+      },
+    });
+    return { ...this.safeManagedAdmin(admin), activity };
+  }
+
+  async createAdministrator(body: CreateAdminUserDto, actor: AdminIdentity) {
+    if (body.role === AdminRole.SUPER_ADMIN)
+      throw new BadRequestException('New administrators must be MODERATOR or DESIGNER.');
+    const email = body.email.trim().toLowerCase();
+    if (await prisma.adminUser.findUnique({ where: { email }, select: { id: true } }))
+      throw new BadRequestException('An administrator with that email already exists.');
+    const admin = await prisma.adminUser.create({
+      data: {
+        email,
+        name: body.name?.trim() || null,
+        role: body.role,
+        passwordHash: await hashPassword(body.password),
+        isActive: true,
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        isActive: true,
+        bannedAt: true,
+        deletedAt: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+    await recordAudit(actor.id, 'ADMIN_USER_CREATED', 'ADMIN_USER', admin.id, {
+      email: admin.email,
+      name: admin.name,
+      role: admin.role,
+    });
+    return { ...admin, status: this.adminStatus(admin) };
+  }
+
+  async updateAdministrator(id: string, body: UpdateAdminUserDto, actor: AdminIdentity) {
+    const current = await prisma.adminUser.findUnique({
+      where: { id },
+      select: { id: true, email: true, role: true },
+    });
+    if (!current) throw new NotFoundException('Administrator not found.');
+    const data: { email?: string; name?: string | null } = {};
+    if (body.email !== undefined) data.email = body.email.trim().toLowerCase();
+    if (body.name !== undefined) data.name = body.name.trim() || null;
+    if (
+      data.email &&
+      data.email !== current.email &&
+      (await prisma.adminUser.findFirst({
+        where: { email: data.email, id: { not: id } },
+        select: { id: true },
+      }))
+    )
+      throw new BadRequestException('An administrator with that email already exists.');
+    if (!Object.keys(data).length) return this.getAdministrator(id);
+    const admin = await prisma.adminUser.update({
+      where: { id },
+      data,
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        isActive: true,
+        bannedAt: true,
+        deletedAt: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+    await recordAudit(actor.id, 'ADMIN_USER_UPDATED', 'ADMIN_USER', id, {
+      changedFields: Object.keys(data),
+      role: current.role,
+    });
+    return { ...admin, status: this.adminStatus(admin) };
+  }
+
+  async changeAdministratorRole(id: string, body: UpdateAdminRoleDto, actor: AdminIdentity) {
+    const current = await prisma.adminUser.findUnique({
+      where: { id },
+      select: { id: true, email: true, role: true },
+    });
+    if (!current) throw new NotFoundException('Administrator not found.');
+    if (
+      current.id === actor.id ||
+      current.role === AdminRole.SUPER_ADMIN ||
+      body.role === AdminRole.SUPER_ADMIN
+    )
+      throw new BadRequestException('SUPER_ADMIN roles are protected.');
+    if (current.role === body.role) return this.getAdministrator(id);
+    const admin = await prisma.adminUser.update({
+      where: { id },
+      data: { role: body.role },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        isActive: true,
+        bannedAt: true,
+        deletedAt: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+    await recordAudit(actor.id, 'ADMIN_ROLE_CHANGED', 'ADMIN_USER', id, {
+      from: current.role,
+      to: body.role,
+      email: current.email,
+    });
+    return { ...admin, status: this.adminStatus(admin) };
+  }
+
+  private async assertCanDisable(target: { id: string; role: AdminRole }, actor: AdminIdentity) {
+    if (target.id === actor.id)
+      throw new BadRequestException('You cannot disable your own account.');
+    if (target.role === AdminRole.SUPER_ADMIN) {
+      const count = await prisma.adminUser.count({
+        where: { role: AdminRole.SUPER_ADMIN, isActive: true, bannedAt: null, deletedAt: null },
+      });
+      if (count <= 1) throw new BadRequestException('The last SUPER_ADMIN cannot be disabled.');
+    }
+  }
+
+  async changeAdministratorStatus(id: string, body: UpdateAdminStatusDto, actor: AdminIdentity) {
+    const current = await prisma.adminUser.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        isActive: true,
+        bannedAt: true,
+        deletedAt: true,
+      },
+    });
+    if (!current) throw new NotFoundException('Administrator not found.');
+    if (body.status === 'ACTIVE' && current.deletedAt)
+      throw new BadRequestException('Deleted administrators cannot be activated.');
+    if (body.status !== 'ACTIVE') await this.assertCanDisable(current, actor);
+    const data =
+      body.status === 'ACTIVE'
+        ? { isActive: true, bannedAt: null, deletedAt: null }
+        : body.status === 'INACTIVE'
+          ? { isActive: false, bannedAt: null, deletedAt: null }
+          : body.status === 'BANNED'
+            ? { isActive: false, bannedAt: new Date(), deletedAt: null }
+            : { isActive: false, deletedAt: new Date() };
+    const admin = await prisma.adminUser.update({
+      where: { id },
+      data,
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        isActive: true,
+        bannedAt: true,
+        deletedAt: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+    if (body.status !== 'ACTIVE')
+      await prisma.adminSession.updateMany({
+        where: { adminId: id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+    const action =
+      body.status === 'ACTIVE'
+        ? current.bannedAt
+          ? 'ADMIN_UNBANNED'
+          : 'ADMIN_ACTIVATED'
+        : body.status === 'INACTIVE'
+          ? 'ADMIN_DEACTIVATED'
+          : body.status === 'BANNED'
+            ? 'ADMIN_BANNED'
+            : 'ADMIN_USER_DELETED';
+    await recordAudit(actor.id, action, 'ADMIN_USER', id, {
+      email: current.email,
+      name: current.name,
+      role: current.role,
+      previousStatus: this.adminStatus(current),
+    });
+    return { ...admin, status: this.adminStatus(admin) };
+  }
+
+  async resetAdministratorPassword(id: string, body: ResetAdminPasswordDto, actor: AdminIdentity) {
+    const current = await prisma.adminUser.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        isActive: true,
+        bannedAt: true,
+        deletedAt: true,
+      },
+    });
+    if (!current) throw new NotFoundException('Administrator not found.');
+    if (current.deletedAt)
+      throw new BadRequestException('Deleted administrators cannot have their password reset.');
+    await prisma.adminUser.update({
+      where: { id },
+      data: { passwordHash: await hashPassword(body.password) },
+    });
+    const revoked = await prisma.adminSession.updateMany({
+      where: { adminId: id, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    await recordAudit(actor.id, 'ADMIN_PASSWORD_RESET', 'ADMIN_USER', id, {
+      email: current.email,
+      name: current.name,
+      role: current.role,
+      sessionsRevoked: revoked.count,
+    });
+    return { id, sessionsRevoked: revoked.count, reset: true };
+  }
+
+  async revokeAdministratorSessions(id: string, actor: AdminIdentity) {
+    const current = await prisma.adminUser.findUnique({
+      where: { id },
+      select: { id: true, email: true, name: true, role: true },
+    });
+    if (!current) throw new NotFoundException('Administrator not found.');
+    const result = await prisma.adminSession.updateMany({
+      where: { adminId: id, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    await recordAudit(actor.id, 'ADMIN_SESSIONS_REVOKED', 'ADMIN_USER', id, {
+      email: current.email,
+      name: current.name,
+      role: current.role,
+      count: result.count,
+    });
+    return { id, revoked: result.count };
+  }
+
   async queue(query: AdminQueueQueryDto, actor?: AdminIdentity) {
     const page = Math.max(1, query.page ?? 1);
     const limit = Math.min(50, Math.max(1, query.limit ?? 20));
