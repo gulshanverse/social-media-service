@@ -158,9 +158,9 @@ function ThemePreview({
   };
   return <SharedConfessionCard confession={previewConfession} className="theme-preview" />;
 }
-function asPublicTheme(theme: Partial<Theme> | null | undefined): PublicTheme | null {
+export function asPublicTheme(theme: Partial<Theme> | null | undefined): PublicTheme | null {
   if (!theme) return null;
-  return {
+  const candidate: PublicTheme = {
     id: theme.id || 'preview',
     name: theme.name || 'Preview',
     background: theme.background || '#151c2b',
@@ -171,6 +171,25 @@ function asPublicTheme(theme: Partial<Theme> | null | undefined): PublicTheme | 
     radius: `${theme.radius ?? 28}px`,
     tokens: theme.tokens,
   };
+  try {
+    themeToCssVariables(candidate);
+    return candidate;
+  } catch {
+    return {
+      ...candidate,
+      background: '#151c2b',
+      gradient: 'linear-gradient(135deg,#151c2b,#243c5a)',
+      textColor: '#fff',
+      accentColor: '#00b8ff',
+      fontFamily: 'Inter',
+      radius: '28px',
+      borderStyle: 'solid',
+      logoVisibility: true,
+      handleVisibility: true,
+      layoutVariant: 'classic',
+      tokens: undefined,
+    };
+  }
 }
 export function Nav({ admin, onNavigate }: { admin: Admin; onNavigate?: () => void }) {
   const links: [string, string][] = [['/', 'Dashboard']];

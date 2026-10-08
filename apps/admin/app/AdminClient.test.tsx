@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import AdminClient, { Confessions, Dashboard, GarbaAdmin, Nav } from './AdminClient';
+import AdminClient, { asPublicTheme, Confessions, Dashboard, GarbaAdmin, Nav, Themes } from './AdminClient';
 
 const navigation = vi.hoisted(() => ({ pathname: '/', push: vi.fn() }));
 
@@ -76,6 +76,29 @@ describe('admin workspace behavior', () => {
     expect(screen.queryByText('Queue')).not.toBeInTheDocument();
     expect(screen.queryByText('Reports')).not.toBeInTheDocument();
     expect(screen.queryByText('Audit')).not.toBeInTheDocument();
+  });
+
+  it('keeps the Themes page renderable when a legacy theme has malformed preview CSS', async () => {
+    const malformed = {
+      id: 'legacy-theme',
+      name: 'Paper & Ink',
+      background: '#F1EBDD',
+      gradient: 'linear-gradient(135deg, #F7F3E8 0%, #E7E0CF',
+      textColor: '#202020',
+      accentColor: '#8B1E1E',
+      fontFamily: 'Lora',
+      radius: 25,
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        response({ items: [malformed], page: 1, limit: 20, total: 1, hasMore: false }),
+      ),
+    );
+    expect(asPublicTheme(malformed)?.gradient).toBe('linear-gradient(135deg,#151c2b,#243c5a)');
+    render(<Themes admin={admin} />);
+    expect((await screen.findAllByText('Paper & Ink')).length).toBeGreaterThan(1);
+    expect(screen.queryByText('Application error')).not.toBeInTheDocument();
   });
 
   it('renders dashboard metrics and loading-to-success behavior', async () => {
