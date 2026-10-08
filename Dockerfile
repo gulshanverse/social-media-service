@@ -1,6 +1,9 @@
 FROM node:22-bookworm-slim AS build
 WORKDIR /app
-RUN corepack enable
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends openssl \
+  && rm -rf /var/lib/apt/lists/* \
+  && corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
 COPY apps/api/package.json apps/api/package.json
 COPY packages/config/package.json packages/config/package.json
@@ -17,7 +20,11 @@ RUN pnpm db:generate && pnpm --filter @ggv/config build && pnpm --filter @ggv/th
 FROM node:22-bookworm-slim AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
-RUN groupadd --system app && useradd --system --gid app app
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends openssl \
+  && rm -rf /var/lib/apt/lists/* \
+  && groupadd --system app \
+  && useradd --system --gid app app
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=build /app/apps/api/dist ./apps/api/dist

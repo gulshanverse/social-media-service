@@ -63,9 +63,15 @@ import {
   assert.equal(claims.filter(Boolean).length, 1);
   const configured = { sendMagicLink: async () => undefined };
   assert.equal(createEmailProvider({ NODE_ENV: 'production' }, configured), configured);
-  assert.throws(
-    () => createEmailProvider({ NODE_ENV: 'production' }),
-    /must be explicitly configured/,
+  const unavailable = createEmailProvider({ NODE_ENV: 'production' });
+  await assert.rejects(
+    () =>
+      unavailable.sendMagicLink({
+        email: 'user@example.com',
+        token: 'token',
+        expiresAt: new Date(),
+      }),
+    /EmailProvider is not configured/,
   );
   const validOrigin = {
     method: 'POST',

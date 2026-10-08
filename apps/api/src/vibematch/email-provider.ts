@@ -25,7 +25,5 @@ export function createEmailProvider(
   configuredProvider?: EmailProvider,
 ): EmailProvider {
   if (env.NODE_ENV !== 'production') return new DevelopmentEmailProvider();
-  if (!configuredProvider)
-    throw new Error('VibeMatch production EmailProvider must be explicitly configured.');
-  return configuredProvider;
+  return configuredProvider ?? new UnconfiguredEmailProvider();
 }
