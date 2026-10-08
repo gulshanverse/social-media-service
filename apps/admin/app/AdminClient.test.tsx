@@ -1,7 +1,14 @@
 import '@testing-library/jest-dom/vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import AdminClient, { asPublicTheme, Confessions, Dashboard, GarbaAdmin, Nav, Themes } from './AdminClient';
+import AdminClient, {
+  asPublicTheme,
+  Confessions,
+  Dashboard,
+  GarbaAdmin,
+  Nav,
+  Themes,
+} from './AdminClient';
 
 const navigation = vi.hoisted(() => ({ pathname: '/', push: vi.fn() }));
 
