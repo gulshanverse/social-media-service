@@ -28,8 +28,12 @@ const base = {
 
 async function run() {
   const audits: any[] = [];
+  const activityWheres: any[] = [];
   let revoked = 0;
   const database = {
+    confession: { count: async () => 0 },
+    report: { count: async () => 0 },
+    theme: { count: async () => 0 },
     adminUser: {
       findUnique: async ({ where }: any) => (where.id === 'new-1' ? base : null),
       findFirst: async () => null,
@@ -51,6 +55,10 @@ async function run() {
       create: async ({ data }: any) => {
         audits.push(data);
         return data;
+      },
+      findMany: async ({ where }: any) => {
+        activityWheres.push(where);
+        return [];
       },
     },
   } as any;
@@ -96,6 +104,12 @@ async function run() {
     assert.equal(result.status, 'BANNED');
     assert.equal(revoked, 1);
     assert.equal(audits.at(-1).action, 'ADMIN_BANNED');
+    await service.dashboardExtended(actor);
+    await service.dashboardExtended({ ...actor, role: AdminRole.MODERATOR });
+    await service.dashboardExtended({ ...actor, id: 'designer-1', role: AdminRole.DESIGNER });
+    assert.equal(activityWheres[0].actorId, undefined);
+    assert.equal(activityWheres[1].actorId, actor.id);
+    assert.equal(activityWheres[2].actorId, 'designer-1');
     console.log('administrator management tests passed');
   } finally {
     setPrismaForTests(realPrisma);

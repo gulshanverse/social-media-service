@@ -1439,7 +1439,7 @@ export class AdminService {
       activeThemes,
     };
   }
-  async dashboardExtended() {
+  async dashboardExtended(actor: AdminIdentity) {
     const [base, archived, recentActivity] = await Promise.all([
       this.dashboard(),
       prisma.confession.count({ where: { status: 'ARCHIVED' } }),
@@ -1455,6 +1455,7 @@ export class AdminService {
               'GARBA_SEASON',
             ],
           },
+          ...(actor.role === AdminRole.SUPER_ADMIN ? {} : { actorId: actor.id }),
         },
         orderBy: { createdAt: 'desc' },
         take: 6,

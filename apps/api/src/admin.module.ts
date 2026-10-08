@@ -51,8 +51,8 @@ import {
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class AdminController {
   constructor(@Inject(AdminService) private readonly service: AdminService) {}
-  @Get('dashboard') dashboard() {
-    return this.service.dashboardExtended();
+  @Get('dashboard') dashboard(@Req() req: { user?: ReturnType<typeof requireUser> }) {
+    return this.service.dashboardExtended(requireUser(req));
   }
   @Get('users') @Roles(AdminRole.SUPER_ADMIN) users(@Query() query: AdminUserQueryDto) {
     return this.service.listAdministrators(query);
