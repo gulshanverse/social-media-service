@@ -114,7 +114,7 @@ Public checks at audit time:
 - `/health/version` — HTTP 200, production environment reported
 - Security headers observed: CSP, HSTS, `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy: no-referrer`, COOP/CORP, and request IDs.
 
-The deployed commit predates the fix; the fix is pushed separately so the normal Render auto-deploy can promote it.
+After the fix was pushed, Render auto-deployed commit `850518ab024335a09ec3840f4f0d658951dfd2d7`. A bounded post-deploy check confirmed `/health/version` reported that commit and `/health/ready` returned HTTP 200 with `database: ok`.
 
 ### Vercel admin deployment
 
@@ -132,4 +132,4 @@ After the fix:
 
 ## Recommendation
 
-Promote the fix through the existing `main` auto-deploy path, then repeat `/health/version` and `/health/ready` checks and confirm the reported commit equals the fix commit. If the API is later scaled beyond one instance, replace the process-local rate limiter with a shared or edge-enforced mechanism.
+The fix has been promoted and verified on staging. If the API is later scaled beyond one instance, replace the process-local rate limiter with a shared or edge-enforced mechanism.
