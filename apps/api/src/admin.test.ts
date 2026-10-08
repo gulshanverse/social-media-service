@@ -226,7 +226,7 @@ async function testRefreshRotation() {
   setPrismaForTests(database);
   const controller = new AdminAuthController();
   const old = issueRefreshToken(admin, session.id);
-  storedHash = (await import('./admin-auth')).hashToken(old);
+  storedHash = (await import('./admin-auth.js')).hashToken(old);
   const response = { cookie: () => undefined, clearCookie: () => undefined } as any;
   const result = await controller.refresh(
     { body: {} } as any,
