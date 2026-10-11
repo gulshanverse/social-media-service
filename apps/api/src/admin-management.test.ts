@@ -111,6 +111,33 @@ async function run() {
     assert.equal(activityWheres[0].actorId, undefined);
     assert.equal(activityWheres[1].actorId, actor.id);
     assert.equal(activityWheres[2].actorId, 'designer-1');
+
+    const scopedActivityWheres: any[] = [];
+    setPrismaForTests({
+      adminUser: {
+        findUnique: async () => ({ role: AdminRole.DESIGNER, roleAssignments: [] }),
+      },
+      confession: { count: async () => 99 },
+      report: { count: async () => 88 },
+      theme: { count: async () => 7 },
+      auditLog: {
+        findMany: async ({ where }: any) => {
+          scopedActivityWheres.push(where);
+          return [];
+        },
+      },
+    } as any);
+    const scopedDashboard = await new AdminService().dashboardExtended({
+      ...actor,
+      id: 'designer-1',
+      role: AdminRole.DESIGNER,
+    });
+    assert.deepEqual(scopedDashboard, {
+      activeThemes: 7,
+      recentActivity: [],
+    });
+    assert.deepEqual(scopedActivityWheres[0].entity.in, []);
+    assert.equal(scopedActivityWheres[0].actorId, 'designer-1');
     console.log('administrator management tests passed');
   } finally {
     setPrismaForTests(realPrisma);

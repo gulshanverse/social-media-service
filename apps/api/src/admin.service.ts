@@ -32,6 +32,7 @@ import {
   ResetAdminPasswordDto,
 } from './admin.dto';
 import { increment } from './observability';
+import { hasPermission, PERMISSIONS } from './permissions';
 import {
   exportPortableTheme,
   normalizeImportedTheme,
@@ -1422,7 +1423,11 @@ export class AdminService {
     return item;
   }
 
-  async dashboard() {
+  async dashboard(actor?: AdminIdentity) {
+    const canReadConfessions =
+      !actor || (await hasPermission(prisma, actor, PERMISSIONS.CONFESSIONS_READ));
+    const canReadReports = !actor || (await hasPermission(prisma, actor, PERMISSIONS.REPORTS_READ));
+    const canReadThemes = !actor || (await hasPermission(prisma, actor, PERMISSIONS.THEMES_READ));
     const [
       pending,
       published,
@@ -1432,40 +1437,56 @@ export class AdminService {
       totalConfessions,
       activeThemes,
     ] = await Promise.all([
-      prisma.confession.count({ where: { status: 'PENDING' } }),
-      prisma.confession.count({ where: { status: 'PUBLISHED' } }),
-      prisma.confession.count({ where: { status: 'REJECTED' } }),
-      prisma.report.count({ where: { status: 'OPEN' } }),
-      prisma.report.count({ where: { status: 'RESOLVED' } }),
-      prisma.confession.count(),
-      prisma.theme.count(),
+      canReadConfessions
+        ? prisma.confession.count({ where: { status: 'PENDING' } })
+        : Promise.resolve(undefined),
+      canReadConfessions
+        ? prisma.confession.count({ where: { status: 'PUBLISHED' } })
+        : Promise.resolve(undefined),
+      canReadConfessions
+        ? prisma.confession.count({ where: { status: 'REJECTED' } })
+        : Promise.resolve(undefined),
+      canReadReports
+        ? prisma.report.count({ where: { status: 'OPEN' } })
+        : Promise.resolve(undefined),
+      canReadReports
+        ? prisma.report.count({ where: { status: 'RESOLVED' } })
+        : Promise.resolve(undefined),
+      canReadConfessions ? prisma.confession.count() : Promise.resolve(undefined),
+      canReadThemes ? prisma.theme.count() : Promise.resolve(undefined),
     ]);
     return {
-      pendingConfessions: pending,
-      publishedConfessions: published,
-      rejectedConfessions: rejected,
-      openReports,
-      resolvedReports,
-      totalConfessions,
-      activeThemes,
+      ...(canReadConfessions
+        ? {
+            pendingConfessions: pending,
+            publishedConfessions: published,
+            rejectedConfessions: rejected,
+            totalConfessions,
+          }
+        : {}),
+      ...(canReadReports ? { openReports, resolvedReports } : {}),
+      ...(canReadThemes ? { activeThemes } : {}),
     };
   }
   async dashboardExtended(actor: AdminIdentity) {
-    const [base, archived, recentActivity] = await Promise.all([
-      this.dashboard(),
-      prisma.confession.count({ where: { status: 'ARCHIVED' } }),
+    const [base, canReadConfessions, canReadReports, canReadGarba] = await Promise.all([
+      this.dashboard(actor),
+      hasPermission(prisma, actor, PERMISSIONS.CONFESSIONS_READ),
+      hasPermission(prisma, actor, PERMISSIONS.REPORTS_READ),
+      hasPermission(prisma, actor, PERMISSIONS.GARBA_READ),
+    ]);
+    const activityEntities = [
+      ...(canReadConfessions ? ['CONFESSION'] : []),
+      ...(canReadReports ? ['REPORT'] : []),
+      ...(canReadGarba ? ['GARBA_POST', 'GARBA_COMMENT', 'GARBA_REPORT', 'GARBA_SEASON'] : []),
+    ];
+    const [archived, recentActivity] = await Promise.all([
+      canReadConfessions
+        ? prisma.confession.count({ where: { status: 'ARCHIVED' } })
+        : Promise.resolve(undefined),
       prisma.auditLog.findMany({
         where: {
-          entity: {
-            in: [
-              'CONFESSION',
-              'REPORT',
-              'GARBA_POST',
-              'GARBA_COMMENT',
-              'GARBA_REPORT',
-              'GARBA_SEASON',
-            ],
-          },
+          entity: { in: activityEntities },
           ...(actor.role === AdminRole.SUPER_ADMIN ? {} : { actorId: actor.id }),
         },
         orderBy: { createdAt: 'desc' },
@@ -1480,6 +1501,10 @@ export class AdminService {
         },
       }),
     ]);
-    return { ...base, archivedConfessions: archived, recentActivity };
+    return {
+      ...base,
+      ...(canReadConfessions ? { archivedConfessions: archived } : {}),
+      recentActivity,
+    };
   }
 }
