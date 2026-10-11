@@ -19,7 +19,12 @@ import { AdminRole, PermissionEffect, Prisma } from '@prisma/client';
 import { IsArray, IsEnum, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { JwtAuthGuard, Permissions, prisma, requireUser, RolesGuard } from './admin-auth';
 import type { AdminIdentity } from './admin-auth';
-import { PERMISSION_CATALOG, PERMISSIONS, RESERVED_PERMISSIONS } from './permissions';
+import {
+  effectivePermissionKeys,
+  PERMISSION_CATALOG,
+  PERMISSIONS,
+  RESERVED_PERMISSIONS,
+} from './permissions';
 
 class RoleDto {
   @IsString() @MinLength(2) @MaxLength(80) key!: string;
@@ -72,6 +77,68 @@ export class RbacService {
   async permissions(actor: AdminIdentity) {
     assertSuperAdmin(actor);
     return PERMISSION_CATALOG;
+  }
+  async userAccess(adminId: string, actor: AdminIdentity) {
+    assertSuperAdmin(actor);
+    const admin = await prisma.adminUser.findUnique({
+      where: { id: adminId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        isActive: true,
+        bannedAt: true,
+        deletedAt: true,
+        roleAssignments: {
+          orderBy: { role: { key: 'asc' } },
+          select: {
+            role: {
+              select: {
+                id: true,
+                key: true,
+                name: true,
+                description: true,
+                system: true,
+                permissions: {
+                  orderBy: { permissionKey: 'asc' },
+                  select: { permissionKey: true },
+                },
+              },
+            },
+          },
+        },
+        permissionOverrides: {
+          orderBy: { permissionKey: 'asc' },
+          select: { permissionKey: true, effect: true },
+        },
+      },
+    });
+    if (!admin) throw new NotFoundException('Administrator not found.');
+    const rolePermissionKeys = admin.roleAssignments.flatMap((assignment) =>
+      assignment.role.permissions.map(({ permissionKey }) => permissionKey),
+    );
+    return {
+      admin: {
+        id: admin.id,
+        email: admin.email,
+        name: admin.name,
+        role: admin.role,
+        isActive: admin.isActive,
+        bannedAt: admin.bannedAt,
+        deletedAt: admin.deletedAt,
+      },
+      roles: admin.roleAssignments.map(({ role }) => ({
+        ...role,
+        permissions: role.permissions.map(({ permissionKey }) => permissionKey),
+      })),
+      overrides: admin.permissionOverrides,
+      effectivePermissions: effectivePermissionKeys(
+        admin.role,
+        rolePermissionKeys,
+        admin.permissionOverrides,
+      ),
+    };
   }
   async roles(actor: AdminIdentity) {
     assertSuperAdmin(actor);
@@ -209,6 +276,11 @@ export class RbacController {
   @Permissions(PERMISSIONS.PERMISSIONS_MANAGE)
   permissions(@ReqUser() actor: AdminIdentity) {
     return this.service.permissions(actor);
+  }
+  @Get('users/:id/access')
+  @Permissions(PERMISSIONS.PERMISSIONS_MANAGE)
+  userAccess(@Param('id') id: string, @ReqUser() actor: AdminIdentity) {
+    return this.service.userAccess(id, actor);
   }
   @Get('roles')
   @Permissions(PERMISSIONS.ROLES_MANAGE)

@@ -2,8 +2,9 @@ import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { AdminRole, PermissionEffect } from '@prisma/client';
 import { AdminController } from './admin.module';
-import { RbacService } from './rbac.module';
-import { hasPermission } from './permissions';
+import { RbacController, RbacService } from './rbac.module';
+import { effectivePermissionKeys, hasPermission } from './permissions';
+import { prisma, setPrismaForTests } from './admin-auth';
 
 function databaseFor(options: {
   role: AdminRole;
@@ -37,6 +38,7 @@ function databaseFor(options: {
 }
 
 async function main() {
+  const realPrisma = prisma;
   for (const [method, permission] of Object.entries({
     dashboard: 'dashboard.read',
     queue: 'confessions.read',
@@ -121,6 +123,107 @@ async function main() {
     ),
     true,
   );
+  assert.deepEqual(
+    effectivePermissionKeys(
+      AdminRole.DESIGNER,
+      ['confessions.read', 'not-real'],
+      [
+        { permissionKey: 'confessions.read', effect: PermissionEffect.DENY },
+        { permissionKey: 'reports.read', effect: PermissionEffect.GRANT },
+      ],
+    ),
+    ['dashboard.read', 'reports.read', 'themes.read', 'themes.manage', 'profile.manage'],
+  );
+  assert.deepEqual(
+    effectivePermissionKeys(
+      AdminRole.SUPER_ADMIN,
+      [],
+      [{ permissionKey: 'confessions.read', effect: PermissionEffect.DENY }],
+    ),
+    [
+      'dashboard.read',
+      'users.manage',
+      'sessions.manage',
+      'confessions.read',
+      'confessions.edit',
+      'confessions.moderate',
+      'confessions.delete',
+      'reports.read',
+      'reports.manage',
+      'audit.read',
+      'themes.read',
+      'themes.manage',
+      'profile.manage',
+      'garba.read',
+      'garba.edit',
+      'garba.moderate',
+      'garba.seasons.manage',
+      'roles.manage',
+      'permissions.manage',
+    ],
+  );
+  assert.deepEqual(Reflect.getMetadata('permissions', RbacController.prototype.userAccess), [
+    'permissions.manage',
+  ]);
+  setPrismaForTests({
+    adminUser: {
+      findUnique: async () => ({
+        id: 'target',
+        email: 'target@example.com',
+        name: 'Target',
+        role: AdminRole.DESIGNER,
+        isActive: true,
+        bannedAt: null,
+        deletedAt: null,
+        roleAssignments: [
+          {
+            role: {
+              id: 'role-1',
+              key: 'CUSTOM_DESIGNER',
+              name: 'Custom Designer',
+              description: null,
+              system: false,
+              permissions: [{ permissionKey: 'confessions.read' }],
+            },
+          },
+        ],
+        permissionOverrides: [
+          { permissionKey: 'confessions.read', effect: PermissionEffect.DENY },
+          { permissionKey: 'reports.read', effect: PermissionEffect.GRANT },
+        ],
+      }),
+    },
+  } as any);
+  try {
+    const access = await new RbacService().userAccess('target', {
+      id: 'super',
+      email: 'super@example.com',
+      name: null,
+      role: AdminRole.SUPER_ADMIN,
+    });
+    assert.equal(access.admin.email, 'target@example.com');
+    assert.equal('passwordHash' in access.admin, false);
+    assert.deepEqual(access.roles[0].permissions, ['confessions.read']);
+    assert.deepEqual(access.effectivePermissions, [
+      'dashboard.read',
+      'reports.read',
+      'themes.read',
+      'themes.manage',
+      'profile.manage',
+    ]);
+    await assert.rejects(
+      () =>
+        new RbacService().userAccess('target', {
+          id: 'designer',
+          email: 'designer@example.com',
+          name: null,
+          role: AdminRole.DESIGNER,
+        }),
+      /SUPER_ADMIN authorization required/,
+    );
+  } finally {
+    setPrismaForTests(realPrisma);
+  }
   const rbac = new RbacService();
   await assert.rejects(
     () =>

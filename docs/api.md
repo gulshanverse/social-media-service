@@ -75,3 +75,7 @@ Discovery never returns email, Instagram, internal identity/profile/session IDs,
 - `DELETE /admin/users/:id` performs the same protected soft-delete transition as `status=DELETED`.
 
 Responses never include password hashes, refresh hashes, access tokens, refresh tokens, or other credential material. Unauthenticated callers receive `401`; `MODERATOR` and `DESIGNER` callers receive `403`.
+
+## Dynamic RBAC
+
+Dynamic RBAC management is restricted to active `SUPER_ADMIN` accounts by `JwtAuthGuard`, `RolesGuard`, and an explicit service-level authorization check. `GET /admin/rbac/users/:id/access` returns a safe per-user projection containing administrator lifecycle fields, assigned role definitions and permission keys, individual `GRANT`/`DENY` overrides, and the effective catalog permission keys after legacy role permissions, custom role grants, and overrides are evaluated. It never returns password hashes, session hashes, tokens, or other credential material. Unknown permissions are excluded from effective access, and a `DENY` overrides inherited grants.

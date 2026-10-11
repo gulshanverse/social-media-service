@@ -59,6 +59,23 @@ export const PERMISSION_CATALOG = permissionEntries.map(([key, description, rese
   description,
   reserved,
 }));
+export function effectivePermissionKeys(
+  role: AdminRole,
+  rolePermissionKeys: Iterable<string>,
+  overrides: Iterable<{ permissionKey: string; effect: PermissionEffect }>,
+) {
+  if (role === AdminRole.SUPER_ADMIN) return PERMISSION_CATALOG.map(({ key }) => key);
+  const effective = new Set<PermissionKey>(LEGACY_ROLE_PERMISSIONS[role]);
+  for (const permissionKey of rolePermissionKeys)
+    if (Object.values(PERMISSIONS).includes(permissionKey as PermissionKey))
+      effective.add(permissionKey as PermissionKey);
+  for (const override of overrides) {
+    if (override.effect === PermissionEffect.GRANT)
+      effective.add(override.permissionKey as PermissionKey);
+    else effective.delete(override.permissionKey as PermissionKey);
+  }
+  return PERMISSION_CATALOG.filter(({ key }) => effective.has(key)).map(({ key }) => key);
+}
 
 const LEGACY_ROLE_PERMISSIONS: Record<AdminRole, ReadonlySet<PermissionKey>> = {
   [AdminRole.SUPER_ADMIN]: new Set(Object.values(PERMISSIONS)),
