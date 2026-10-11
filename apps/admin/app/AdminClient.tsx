@@ -13,6 +13,7 @@ import {
 } from '@ggv/themes';
 import { ConfessionCard as SharedConfessionCard, Logo } from '@ggv/ui';
 import ProfilePage from './ProfilePage';
+import RbacManagement from './RbacManagement';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 type Role = 'SUPER_ADMIN' | 'MODERATOR' | 'DESIGNER';
@@ -197,6 +198,7 @@ export function Nav({ admin, onNavigate }: { admin: Admin; onNavigate?: () => vo
     links.push(['/confessions', 'Queue'], ['/reports', 'Reports'], ['/garba', 'Garba']);
   if (admin.role === 'SUPER_ADMIN') links.push(['/audit-logs', 'Audit']);
   if (admin.role === 'SUPER_ADMIN') links.push(['/users', 'Administrators']);
+  if (admin.role === 'SUPER_ADMIN') links.push(['/rbac', 'Dynamic RBAC']);
   links.push(['/themes', 'Themes']);
   if (admin.role === 'SUPER_ADMIN' || admin.role === 'DESIGNER')
     links.push(['/profile-page', 'Profile Page']);
@@ -3298,6 +3300,8 @@ export default function AdminClient() {
       <AuditLogs />
     ) : pathname === '/users' ? (
       <Administrators />
+    ) : pathname === '/rbac' ? (
+      <RbacManagement admin={admin} />
     ) : pathname === '/themes' ? (
       <Themes admin={admin} />
     ) : pathname === '/profile-page' ? (

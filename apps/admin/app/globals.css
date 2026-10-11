@@ -1815,3 +1815,188 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 }
+
+/* Dynamic RBAC workspace */
+.rbac-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(340px, 0.85fr);
+  gap: 16px;
+  align-items: start;
+}
+.rbac-main-column,
+.rbac-side-column {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.rbac-role-list,
+.rbac-override-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+.rbac-role-card {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  border: 1px solid #26334d;
+  border-radius: 12px;
+  background: #0d1524;
+}
+.rbac-role-card.selected {
+  border-color: #ff9a3c;
+}
+.rbac-role-select {
+  display: grid;
+  gap: 4px;
+  flex: 1;
+  padding: 0;
+  text-align: left;
+  background: transparent;
+  color: #f8fafc;
+}
+.rbac-role-select:hover:not(:disabled) {
+  transform: none;
+}
+.rbac-role-select > span:not(.row-title),
+.rbac-role-select small {
+  color: #94a3b8;
+  font-size: 0.78rem;
+}
+.rbac-protected {
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+.rbac-description {
+  min-height: 80px;
+}
+.rbac-permission-toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin: 20px 0 10px;
+}
+.rbac-permission-toolbar input {
+  max-width: 300px;
+}
+.rbac-permission-groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  max-height: 460px;
+  overflow: auto;
+  padding: 2px;
+}
+.rbac-permission-group {
+  min-width: 0;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid #26334d;
+  border-radius: 10px;
+}
+.rbac-permission-group legend {
+  padding: 0 6px;
+  color: #ffb05f;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: capitalize;
+}
+.rbac-permission-option {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 8px;
+  align-items: start;
+  padding: 7px 0;
+  font-size: 0.78rem;
+}
+.rbac-permission-option input {
+  width: auto;
+  margin-top: 2px;
+}
+.rbac-permission-option span {
+  display: grid;
+  gap: 3px;
+}
+.rbac-permission-option small {
+  color: #94a3b8;
+  font-weight: 400;
+  line-height: 1.35;
+}
+.rbac-access-panel h3 {
+  margin-top: 22px;
+}
+.rbac-chip-list,
+.rbac-effective-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 10px 0 14px;
+}
+.rbac-chip,
+.rbac-effective-key {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  border-radius: 999px;
+  padding: 6px 9px;
+  background: #26334d;
+  color: #dbe7f5;
+  font-size: 0.74rem;
+}
+.rbac-chip button {
+  padding: 0 2px;
+  background: transparent;
+  color: #fda4af;
+  font-size: 1rem;
+  line-height: 1;
+}
+.rbac-override-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: end;
+}
+.rbac-override-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 0;
+  border-top: 1px solid #26334d;
+}
+.rbac-override-row > span {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.rbac-effective-key.denied {
+  color: #fda4af;
+  background: #452034;
+  text-decoration: line-through;
+}
+@media (max-width: 900px) {
+  .rbac-grid {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 620px) {
+  .rbac-permission-groups {
+    grid-template-columns: 1fr;
+  }
+  .rbac-permission-toolbar,
+  .rbac-override-form {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+  .rbac-permission-toolbar input {
+    max-width: none;
+  }
+  .rbac-role-card {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
