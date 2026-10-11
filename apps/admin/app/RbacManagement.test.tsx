@@ -117,6 +117,39 @@ describe('Dynamic RBAC management', () => {
     expect(screen.getByText('A DENY always wins over inherited grants.')).toBeInTheDocument();
   });
 
+  it('edits a custom role display name and description together with permissions', async () => {
+    const { fetchMock } = installApi();
+    render(<RbacManagement admin={superAdmin} />);
+    await screen.findByText('Reviewer');
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    fireEvent.change(screen.getByDisplayValue('Reviewer'), {
+      target: { value: 'Content reviewer' },
+    });
+    fireEvent.change(screen.getByDisplayValue('Custom role'), {
+      target: { value: 'Reviews content' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save role' }));
+    await waitFor(() =>
+      expect(screen.getByRole('status')).toHaveTextContent('Custom role updated.'),
+    );
+    const patch = fetchMock.mock.calls.find(([, init]) => init?.method === 'PATCH');
+    expect(patch).toBeDefined();
+    expect(JSON.parse(String(patch?.[1]?.body))).toEqual({
+      name: 'Content reviewer',
+      description: 'Reviews content',
+      permissions: ['dashboard.read'],
+    });
+  });
+  it('shows a role save error without reporting success', async () => {
+    const { fetchMock } = installApi({ failMutation: true });
+    render(<RbacManagement admin={superAdmin} />);
+    await screen.findByText('Reviewer');
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save role' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Role save failed');
+    expect(screen.queryByText('Custom role updated.')).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'PATCH')).toBe(true);
+  });
   it('creates a custom role with grouped permissions and ignores duplicate submissions', async () => {
     const { calls } = installApi();
     render(<RbacManagement admin={superAdmin} />);

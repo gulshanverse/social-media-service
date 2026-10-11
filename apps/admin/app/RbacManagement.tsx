@@ -353,9 +353,9 @@ export function RbacManagement({ admin }: Props) {
                     if (editingRoleKey) {
                       await api(`/admin/rbac/roles/${encodeURIComponent(editingRoleKey)}`, {
                         method: 'PATCH',
-                        body: JSON.stringify({ permissions: roleForm.permissions }),
+                        body: JSON.stringify(body),
                       });
-                      await refreshAfterMutation('Custom role permissions updated.');
+                      await refreshAfterMutation('Custom role updated.');
                     } else {
                       await api('/admin/rbac/roles', {
                         method: 'POST',

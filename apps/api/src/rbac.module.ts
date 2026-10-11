@@ -26,14 +26,16 @@ import {
   RESERVED_PERMISSIONS,
 } from './permissions';
 
-class RoleDto {
+export class RoleDto {
   @IsString() @MinLength(2) @MaxLength(80) key!: string;
   @IsString() @MinLength(1) @MaxLength(120) name!: string;
   @IsOptional() @IsString() @MaxLength(240) description?: string;
   @IsArray() @IsString({ each: true }) permissions!: string[];
 }
-class RolePermissionsDto {
-  @IsArray() @IsString({ each: true }) permissions!: string[];
+export class UpdateRoleDto {
+  @IsOptional() @IsString() @MinLength(1) @MaxLength(120) name?: string;
+  @IsOptional() @IsString() @MaxLength(240) description?: string;
+  @IsOptional() @IsArray() @IsString({ each: true }) permissions?: string[];
 }
 class RoleAssignmentDto {
   @IsString() @MinLength(1) @MaxLength(80) roleKey!: string;
@@ -46,6 +48,13 @@ class PermissionOverrideDto {
 function assertSuperAdmin(actor: AdminIdentity) {
   if (actor.role !== AdminRole.SUPER_ADMIN)
     throw new ForbiddenException('SUPER_ADMIN authorization required.');
+}
+function normalizeRoleKey(key: string) {
+  return key.trim().toUpperCase();
+}
+function assertDynamicRoleKey(key: string) {
+  if (normalizeRoleKey(key) === AdminRole.SUPER_ADMIN)
+    throw new BadRequestException('The SUPER_ADMIN role is reserved.');
 }
 
 const ReqUser = createParamDecorator((_data: unknown, context: ExecutionContext) =>
@@ -152,12 +161,17 @@ export class RbacService {
   }
   async createRole(body: RoleDto, actor: AdminIdentity) {
     assertSuperAdmin(actor);
+    const key = normalizeRoleKey(body.key);
+    if (!key) throw new BadRequestException('Role key cannot be empty.');
+    const name = body.name.trim();
+    if (!name) throw new BadRequestException('Role name cannot be empty.');
+    assertDynamicRoleKey(key);
     const permissions = this.validatePermissionKeys(body.permissions);
     return prisma.$transaction(async (database) => {
       const role = await database.adminRoleDefinition.create({
         data: {
-          key: body.key.trim().toUpperCase(),
-          name: body.name.trim(),
+          key,
+          name,
           description: body.description?.trim() || null,
           permissions: { create: permissions.map((permissionKey) => ({ permissionKey })) },
         },
@@ -170,19 +184,35 @@ export class RbacService {
       return role;
     });
   }
-  async updateRole(key: string, body: RolePermissionsDto, actor: AdminIdentity) {
+  async updateRole(key: string, body: UpdateRoleDto, actor: AdminIdentity) {
     assertSuperAdmin(actor);
-    const permissions = this.validatePermissionKeys(body.permissions);
+    const normalizedKey = normalizeRoleKey(key);
+    assertDynamicRoleKey(normalizedKey);
     return prisma.$transaction(async (database) => {
-      const role = await database.adminRoleDefinition.findUnique({ where: { key } });
+      const role = await database.adminRoleDefinition.findUnique({ where: { key: normalizedKey } });
       if (!role || role.system) throw new BadRequestException('System roles cannot be changed.');
-      await database.adminRolePermission.deleteMany({ where: { roleId: role.id } });
-      await database.adminRolePermission.createMany({
-        data: permissions.map((permissionKey) => ({ roleId: role.id, permissionKey })),
-      });
-      await this.audit(database, actor.id, 'RBAC_ROLE_PERMISSIONS_CHANGED', role.id, {
+      const permissions =
+        body.permissions === undefined ? undefined : this.validatePermissionKeys(body.permissions);
+      const data: Prisma.AdminRoleDefinitionUpdateInput = {};
+      if (body.name !== undefined) {
+        const name = body.name.trim();
+        if (!name) throw new BadRequestException('Role name cannot be empty.');
+        data.name = name;
+      }
+      if (body.description !== undefined) data.description = body.description.trim() || null;
+      if (Object.keys(data).length > 0)
+        await database.adminRoleDefinition.update({ where: { id: role.id }, data });
+      if (permissions !== undefined) {
+        await database.adminRolePermission.deleteMany({ where: { roleId: role.id } });
+        await database.adminRolePermission.createMany({
+          data: permissions.map((permissionKey) => ({ roleId: role.id, permissionKey })),
+        });
+      }
+      await this.audit(database, actor.id, 'RBAC_ROLE_UPDATED', role.id, {
         key: role.key,
-        permissions,
+        ...(body.name !== undefined ? { name: data.name } : {}),
+        ...(body.description !== undefined ? { description: data.description } : {}),
+        ...(permissions !== undefined ? { permissions } : {}),
       });
       return database.adminRoleDefinition.findUnique({
         where: { id: role.id },
@@ -192,8 +222,10 @@ export class RbacService {
   }
   async deleteRole(key: string, actor: AdminIdentity) {
     assertSuperAdmin(actor);
+    const normalizedKey = normalizeRoleKey(key);
+    assertDynamicRoleKey(normalizedKey);
     return prisma.$transaction(async (database) => {
-      const role = await database.adminRoleDefinition.findUnique({ where: { key } });
+      const role = await database.adminRoleDefinition.findUnique({ where: { key: normalizedKey } });
       if (!role || role.system) throw new BadRequestException('System roles cannot be deleted.');
       await database.adminRoleDefinition.delete({ where: { id: role.id } });
       await this.audit(database, actor.id, 'RBAC_ROLE_DELETED', role.id, { key: role.key });
@@ -202,8 +234,10 @@ export class RbacService {
   }
   async assignRole(adminId: string, body: RoleAssignmentDto, actor: AdminIdentity) {
     assertSuperAdmin(actor);
+    const roleKey = normalizeRoleKey(body.roleKey);
+    assertDynamicRoleKey(roleKey);
     return prisma.$transaction(async (database) => {
-      const role = await database.adminRoleDefinition.findUnique({ where: { key: body.roleKey } });
+      const role = await database.adminRoleDefinition.findUnique({ where: { key: roleKey } });
       const target = await database.adminUser.findUnique({
         where: { id: adminId },
         select: { id: true },
@@ -222,12 +256,14 @@ export class RbacService {
   }
   async removeRole(adminId: string, key: string, actor: AdminIdentity) {
     assertSuperAdmin(actor);
+    const normalizedKey = normalizeRoleKey(key);
+    assertDynamicRoleKey(normalizedKey);
     return prisma.$transaction(async (database) => {
-      const role = await database.adminRoleDefinition.findUnique({ where: { key } });
+      const role = await database.adminRoleDefinition.findUnique({ where: { key: normalizedKey } });
       if (!role) throw new NotFoundException('Role not found.');
       await database.adminRoleAssignment.deleteMany({ where: { adminId, roleId: role.id } });
-      await this.audit(database, actor.id, 'RBAC_ROLE_REMOVED', adminId, { roleKey: key });
-      return { adminId, roleKey: key, removed: true };
+      await this.audit(database, actor.id, 'RBAC_ROLE_REMOVED', adminId, { roleKey: role.key });
+      return { adminId, roleKey: role.key, removed: true };
     });
   }
   async override(adminId: string, body: PermissionOverrideDto, actor: AdminIdentity) {
@@ -296,7 +332,7 @@ export class RbacController {
   @Permissions(PERMISSIONS.ROLES_MANAGE)
   updateRole(
     @Param('key') key: string,
-    @Body() body: RolePermissionsDto,
+    @Body() body: UpdateRoleDto,
     @ReqUser() actor: AdminIdentity,
   ) {
     return this.service.updateRole(key, body, actor);
