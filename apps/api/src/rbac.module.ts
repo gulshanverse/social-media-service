@@ -188,6 +188,7 @@ export class RbacService {
   }
   async clearOverride(adminId: string, key: string, actor: AdminIdentity) {
     assertSuperAdmin(actor);
+    this.validatePermissionKeys([key]);
     return prisma.$transaction(async (database) => {
       await database.adminPermissionOverride.deleteMany({
         where: { adminId, permissionKey: key },

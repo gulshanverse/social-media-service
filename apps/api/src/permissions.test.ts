@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { AdminRole, PermissionEffect } from '@prisma/client';
 import { AdminController } from './admin.module';
+import { RbacService } from './rbac.module';
 import { hasPermission } from './permissions';
 
 function databaseFor(options: {
@@ -119,6 +120,27 @@ async function main() {
       'permissions.manage',
     ),
     true,
+  );
+  const rbac = new RbacService();
+  await assert.rejects(
+    () =>
+      rbac.clearOverride('admin', 'not-real', {
+        id: 'super',
+        email: 'super@example.com',
+        name: null,
+        role: AdminRole.SUPER_ADMIN,
+      }),
+    /Unknown permission/,
+  );
+  await assert.rejects(
+    () =>
+      rbac.clearOverride('admin', 'roles.manage', {
+        id: 'super',
+        email: 'super@example.com',
+        name: null,
+        role: AdminRole.SUPER_ADMIN,
+      }),
+    /Reserved permissions/,
   );
   console.log('dynamic RBAC evaluator tests passed');
 }
