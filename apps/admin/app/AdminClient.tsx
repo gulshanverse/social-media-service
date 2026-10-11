@@ -46,21 +46,35 @@ type Theme = {
 };
 type PageData<T> = { items: T[]; page: number; limit: number; total: number; hasMore: boolean };
 let runtimeToken = '';
+let lastKnownAdmin: Admin | null = null;
+let refreshPromise: Promise<string> | null = null;
 
-async function refresh() {
-  const response = await fetch(`${API}/admin/auth/refresh`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'content-type': 'application/json' },
-    body: '{}',
-  });
-  if (!response.ok) {
-    runtimeToken = '';
-    throw new Error('Session expired');
+export async function refresh() {
+  if (refreshPromise) return refreshPromise;
+  refreshPromise = (async () => {
+    const response = await fetch(`${API}/admin/auth/refresh`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'content-type': 'application/json' },
+      body: '{}',
+    });
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) runtimeToken = '';
+      const error = new Error(
+        response.status === 429 ? 'Too many refresh attempts.' : 'Session expired',
+      );
+      (error as Error & { status?: number }).status = response.status;
+      throw error;
+    }
+    const result = await response.json();
+    runtimeToken = result.accessToken;
+    return runtimeToken;
+  })();
+  try {
+    return await refreshPromise;
+  } finally {
+    refreshPromise = null;
   }
-  const result = await response.json();
-  runtimeToken = result.accessToken;
-  return runtimeToken;
 }
 export async function api(path: string, init: RequestInit = {}) {
   const headers = new Headers(init.headers);
@@ -292,6 +306,7 @@ function Login({ onLogin }: { onLogin: (session: Session) => void }) {
         );
       const session = await response.json();
       runtimeToken = session.accessToken;
+      lastKnownAdmin = session.admin;
       onLogin(session);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unable to sign in.');
@@ -3266,10 +3281,23 @@ export default function AdminClient() {
   const [admin, setAdmin] = useState<Admin | null>(null);
   const [ready, setReady] = useState(false);
   useEffect(() => {
-    refresh()
+    (runtimeToken ? Promise.resolve() : refresh())
       .then(() => api('/admin/auth/me'))
-      .then(setAdmin)
-      .catch(() => setAdmin(null))
+      .then((currentAdmin) => {
+        lastKnownAdmin = currentAdmin;
+        setAdmin(currentAdmin);
+      })
+      .catch((error: unknown) => {
+        const status = (error as { status?: number })?.status;
+        if (status === 401 || status === 403) {
+          lastKnownAdmin = null;
+          setAdmin(null);
+        } else if (lastKnownAdmin) {
+          setAdmin(lastKnownAdmin);
+        } else {
+          setAdmin(null);
+        }
+      })
       .finally(() => setReady(true));
   }, []);
   async function logout() {
@@ -3277,6 +3305,7 @@ export default function AdminClient() {
       await api('/admin/auth/logout', { method: 'POST' });
     } catch {}
     runtimeToken = '';
+    lastKnownAdmin = null;
     setAdmin(null);
     router.push('/login');
   }
@@ -3286,7 +3315,15 @@ export default function AdminClient() {
         <div className="state">Loading secure workspace…</div>
       </main>
     );
-  if (!admin) return <Login onLogin={(s) => setAdmin(s.admin)} />;
+  if (!admin)
+    return (
+      <Login
+        onLogin={(s) => {
+          lastKnownAdmin = s.admin;
+          setAdmin(s.admin);
+        }}
+      />
+    );
   const content =
     pathname === '/confessions' ? (
       <Confessions />

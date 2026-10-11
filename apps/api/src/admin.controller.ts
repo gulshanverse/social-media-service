@@ -10,7 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import {
   comparePassword,
   cookieOptions,
@@ -44,7 +44,11 @@ export class AdminAuthController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ) {
-    if (request.ip && !loginRateLimiter.check(request.ip)) {
+    const ipKey = request.ip ? `ip:${request.ip}` : undefined;
+    const accountKey = `account:${createHash('sha256')
+      .update(body.email.toLowerCase().trim())
+      .digest('hex')}`;
+    if ((ipKey && !loginRateLimiter.isAllowed(ipKey)) || !loginRateLimiter.isAllowed(accountKey)) {
       this.setRetryAfter(response, process.env.ADMIN_LOGIN_RATE_WINDOW_SECONDS ?? '900');
       throw new HttpException('Invalid email or password.', HttpStatus.TOO_MANY_REQUESTS);
     }
@@ -58,6 +62,8 @@ export class AdminAuthController {
       admin.deletedAt ||
       !(await comparePassword(body.password, admin.passwordHash))
     ) {
+      if (ipKey) loginRateLimiter.recordFailure(ipKey);
+      loginRateLimiter.recordFailure(accountKey);
       increment('auth_login_failures');
       structuredLog('warn', 'auth.login_failed', {
         requestId: request.header('x-request-id'),
@@ -86,7 +92,8 @@ export class AdminAuthController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ) {
-    if (request.ip && !refreshRateLimiter.check(request.ip)) {
+    const ipKey = request.ip ? `ip:${request.ip}` : undefined;
+    if (ipKey && !refreshRateLimiter.isAllowed(ipKey)) {
       this.setRetryAfter(response, process.env.ADMIN_REFRESH_RATE_WINDOW_SECONDS ?? '900');
       throw new HttpException('Too many refresh attempts.', HttpStatus.TOO_MANY_REQUESTS);
     }
@@ -129,6 +136,7 @@ export class AdminAuthController {
       response.cookie(refreshCookieName, replacement, cookieOptions());
       return { accessToken: issueAccessToken(identity) };
     } catch {
+      if (ipKey) refreshRateLimiter.recordFailure(ipKey);
       response.clearCookie(refreshCookieName, { ...cookieOptions(), maxAge: undefined });
       throw new HttpException('Invalid refresh token.', HttpStatus.UNAUTHORIZED);
     }

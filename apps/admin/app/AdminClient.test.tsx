@@ -7,6 +7,7 @@ import AdminClient, {
   Dashboard,
   GarbaAdmin,
   Nav,
+  refresh,
   Themes,
 } from './AdminClient';
 
@@ -193,6 +194,25 @@ describe('admin workspace behavior', () => {
     expect(await screen.findByRole('heading', { name: 'Garba moderation' })).toBeInTheDocument();
     expect(await screen.findByText('4')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Garba' })).toHaveAttribute('href', '/garba');
+  });
+
+  it('shares one refresh request when concurrent callers refresh together', async () => {
+    let resolveRefresh: ((value: Response) => void) | undefined;
+    const refreshResponse = new Promise<Response>((resolve) => {
+      resolveRefresh = resolve;
+    });
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      expect(String(input)).toContain('/admin/auth/refresh');
+      return refreshResponse;
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const first = refresh();
+    const second = refresh();
+    resolveRefresh?.(response({ accessToken: 'shared-token' }));
+
+    await expect(Promise.all([first, second])).resolves.toEqual(['shared-token', 'shared-token']);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('keeps ALL explicit when opening Total posts from Garba overview', async () => {

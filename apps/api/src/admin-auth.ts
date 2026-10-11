@@ -208,14 +208,28 @@ export class LoginRateLimiter {
     private readonly windowEnv = 'ADMIN_LOGIN_RATE_WINDOW_SECONDS',
   ) {}
   private readonly attempts = new Map<string, number[]>();
-  check(key: string) {
+  private current(key: string, now = Date.now()) {
+    const windowMs = Math.max(1, Number(process.env[this.windowEnv] ?? 900)) * 1000;
+    const entries = (this.attempts.get(key) ?? []).filter((stamp) => stamp > now - windowMs);
+    if (entries.length) this.attempts.set(key, entries);
+    else this.attempts.delete(key);
+    return { entries, windowMs };
+  }
+  isAllowed(key: string) {
     const now = Date.now();
-    const windowMs = Number(process.env[this.windowEnv] ?? 900) * 1000;
     const limit = Number(process.env[this.limitEnv] ?? 5);
-    const current = (this.attempts.get(key) ?? []).filter((stamp) => stamp > now - windowMs);
-    if (current.length >= limit) return false;
-    current.push(now);
-    this.attempts.set(key, current);
+    return this.current(key, now).entries.length < limit;
+  }
+  recordFailure(key: string) {
+    const now = Date.now();
+    const { entries } = this.current(key, now);
+    entries.push(now);
+    this.attempts.set(key, entries);
+  }
+  /** Backwards-compatible helper for callers that intentionally count an attempt immediately. */
+  check(key: string) {
+    if (!this.isAllowed(key)) return false;
+    this.recordFailure(key);
     return true;
   }
 }
