@@ -69,6 +69,11 @@ enum ReportStatus {
   ARCHIVED
 }
 
+enum PermissionEffect {
+  GRANT
+  DENY
+}
+
 model AdminUser {
   id           String         @id @default(cuid())
   email        String         @unique
@@ -85,6 +90,8 @@ model AdminUser {
   reports      Report[]       @relation("ReportReviewer")
   sessions     AdminSession[]
   themeFavorites ThemeFavorite[]
+  roleAssignments AdminRoleAssignment[]
+  permissionOverrides AdminPermissionOverride[]
 }
 
 model AdminSession {
@@ -203,6 +210,64 @@ model AuditLog {
   @@index([action, createdAt])
   @@index([entity, createdAt])
   @@index([entityId])
+}
+
+model Permission {
+  key         String   @id
+  description String
+  reserved    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  rolePermissions AdminRolePermission[]
+  overrides       AdminPermissionOverride[]
+}
+
+model AdminRoleDefinition {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  name        String
+  description String?
+  system      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  permissions AdminRolePermission[]
+  assignments AdminRoleAssignment[]
+
+  @@index([system, key])
+}
+
+model AdminRolePermission {
+  roleId        String
+  permissionKey String
+  role          AdminRoleDefinition @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission    Permission          @relation(fields: [permissionKey], references: [key], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+
+  @@id([roleId, permissionKey])
+  @@index([permissionKey])
+}
+
+model AdminRoleAssignment {
+  adminId   String
+  roleId    String
+  admin     AdminUser           @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  role      AdminRoleDefinition @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([adminId, roleId])
+  @@index([roleId])
+}
+
+model AdminPermissionOverride {
+  adminId       String
+  permissionKey String
+  effect        PermissionEffect
+  admin         AdminUser  @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  permission    Permission @relation(fields: [permissionKey], references: [key], onDelete: Cascade)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@id([adminId, permissionKey])
+  @@index([permissionKey, effect])
 }
 
 model CollegeConfessionProfileSettings {

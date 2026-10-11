@@ -11,6 +11,7 @@ import { Reflector } from '@nestjs/core';
 import { AdminRole, PrismaClient } from '@prisma/client';
 import { createHash, createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 import bcrypt from 'bcryptjs';
+import { assertPermissions } from './permissions';
 
 export type AdminIdentity = {
   id: string;
@@ -20,6 +21,7 @@ export type AdminIdentity = {
   sessionId?: string;
 };
 export const Roles = (...roles: AdminRole[]) => SetMetadata('roles', roles);
+export const Permissions = (...permissions: string[]) => SetMetadata('permissions', permissions);
 export let prisma = new PrismaClient();
 export function setPrismaForTests(client: PrismaClient) {
   prisma = client;
@@ -167,12 +169,25 @@ export class JwtAuthGuard implements CanActivate {
 export class RolesGuard implements CanActivate {
   constructor(@Inject(Reflector) private readonly reflector: Reflector) {}
   canActivate(context: ExecutionContext) {
+    const declaredPermissions =
+      this.reflector.get<string[]>('permissions', context.getHandler()) ??
+      this.reflector.get<string[]>('permissions', context.getClass()) ??
+      [];
+    const permissions = declaredPermissions.some((permission) => permission.includes('.'))
+      ? declaredPermissions
+      : [];
+    const request = context.switchToHttp().getRequest<{ user?: AdminIdentity }>();
+    if (permissions.length) {
+      if (!request.user)
+        throw new ForbiddenException('You do not have permission for this operation.');
+      return assertPermissions(prisma, request.user, permissions).then(() => true);
+    }
     const roles =
       this.reflector.get<AdminRole[]>('roles', context.getHandler()) ??
       this.reflector.get<AdminRole[]>('roles', context.getClass()) ??
       [];
     if (!roles.length) return true;
-    const user = context.switchToHttp().getRequest<{ user?: AdminIdentity }>().user;
+    const user = request.user;
     if (!user || !roles.includes(user.role))
       throw new ForbiddenException('You do not have permission for this operation.');
     return true;
