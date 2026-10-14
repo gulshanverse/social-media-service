@@ -30,16 +30,35 @@ function date(value: string | null) {
     : null;
 }
 function PostCard({ post }: { post: GarbaPost }) {
+  const categoryClass = post.category.toLowerCase();
   return (
-    <article className="garba-card">
+    <article className={`garba-card garba-card--${categoryClass}`}>
       <div className="garba-card__top">
-        <span>{labels[post.category] ?? 'Garba community'}</span>
-        <time dateTime={post.createdAt}>{new Date(post.createdAt).toLocaleDateString()}</time>
+        <span className="garba-card__badge">
+          <i aria-hidden="true" />
+          {labels[post.category] ?? 'Garba community'}
+        </span>
+        <time dateTime={post.createdAt}>
+          {new Date(post.createdAt).toLocaleDateString(undefined, {
+            month: 'short',
+            day: 'numeric',
+          })}
+        </time>
       </div>
-      <p>{post.content}</p>
+      <p className="garba-card__content">{post.content}</p>
       <div className="garba-meta">
-        {date(post.eventDate) && <span>◷ {date(post.eventDate)}</span>}
-        {post.location && <span>⌖ {post.location}</span>}
+        {date(post.eventDate) && (
+          <span>
+            <b aria-hidden="true">◷</b>
+            {date(post.eventDate)}
+          </span>
+        )}
+        {post.location && (
+          <span>
+            <b aria-hidden="true">⌖</b>
+            {post.location}
+          </span>
+        )}
       </div>
       {post.instagramUrl && (
         <a className="garba-instagram" href={post.instagramUrl} target="_blank" rel="noreferrer">
@@ -47,8 +66,12 @@ function PostCard({ post }: { post: GarbaPost }) {
         </a>
       )}
       <div className="garba-card__bottom">
-        <span>♥ {post._count?.reactions ?? 0}</span>
-        <span>💬 {post._count?.comments ?? 0}</span>
+        <span aria-label={`${post._count?.reactions ?? 0} reactions`}>
+          ♥ {post._count?.reactions ?? 0}
+        </span>
+        <span aria-label={`${post._count?.comments ?? 0} comments`}>
+          💬 {post._count?.comments ?? 0}
+        </span>
         <Link href={`/garba/${post.publicId}`}>Open post →</Link>
       </div>
     </article>
@@ -156,17 +179,19 @@ export default function GarbaClient() {
     <main className="garba-page">
       <section className="garba-hero">
         <div>
-          <p className="eyebrow garba-eyebrow">GARBA COMMUNITY</p>
+          <p className="eyebrow garba-eyebrow">
+            <span aria-hidden="true">✦</span> GARBA SEASON
+          </p>
           <h1>
-            Find Your <span>Garba Circle.</span>
+            Find Your <span>Garba Circle</span>
           </h1>
           <p className="hero-lede">
-            Meet people from your community, find a Garba partner or group, and discover who&apos;s
-            heading out this Navratri.
+            Meet people from your campus, find a Garba partner or group, and make your festive
+            season memorable.
           </p>
           <div className="button-row">
             <a className="ggv-button" href="#post">
-              Post on Garba
+              Create a Garba post <span aria-hidden="true">↗</span>
             </a>
             <a className="ghost-button" href="#explore">
               Explore posts
@@ -202,6 +227,7 @@ export default function GarbaClient() {
             <button
               key={value}
               className={category === value ? 'active' : ''}
+              aria-pressed={category === value}
               onClick={() => setCategory(value)}
             >
               {label}
