@@ -1,6 +1,8 @@
 'use client';
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { garbaThemes } from '@ggv/themes';
+import { GarbaCard } from '@ggv/ui';
 import { createGarbaPost, GarbaFeed, GarbaPost, getGarba } from '../../lib/garba-api';
 
 const categories = [
@@ -12,14 +14,6 @@ const categories = [
   ['PRACTICE', 'Practice'],
   ['GENERAL', 'General'],
 ];
-const labels: Record<string, string> = {
-  PARTNER: 'Looking for partner',
-  GROUP: 'Looking for a group',
-  FRIENDS: 'Looking for friends',
-  EVENT: 'Going to an event',
-  PRACTICE: 'Practice partner',
-  GENERAL: 'Garba community',
-};
 function date(value: string | null) {
   return value
     ? new Date(value).toLocaleDateString(undefined, {
@@ -30,57 +24,24 @@ function date(value: string | null) {
     : null;
 }
 function PostCard({ post }: { post: GarbaPost }) {
-  const categoryClass = post.category.toLowerCase();
   return (
-    <article className={`garba-card garba-card--${categoryClass}`}>
-      <div className="garba-card__top">
-        <span className="garba-card__badge">
-          <i aria-hidden="true" />
-          {labels[post.category] ?? 'Garba community'}
-        </span>
-        <time dateTime={post.createdAt}>
-          {new Date(post.createdAt).toLocaleDateString(undefined, {
-            month: 'short',
-            day: 'numeric',
-          })}
-        </time>
-      </div>
-      <p className="garba-card__content">{post.content}</p>
-      <div className="garba-meta">
-        {date(post.eventDate) && (
-          <span>
-            <b aria-hidden="true">◷</b>
-            {date(post.eventDate)}
-          </span>
-        )}
-        {post.location && (
-          <span>
-            <b aria-hidden="true">⌖</b>
-            {post.location}
-          </span>
-        )}
-      </div>
-      {post.instagramUrl && (
-        <a className="garba-instagram" href={post.instagramUrl} target="_blank" rel="noreferrer">
-          @{post.instagramHandle} ↗
-        </a>
-      )}
-      <div className="garba-card__bottom">
-        <span aria-label={`${post._count?.reactions ?? 0} reactions`}>
-          ♥ {post._count?.reactions ?? 0}
-        </span>
-        <span aria-label={`${post._count?.comments ?? 0} comments`}>
-          💬 {post._count?.comments ?? 0}
-        </span>
-        <Link href={`/garba/${post.publicId}`}>Open post →</Link>
-      </div>
-    </article>
+    <GarbaCard
+      post={post}
+      footer={
+        <div className="garba-card__bottom">
+          <span>♥ {post._count?.reactions ?? 0}</span>
+          <span>💬 {post._count?.comments ?? 0}</span>
+          <Link href={`/garba/${post.publicId}`}>Open post →</Link>
+        </div>
+      }
+    />
   );
 }
 function SubmitForm({ onDone }: { onDone: () => void }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [themeId, setThemeId] = useState(garbaThemes[0].id);
   const submitting = useRef(false);
 
   async function submit(e: FormEvent<HTMLFormElement>) {
@@ -148,6 +109,24 @@ function SubmitForm({ onDone }: { onDone: () => void }) {
         Instagram handle<span>Optional · publicly visible</span>
         <input name="instagramHandle" maxLength={30} placeholder="@username" />
       </label>
+      <label>
+        Card theme
+        <span>Choose how your published card will look.</span>
+        <select name="themeId" value={themeId} onChange={(event) => setThemeId(event.target.value)}>
+          {garbaThemes.map((theme) => (
+            <option key={theme.id} value={theme.id}>
+              {theme.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <GarbaCard
+        post={{
+          category: 'GENERAL',
+          content: 'Your Garba card preview will appear here.',
+          theme: garbaThemes.find((theme) => theme.id === themeId),
+        }}
+      />
       {error && (
         <p className="form-error" role="alert">
           {error}

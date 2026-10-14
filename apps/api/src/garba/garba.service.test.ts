@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { BadRequestException } from '@nestjs/common';
 import { prisma, setPrismaForTests } from '../admin-auth';
+import { GARBA_DEFAULT_THEME_ID, getGarbaTheme } from '@ggv/themes';
 import { GarbaService } from './garba.service';
 
 const realPrisma = prisma;
@@ -48,6 +49,7 @@ async function run() {
         eventDate: undefined,
         location: undefined,
         instagramHandle: 'jellOyfish01',
+        themeId: 'garba-peacock',
       } as any,
       '127.0.0.10',
     );
@@ -57,6 +59,20 @@ async function run() {
     assert.equal(createdPost.eventDate, undefined);
     assert.equal(createdPost.location, undefined);
     assert.equal(createdPost.instagramHandle, 'jellOyfish01');
+    assert.equal(createdPost.themeId, 'garba-peacock');
+    assert.equal(getGarbaTheme(undefined).id, GARBA_DEFAULT_THEME_ID);
+    await assert.rejects(
+      () =>
+        service.create(
+          {
+            category: 'FRIENDS',
+            content: 'A post with an invalid theme',
+            themeId: 'not-a-theme',
+          } as any,
+          '127.0.0.11',
+        ),
+      BadRequestException,
+    );
     assert.deepEqual(await service.react('post-1', '127.0.0.1'), { reacted: true, count: 1 });
     assert.deepEqual(await service.react('post-1', '127.0.0.1'), { reacted: false, count: 0 });
     await service.comment('post-1', { content: 'A published test comment' } as any, '127.0.0.1');

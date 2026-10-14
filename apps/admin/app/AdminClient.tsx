@@ -7,11 +7,13 @@ import { appConfig } from '@ggv/config';
 import type { PublicConfession, PublicTheme } from '@ggv/types';
 import {
   analyzeThemeContrast,
+  garbaThemes,
+  getGarbaTheme,
   themePresets,
   themeToCssVariables,
   type ContrastPair,
 } from '@ggv/themes';
-import { ConfessionCard as SharedConfessionCard, Logo } from '@ggv/ui';
+import { ConfessionCard as SharedConfessionCard, GarbaCard, Logo } from '@ggv/ui';
 import ProfilePage from './ProfilePage';
 import RbacManagement from './RbacManagement';
 
@@ -2388,6 +2390,20 @@ export function GarbaAdmin({ admin }: { admin: Admin }) {
       setError(e instanceof Error ? e.message : 'Post could not be loaded.');
     }
   }
+  async function editPostTheme(themeId: string) {
+    if (!postDetail || !canWrite || !['PENDING', 'PUBLISHED'].includes(postDetail.status)) return;
+    try {
+      await api(`/admin/garba/posts/${postDetail.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ themeId }),
+      });
+      setPostDetail((current: any) => (current ? { ...current, themeId } : current));
+      setMessage('Garba card theme updated.');
+      load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Garba theme could not be updated.');
+    }
+  }
   async function editComment(comment: any) {
     const content = window.prompt('Edit comment or reply:', comment.content);
     if (content === null || content.trim() === comment.content) return;
@@ -2600,6 +2616,36 @@ export function GarbaAdmin({ admin }: { admin: Admin }) {
             Reactions: {postDetail._count?.reactions ?? 0} · Comments:{' '}
             {postDetail._count?.comments ?? 0}
           </p>
+          <div className="panel">
+            <label>
+              Garba card theme
+              <select
+                aria-label="Garba card theme"
+                value={postDetail.themeId || garbaThemes[0].id}
+                disabled={!canWrite || !['PENDING', 'PUBLISHED'].includes(postDetail.status)}
+                onChange={(event) => editPostTheme(event.target.value)}
+              >
+                {garbaThemes.map((theme) => (
+                  <option key={theme.id} value={theme.id}>
+                    {theme.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <GarbaCard
+              post={{
+                publicId: postDetail.publicId,
+                category: postDetail.category,
+                content: postDetail.content,
+                eventDate: postDetail.eventDate,
+                location: postDetail.location,
+                instagramHandle: postDetail.instagramHandle,
+                createdAt: postDetail.createdAt,
+                theme: getGarbaTheme(postDetail.themeId),
+                _count: postDetail._count,
+              }}
+            />
+          </div>
           {canWrite && (
             <div className="card-actions">
               {postDetail.status === 'PENDING' && (

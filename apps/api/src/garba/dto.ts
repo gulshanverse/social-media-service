@@ -27,6 +27,7 @@ export class CreateGarbaPostDto {
   @IsString()
   @MaxLength(30)
   instagramHandle?: string;
+  @IsOptional() @IsString() @MaxLength(80) themeId?: string;
 }
 
 export class CreateGarbaCommentDto {

@@ -1871,9 +1871,15 @@ body:has(.college-profile-page) .public-header {
   flex-direction: column;
   gap: 17px;
   overflow: hidden;
-  border: 1px solid rgba(245, 198, 107, 0.19);
-  border-radius: 22px;
-  background: linear-gradient(145deg, rgba(36, 19, 47, 0.96), rgba(16, 18, 37, 0.93));
+  border: 1px var(--theme-border-style, solid)
+    color-mix(in srgb, var(--card-accent) 35%, transparent);
+  border-radius: var(--theme-radius, 22px);
+  background: var(
+    --garba-card-gradient,
+    linear-gradient(145deg, rgba(36, 19, 47, 0.96), rgba(16, 18, 37, 0.93))
+  );
+  color: var(--garba-card-text, var(--garba-ivory));
+  font-family: var(--theme-font-family, inherit);
   box-shadow: 0 16px 42px rgba(4, 4, 14, 0.24);
   transition:
     transform 0.2s ease,
@@ -1923,14 +1929,14 @@ body:has(.college-profile-page) .public-header {
 }
 .garba-card__top {
   justify-content: space-between;
-  color: #a99afb;
+  color: var(--theme-secondary-text, #a99afb);
   font-size: 0.7rem;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 .garba-card__top time {
-  color: #877c91;
+  color: var(--theme-muted-text, #877c91);
   font-weight: 500;
   letter-spacing: 0;
   text-transform: none;
@@ -1953,14 +1959,14 @@ body:has(.college-profile-page) .public-header {
   flex: 1;
   margin: 0;
   max-width: 34ch;
-  color: var(--garba-ivory);
+  color: var(--garba-card-text, var(--garba-ivory));
   font:
     500 1.2rem/1.38 var(--font-space-grotesk),
     sans-serif;
   overflow-wrap: anywhere;
 }
 .garba-meta {
-  color: #c2b6cc;
+  color: var(--theme-secondary-text, #c2b6cc);
   font-size: 0.82rem;
 }
 .garba-meta span {
@@ -1982,14 +1988,15 @@ body:has(.college-profile-page) .public-header {
   overflow-wrap: anywhere;
 }
 .garba-card__bottom {
-  border-top: 1px solid rgba(245, 198, 107, 0.15);
+  border-top: 1px var(--theme-border-style, solid)
+    color-mix(in srgb, var(--card-accent) 24%, transparent);
   padding-top: 15px;
-  color: #9d90a8;
+  color: var(--theme-muted-text, #9d90a8);
   font-size: 0.79rem;
 }
 .garba-card__bottom a {
   margin-left: auto;
-  color: var(--garba-gold);
+  color: var(--card-accent);
   font-weight: 700;
 }
 .garba-submit {

@@ -325,3 +325,4 @@ export const themes: Theme[] = [
 
 export * from './portable';
 export * from './wcag';
+export * from './garba';

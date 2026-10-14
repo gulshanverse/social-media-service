@@ -2000,3 +2000,50 @@ button:disabled {
     flex-direction: column;
   }
 }
+
+.garba-dashboard .garba-card {
+  --card-accent: var(--theme-accent, #f7c85b);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 240px;
+  margin-top: 18px;
+  padding: 22px;
+  border: 1px solid color-mix(in srgb, var(--card-accent) 35%, transparent);
+  border-radius: var(--theme-radius, 22px);
+  background: var(--garba-card-gradient, linear-gradient(145deg, #24132f, #101225));
+  color: var(--garba-card-text, #fffaf0);
+  font-family: var(--theme-font-family, inherit);
+}
+.garba-dashboard .garba-card__top,
+.garba-dashboard .garba-card__bottom,
+.garba-dashboard .garba-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.garba-dashboard .garba-card__top {
+  justify-content: space-between;
+  color: var(--theme-secondary-text, #c4b5fd);
+  font-size: 0.75rem;
+}
+.garba-dashboard .garba-card__badge {
+  color: var(--card-accent);
+}
+.garba-dashboard .garba-card__content {
+  flex: 1;
+  margin: 0;
+  font-size: 1.25rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.garba-dashboard .garba-meta {
+  color: var(--theme-secondary-text, #c2b6cc);
+  font-size: 0.85rem;
+}
+.garba-dashboard .garba-card__bottom {
+  border-top: 1px solid color-mix(in srgb, var(--card-accent) 24%, transparent);
+  padding-top: 12px;
+  color: var(--theme-muted-text, #9d90a8);
+}

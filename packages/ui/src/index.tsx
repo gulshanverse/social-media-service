@@ -1,5 +1,6 @@
 import type { ButtonHTMLAttributes, PropsWithChildren } from 'react';
 export { ConfessionCard } from './ConfessionCard';
+export { GarbaCard } from './GarbaCard';
 
 export function Button({
   children,
