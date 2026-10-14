@@ -2070,14 +2070,28 @@ body:has(.college-profile-page) .public-header {
   color: var(--garba-gold);
 }
 .garba-comments {
+  max-width: 720px;
+  margin: 32px auto 100px;
+  padding: 28px;
   border-color: rgba(245, 198, 107, 0.2);
   background: rgba(36, 19, 47, 0.72);
 }
 .garba-comments h2 {
   color: var(--garba-ivory);
+  margin: 0 0 20px;
+  font:
+    600 2rem var(--font-space-grotesk),
+    sans-serif;
+}
+.garba-comment-form,
+.garba-reply-form {
+  display: flex;
+  gap: 8px;
+  margin: 18px 0 28px;
 }
 .garba-comment-form input,
 .garba-reply-form input {
+  flex: 1;
   min-width: 0;
   color: var(--garba-ivory);
   background: rgba(16, 18, 37, 0.76);
@@ -2085,17 +2099,55 @@ body:has(.college-profile-page) .public-header {
   border-radius: 12px;
   padding: 12px 14px;
 }
+.garba-comment {
+  padding: 18px 0;
+  border-top: 1px solid rgba(245, 198, 107, 0.15);
+}
+.garba-comment p,
+.garba-reply p {
+  margin: 0 0 6px;
+  color: var(--garba-ivory);
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.garba-comment small,
+.garba-reply small {
+  color: #a99caf;
+}
+.garba-comment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+}
 .garba-comment-actions button,
 .garba-reply button {
+  min-height: 32px;
+  padding: 0 2px;
+  border: 0;
+  background: none;
   color: var(--garba-gold);
+  font-size: 0.8rem;
+  cursor: pointer;
 }
 .garba-reply {
-  border-left-color: rgba(240, 90, 145, 0.42);
+  margin: 14px 0 0 20px;
+  padding: 12px 0 0 16px;
+  border-left: 2px solid rgba(240, 90, 145, 0.42);
 }
 .garba-reply-form button {
+  min-height: 38px;
+  padding: 9px 13px;
+  border-radius: 9px;
   border: 1px solid rgba(245, 198, 107, 0.2);
   color: var(--garba-ivory);
   background: rgba(245, 198, 107, 0.12);
+}
+.garba-reply button {
+  margin-top: 7px;
+}
+.garba-reply-form {
+  margin: 12px 0 0;
 }
 @media (max-width: 820px) {
   .garba-hero {
@@ -2137,6 +2189,10 @@ body:has(.college-profile-page) .public-header {
   .garba-card__bottom a {
     width: 100%;
     margin-left: 0;
+  }
+  .garba-comments {
+    margin: 24px 16px 72px;
+    padding: 20px;
   }
   .garba-comment-form,
   .garba-reply-form {
