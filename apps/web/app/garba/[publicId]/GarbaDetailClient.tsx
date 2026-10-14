@@ -16,6 +16,14 @@ type Post = {
   comments: Comment[];
   _count?: { reactions: number };
 };
+const categoryLabels: Record<string, string> = {
+  PARTNER: 'Looking for partner',
+  GROUP: 'Looking for a group',
+  FRIENDS: 'Looking for friends',
+  EVENT: 'Going to an event',
+  PRACTICE: 'Practice partner',
+  GENERAL: 'Garba community',
+};
 function CommentItem({
   post,
   comment,
@@ -126,15 +134,28 @@ export default function GarbaDetailClient({ post }: { post: Post }) {
       <Link className="back-link" href="/garba">
         ← Back to Garba
       </Link>
-      <article className="garba-card detail-card">
+      <article className={`garba-card detail-card garba-card--${post.category.toLowerCase()}`}>
         <div className="garba-card__top">
-          <span>{post.category}</span>
-          <time>{new Date(post.createdAt).toLocaleDateString()}</time>
+          <span className="garba-card__badge">
+            <i aria-hidden="true" />
+            {categoryLabels[post.category] ?? 'Garba community'}
+          </span>
+          <time dateTime={post.createdAt}>{new Date(post.createdAt).toLocaleDateString()}</time>
         </div>
-        <p>{post.content}</p>
+        <p className="garba-card__content">{post.content}</p>
         <div className="garba-meta">
-          {post.eventDate && <span>◷ {new Date(post.eventDate).toLocaleDateString()}</span>}
-          {post.location && <span>⌖ {post.location}</span>}
+          {post.eventDate && (
+            <span>
+              <b aria-hidden="true">◷</b>
+              {new Date(post.eventDate).toLocaleDateString()}
+            </span>
+          )}
+          {post.location && (
+            <span>
+              <b aria-hidden="true">⌖</b>
+              {post.location}
+            </span>
+          )}
         </div>
         {post.instagramUrl && (
           <a className="garba-instagram" href={post.instagramUrl} rel="noreferrer">
