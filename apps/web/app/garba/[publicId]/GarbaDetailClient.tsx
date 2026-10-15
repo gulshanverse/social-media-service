@@ -1,6 +1,8 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
+import type { Theme } from '@ggv/themes';
+import { GarbaCard } from '@ggv/ui';
 import { commentGarba, reactGarba, reportGarbaComment } from '../../../lib/garba-api';
 
 type Comment = { id: string; content: string; createdAt: string; replies?: Comment[] };
@@ -13,16 +15,10 @@ type Post = {
   instagramHandle: string | null;
   instagramUrl: string | null;
   createdAt: string;
+  themeId: string;
+  theme: Theme;
   comments: Comment[];
   _count?: { reactions: number };
-};
-const categoryLabels: Record<string, string> = {
-  PARTNER: 'Looking for partner',
-  GROUP: 'Looking for a group',
-  FRIENDS: 'Looking for friends',
-  EVENT: 'Going to an event',
-  PRACTICE: 'Practice partner',
-  GENERAL: 'Garba community',
 };
 function CommentItem({
   post,
@@ -134,46 +130,23 @@ export default function GarbaDetailClient({ post }: { post: Post }) {
       <Link className="back-link" href="/garba">
         ← Back to Garba
       </Link>
-      <article className={`garba-card detail-card garba-card--${post.category.toLowerCase()}`}>
-        <div className="garba-card__top">
-          <span className="garba-card__badge">
-            <i aria-hidden="true" />
-            {categoryLabels[post.category] ?? 'Garba community'}
-          </span>
-          <time dateTime={post.createdAt}>{new Date(post.createdAt).toLocaleDateString()}</time>
-        </div>
-        <p className="garba-card__content">{post.content}</p>
-        <div className="garba-meta">
-          {post.eventDate && (
-            <span>
-              <b aria-hidden="true">◷</b>
-              {new Date(post.eventDate).toLocaleDateString()}
-            </span>
-          )}
-          {post.location && (
-            <span>
-              <b aria-hidden="true">⌖</b>
-              {post.location}
-            </span>
-          )}
-        </div>
-        {post.instagramUrl && (
-          <a className="garba-instagram" href={post.instagramUrl} rel="noreferrer">
-            @{post.instagramHandle} ↗
-          </a>
-        )}
-        <div className="garba-card__bottom">
-          <button
-            type="button"
-            onClick={toggleReaction}
-            disabled={reactionBusy}
-            aria-pressed={reacted}
-          >
-            {reacted ? '♥ Reacted' : '♡ React'} · {reactionCount}
-          </button>
-          <span>💬 {comments.length}</span>
-        </div>
-      </article>
+      <GarbaCard
+        post={post}
+        detailed
+        footer={
+          <div className="garba-card__bottom">
+            <button
+              type="button"
+              onClick={toggleReaction}
+              disabled={reactionBusy}
+              aria-pressed={reacted}
+            >
+              {reacted ? '♥ Reacted' : '♡ React'} · {reactionCount}
+            </button>
+            <span>💬 {comments.length}</span>
+          </div>
+        }
+      />
       <section className="garba-comments panel">
         <p className="eyebrow">COMMUNITY CONVERSATION</p>
         <h2>Comments</h2>

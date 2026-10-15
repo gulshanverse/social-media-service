@@ -38,6 +38,7 @@ import {
   normalizeImportedTheme,
   normalizeTheme,
   portableToCreateInput,
+  isGarbaThemeId,
 } from '@ggv/themes';
 import { normalizeReadLiveConfessionButton } from '@ggv/types';
 
@@ -1178,7 +1179,10 @@ export class AdminService {
   }
 
   async updateGarbaPost(id: string, body: UpdateGarbaPostDto, actor: AdminIdentity) {
-    const current = await prisma.garbaPost.findUnique({ where: { id }, select: { status: true } });
+    const current = await prisma.garbaPost.findUnique({
+      where: { id },
+      select: { status: true, themeId: true },
+    });
     if (!current) throw new NotFoundException('Garba post not found.');
     if (current.status !== GarbaPostStatus.PENDING && current.status !== GarbaPostStatus.PUBLISHED)
       throw new BadRequestException('This Garba post is not editable in its current state.');
@@ -1188,6 +1192,8 @@ export class AdminService {
       ...(body.content ? { content: body.content.trim() } : {}),
       ...(body.location ? { location: body.location.trim() } : {}),
     } as any;
+    if (body.themeId !== undefined && !isGarbaThemeId(body.themeId))
+      throw new BadRequestException('Choose a valid Garba card theme.');
     const item = await prisma.garbaPost.update({ where: { id }, data });
     await recordAudit(actor.id, 'GARBA_POST_EDITED', 'GARBA_POST', id, {
       changedFields: Object.keys(data),

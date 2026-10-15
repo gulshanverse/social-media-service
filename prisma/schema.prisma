@@ -312,6 +312,7 @@ model GarbaPost {
   season          GarbaSeason?      @relation(fields: [seasonId], references: [id])
   category        GarbaPostCategory
   content         String
+  themeId         String?
   eventDate       DateTime?
   location        String?
   instagramHandle String?
@@ -327,6 +328,7 @@ model GarbaPost {
 
   @@index([status, createdAt])
   @@index([seasonId, createdAt])
+  @@index([themeId])
 }
 
 model GarbaComment {

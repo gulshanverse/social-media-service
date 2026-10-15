@@ -9,6 +9,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { GarbaPostStatus } from '@prisma/client';
 import { prisma } from '../admin-auth';
 import { SubmissionRateLimiter } from '../confessions/rate-limit';
+import { GARBA_DEFAULT_THEME_ID, getGarbaTheme, isGarbaThemeId } from '@ggv/themes';
 import {
   CreateGarbaCommentDto,
   CreateGarbaPostDto,
@@ -37,8 +38,11 @@ function instagramUrl(handle: string | null) {
 }
 function safePost(post: any) {
   const handle = publicHandle(post.instagramHandle);
+  const themeId = isGarbaThemeId(post.themeId) ? post.themeId : GARBA_DEFAULT_THEME_ID;
   return {
     ...post,
+    themeId,
+    theme: getGarbaTheme(themeId),
     instagramHandle: handle,
     instagramUrl: instagramUrl(handle),
     createdAt: post.createdAt.toISOString(),
@@ -97,6 +101,8 @@ export class GarbaService {
     const handle = publicHandle(dto.instagramHandle);
     if (dto.instagramHandle && !handle)
       throw new BadRequestException('Enter a valid Instagram username.');
+    if (dto.themeId && !isGarbaThemeId(dto.themeId))
+      throw new BadRequestException('Choose a valid Garba card theme.');
     const post = await prisma.garbaPost.create({
       data: {
         publicId: `${Date.now().toString(36)}-${randomUUID().slice(0, 8)}`,
@@ -105,6 +111,7 @@ export class GarbaService {
         eventDate: dto.eventDate ? new Date(dto.eventDate) : undefined,
         location: dto.location?.trim() || undefined,
         instagramHandle: handle,
+        themeId: dto.themeId ?? GARBA_DEFAULT_THEME_ID,
         authorHash: hash(ip),
         status: GarbaPostStatus.PENDING,
       },

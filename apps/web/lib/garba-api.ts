@@ -1,3 +1,5 @@
+import type { Theme } from '@ggv/themes';
+
 export type GarbaPost = {
   publicId: string;
   category: string;
@@ -7,6 +9,8 @@ export type GarbaPost = {
   instagramHandle: string | null;
   instagramUrl: string | null;
   createdAt: string;
+  themeId: string;
+  theme: Theme;
   _count?: { comments: number; reactions: number };
 };
 export type GarbaFeed = {

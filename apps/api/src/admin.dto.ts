@@ -176,6 +176,7 @@ export class AdminGarbaQueryDto extends ListQueryDto {
 export class UpdateGarbaPostDto {
   @IsOptional() @IsString() @MinLength(10) @MaxLength(2000) content?: string;
   @IsOptional() @IsEnum(GarbaPostCategory) category?: GarbaPostCategory;
+  @IsOptional() @IsString() @MaxLength(80) themeId?: string;
   @IsOptional() @IsString() @MaxLength(160) location?: string;
   @IsOptional() @IsString() @MaxLength(30) instagramHandle?: string;
   @IsOptional() @IsISO8601() eventDate?: string;
