@@ -111,6 +111,77 @@ describe('admin workspace behavior', () => {
     expect(screen.queryByText('Application error')).not.toBeInTheDocument();
   });
 
+  it('deletes a draft theme by database id, refreshes the list, and reports success', async () => {
+    const theme = {
+      id: 'theme-db-id',
+      name: 'Campus Dark',
+      slug: 'campus-dark',
+      background: '#070a12',
+      gradient: 'linear-gradient(135deg,#070a12,#101c3b)',
+      textColor: '#ffffff',
+      accentColor: '#00b8ff',
+      fontFamily: 'Inter',
+      radius: 28,
+      status: 'DRAFT',
+      tokens: {},
+    };
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('/admin/themes?') && !init?.method)
+        return response({ items: [theme], page: 1, limit: 20, total: 1, hasMore: false });
+      if (url.endsWith('/admin/themes/theme-db-id') && init?.method === 'DELETE')
+        return response({ id: theme.id, deleted: true });
+      return response({});
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    render(<Themes admin={admin} />);
+    await screen.findByText(/campus-dark/);
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining('/admin/themes/theme-db-id'),
+        expect.objectContaining({ method: 'DELETE' }),
+      ),
+    );
+    expect(
+      fetchMock.mock.calls.some(([input]) => String(input).includes('/campus-dark/delete')),
+    ).toBe(false);
+    expect(await screen.findByText('Delete completed successfully.')).toBeInTheDocument();
+  });
+
+  it('disables deletion for published themes with an explanation', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        response({
+          items: [
+            {
+              id: 'protected-theme-id',
+              name: 'Published Campus',
+              slug: 'published-campus',
+              background: '#070a12',
+              gradient: 'none',
+              textColor: '#fff',
+              accentColor: '#00b8ff',
+              fontFamily: 'Inter',
+              radius: 28,
+              status: 'PUBLISHED',
+              _count: { confessions: 2 },
+            },
+          ],
+          page: 1,
+          limit: 20,
+          total: 1,
+          hasMore: false,
+        }),
+      ),
+    );
+    render(<Themes admin={admin} />);
+    const deleteButton = await screen.findByRole('button', { name: 'Delete' });
+    expect(deleteButton).toBeDisabled();
+    expect(screen.getByText('Published themes cannot be deleted.')).toBeInTheDocument();
+  });
+
   it('saves new themes and edits without sending immutable slugs or empty dates', async () => {
     const savedTheme = {
       id: 'theme-1',

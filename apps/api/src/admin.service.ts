@@ -852,6 +852,7 @@ export class AdminService {
       icon: true,
       category: true,
       tags: true,
+      _count: { select: { confessions: true } },
     } as const;
     const [items, total] = await Promise.all([
       prisma.theme.findMany({
@@ -1066,6 +1067,8 @@ export class AdminService {
       throw new BadRequestException(
         'Active themes cannot be deleted. Activate another theme first.',
       );
+    if (source.status === ThemeStatus.PUBLISHED)
+      throw new BadRequestException('Published themes cannot be deleted.');
     const used = await prisma.confession.count({ where: { themeId: id } });
     if (used > 0) throw new BadRequestException('Themes used by confessions cannot be deleted.');
     await prisma.theme.delete({ where: { id } });

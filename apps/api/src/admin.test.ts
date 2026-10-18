@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
-import { AdminRole, ConfessionStatus, ReportStatus } from '@prisma/client';
+import { AdminRole, ConfessionStatus, ReportStatus, ThemeStatus } from '@prisma/client';
 import { AdminAuthController } from './admin.controller';
 import { AdminController } from './admin.module';
 import {
@@ -532,6 +532,67 @@ async function testRbacMetadata() {
   assert.doesNotThrow(() => guard(protectedRoles, AdminRole.MODERATOR));
   assert.doesNotThrow(() => guard([AdminRole.SUPER_ADMIN, AdminRole.DESIGNER], AdminRole.DESIGNER));
 }
+function guardForRole(roles: AdminRole[], role: AdminRole) {
+  return new RolesGuard({ get: <T>() => roles as T } as any).canActivate({
+    getHandler: () => AdminController.prototype.deleteTheme,
+    getClass: () => AdminController,
+    switchToHttp: () => ({ getRequest: () => ({ user: { ...admin, role } }) }),
+  } as never);
+}
+async function testThemeDeletion() {
+  const deleted: string[] = [];
+  const audit: any[] = [];
+  let theme: { id: string; status: ThemeStatus } | null = {
+    id: 'draft-theme-id',
+    status: ThemeStatus.DRAFT,
+  };
+  let used = 0;
+  const database = fakeDatabase({
+    theme: {
+      findUnique: async () => theme,
+      delete: async ({ where }: any) => {
+        deleted.push(where.id);
+        theme = null;
+        return { id: where.id };
+      },
+    },
+    confession: { count: async () => used },
+    auditLog: { create: async ({ data }: any) => (audit.push(data), data) },
+  });
+  setPrismaForTests(database);
+  const service = new AdminService();
+  assert.deepEqual(await service.deleteTheme('draft-theme-id', admin), {
+    id: 'draft-theme-id',
+    deleted: true,
+  });
+  assert.deepEqual(deleted, ['draft-theme-id']);
+  assert.equal(audit.at(-1).action, 'THEME_DELETE');
+
+  theme = null;
+  await assert.rejects(() => service.deleteTheme('missing-theme-id', admin), /Theme not found/);
+  theme = { id: 'draft-theme-id', status: ThemeStatus.DRAFT };
+  used = 1;
+  await assert.rejects(
+    () => service.deleteTheme('draft-theme-id', admin),
+    /used by confessions cannot be deleted/,
+  );
+  used = 0;
+  theme = { id: 'published-theme-id', status: ThemeStatus.PUBLISHED };
+  await assert.rejects(
+    () => service.deleteTheme('published-theme-id', admin),
+    /Published themes cannot be deleted/,
+  );
+  theme = { id: 'active-theme-id', status: ThemeStatus.ACTIVE };
+  await assert.rejects(
+    () => service.deleteTheme('active-theme-id', admin),
+    /Active themes cannot be deleted/,
+  );
+
+  const deleteRoles = Reflect.getMetadata('roles', AdminController.prototype.deleteTheme);
+  assert.deepEqual(deleteRoles, [AdminRole.SUPER_ADMIN, AdminRole.DESIGNER]);
+  assert.throws(() => guardForRole(deleteRoles, AdminRole.MODERATOR));
+  assert.doesNotThrow(() => guardForRole(deleteRoles, AdminRole.DESIGNER));
+}
 async function run() {
   try {
     testCookieOptions();
@@ -541,6 +602,7 @@ async function run() {
     await testAuthAuditEvents();
     await testDtosAndServiceState();
     await testRbacMetadata();
+    await testThemeDeletion();
     console.log('admin security, session, refresh, DTO, service, and RBAC tests passed');
   } finally {
     setPrismaForTests(realPrisma);

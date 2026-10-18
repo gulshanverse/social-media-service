@@ -48,6 +48,7 @@ type Theme = {
   startAt?: string | null;
   endAt?: string | null;
   favorites?: { adminId: string }[];
+  _count?: { confessions: number };
   tokens?: Record<string, string>;
 };
 type PageData<T> = { items: T[]; page: number; limit: number; total: number; hasMore: boolean };
@@ -1955,6 +1956,7 @@ export function Themes({ admin }: { admin: Admin }) {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deletingThemeId, setDeletingThemeId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [savedForm, setSavedForm] = useState<any>(emptyTheme);
   const [viewport, setViewport] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
@@ -2074,15 +2076,22 @@ export function Themes({ admin }: { admin: Admin }) {
       !confirm('Delete this theme? Themes used by confessions or currently active are protected.')
     )
       return;
+    if (action === 'delete') {
+      if (deletingThemeId) return;
+      setDeletingThemeId(id);
+    }
     try {
-      await api(
-        `/admin/themes/${id}${action === 'favorite' || action === 'unfavorite' ? '/favorite' : `/${action}`}`,
-        { method },
-      );
+      const path =
+        action === 'delete'
+          ? `/admin/themes/${id}`
+          : `/admin/themes/${id}${action === 'favorite' || action === 'unfavorite' ? '/favorite' : `/${action}`}`;
+      await api(path, { method });
       setMessage(`${labels[action]} completed successfully.`);
       load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Theme action failed.');
+    } finally {
+      if (action === 'delete') setDeletingThemeId(null);
     }
   }
   const load = () => {
@@ -2334,14 +2343,38 @@ export function Themes({ admin }: { admin: Admin }) {
                   <button className="secondary" onClick={() => themeAction(t.id, 'duplicate')}>
                     Duplicate
                   </button>
-                  {t.status !== 'ACTIVE' && (
-                    <button
-                      className="danger"
-                      onClick={() => themeAction(t.id, 'delete', 'DELETE')}
-                    >
-                      Delete
-                    </button>
-                  )}
+                  {(() => {
+                    const usedByConfessions = (t._count?.confessions ?? 0) > 0;
+                    const protectedReason =
+                      t.status === 'ACTIVE'
+                        ? 'Active themes cannot be deleted. Activate another theme first.'
+                        : t.status === 'PUBLISHED'
+                          ? 'Published themes cannot be deleted.'
+                          : usedByConfessions
+                            ? 'Themes used by confessions cannot be deleted.'
+                            : undefined;
+                    const deleteDisabled = Boolean(protectedReason || deletingThemeId);
+                    return (
+                      <>
+                        <button
+                          className="danger"
+                          disabled={deleteDisabled}
+                          title={protectedReason}
+                          aria-describedby={
+                            protectedReason ? `theme-delete-help-${t.id}` : undefined
+                          }
+                          onClick={() => themeAction(t.id, 'delete', 'DELETE')}
+                        >
+                          {deletingThemeId === t.id ? 'Deleting…' : 'Delete'}
+                        </button>
+                        {protectedReason && (
+                          <small className="muted" id={`theme-delete-help-${t.id}`}>
+                            {protectedReason}
+                          </small>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               )}
             </div>
