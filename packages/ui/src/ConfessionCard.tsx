@@ -3,6 +3,7 @@ import type { PublicConfession } from '@ggv/types';
 import { themeToCssVariables } from '@ggv/themes';
 
 const categoryNames: Record<string, string> = {
+  ADMIRATION: 'Admiration',
   COLLEGE_LIFE: 'College Life',
   CRUSH: 'Crush',
   RELATIONSHIP: 'Relationship',
@@ -11,7 +12,7 @@ const categoryNames: Record<string, string> = {
   ADVICE: 'Advice',
   APPRECIATION: 'Appreciation',
   RANT: 'Rant',
-  OTHER: 'Other',
+  CUSTOM: 'Custom',
 };
 
 type CardProps = {
@@ -59,7 +60,11 @@ export function ConfessionCard({
       <p className="confession-card__content">“{confession.content}”</p>
       <div className="confession-card__bottom">
         <span className="confession-card__category">
-          {confession.category ? categoryNames[confession.category] : 'Campus thoughts'}
+          {confession.category === 'CUSTOM'
+            ? confession.customCategory || 'Custom'
+            : confession.category
+              ? categoryNames[confession.category] || confession.category
+              : 'Campus thoughts'}
         </span>
         <span>{new Date(confession.publishedAt).toLocaleDateString()}</span>
       </div>

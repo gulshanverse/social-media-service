@@ -42,6 +42,11 @@ export class UpdateConfessionDto {
   @MinLength(1)
   content?: string;
   @IsOptional() @IsEnum(ConfessionCategory) category?: ConfessionCategory;
+  @IsOptional()
+  @IsString()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @MaxLength(40)
+  customCategory?: string;
   @IsOptional() @IsString() @MaxLength(100) themeId?: string;
 }
 export class CreateThemeDto {

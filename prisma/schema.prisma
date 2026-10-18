@@ -15,6 +15,7 @@ enum AdminRole {
 
 enum ConfessionCategory {
   CRUSH
+  ADMIRATION
   RELATIONSHIP
   FRIENDSHIP
   FUNNY
@@ -22,6 +23,7 @@ enum ConfessionCategory {
   ADVICE
   APPRECIATION
   RANT
+  CUSTOM
   OTHER
 }
 
@@ -160,6 +162,7 @@ model Confession {
   content         String
   originalContent String
   category        ConfessionCategory?
+  customCategory  String?
   status          ConfessionStatus    @default(PENDING)
   themeId         String?
   theme           Theme?              @relation(fields: [themeId], references: [id])
@@ -175,6 +178,7 @@ model Confession {
 
   @@index([status, createdAt])
   @@index([themeId, createdAt])
+  @@index([category])
 }
 
 model Report {

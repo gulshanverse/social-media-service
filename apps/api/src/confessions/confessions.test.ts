@@ -77,6 +77,37 @@ async function run() {
   });
   assert.equal('publishedAt' in submission.created[0], false);
 
+  const customSubmission = createDatabase();
+  const customService = new ConfessionsService(
+    customSubmission.database,
+    new SubmissionRateLimiter(),
+  );
+  await customService.create(
+    plainToInstance(CreateConfessionDto, {
+      content: 'Custom category thought',
+      category: 'CUSTOM',
+      customCategory: '  Late night thoughts  ',
+      themeId: 'midnight',
+    }),
+    'custom-client',
+  );
+  assert.equal(customSubmission.created[0].category, 'CUSTOM');
+  assert.equal(customSubmission.created[0].customCategory, 'Late night thoughts');
+  for (const customCategory of ['', '   ', 'x'.repeat(41), 'College Life', 'bad\u0000label'])
+    await assert.rejects(
+      () =>
+        customService.create(
+          plainToInstance(CreateConfessionDto, {
+            content: 'Invalid custom category',
+            category: 'CUSTOM',
+            customCategory,
+            themeId: 'midnight',
+          }),
+          `invalid-${customCategory.length}`,
+        ),
+      BadRequestException,
+    );
+
   await assert.rejects(
     () => service.create(plainToInstance(CreateConfessionDto, { content: '  \n\t' }), 'empty'),
     BadRequestException,

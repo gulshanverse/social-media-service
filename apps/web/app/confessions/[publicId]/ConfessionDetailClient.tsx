@@ -49,8 +49,10 @@ export default function ConfessionDetailClient({
             </div>
             <div className="detail-actions">
               <span>
-                {confession.category?.replace('_', ' ') ?? 'CAMPUS THOUGHT'} ·{' '}
-                {new Date(confession.publishedAt).toLocaleDateString()}
+                {(confession.category === 'CUSTOM'
+                  ? confession.customCategory || 'Custom'
+                  : confession.category?.replace('_', ' ')) ?? 'CAMPUS THOUGHT'}{' '}
+                · {new Date(confession.publishedAt).toLocaleDateString()}
               </span>
               <ShareMenu
                 url={

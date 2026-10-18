@@ -18,6 +18,7 @@ import {
 import { CreateConfessionDto, ListConfessionsQueryDto } from './dto';
 import { reportReasons } from './report.dto';
 import { SubmissionRateLimiter } from './rate-limit';
+import { validateCategoryPair } from './category';
 import { increment } from '../observability';
 import { prisma as sharedPrisma } from '../admin-auth';
 
@@ -44,6 +45,7 @@ type ConfessionRecord = {
   publicId: string;
   content: string;
   category: string | null;
+  customCategory?: string | null;
   publishedAt: Date | null;
   theme: ThemeRecord | null;
 };
@@ -75,6 +77,7 @@ export type ConfessionsPrisma = {
         content: string;
         originalContent: string;
         category?: string;
+        customCategory?: string;
         status: ConfessionStatus;
         themeId: string;
       };
@@ -144,6 +147,7 @@ function toPublicConfession(confession: ConfessionRecord): PublicConfession {
     publicId: confession.publicId,
     content: confession.content,
     category: confession.category as PublicConfession['category'],
+    customCategory: confession.customCategory,
     theme: confession.theme ? toPublicTheme(confession.theme) : null,
     publishedAt: confession.publishedAt?.toISOString() ?? new Date(0).toISOString(),
   };
@@ -232,6 +236,7 @@ export class ConfessionsService {
     const maxCharacters = profile?.maxCharacters ?? 1000;
     if (content.length > maxCharacters)
       throw new BadRequestException(`Confession must be ${maxCharacters} characters or fewer.`);
+    const customCategory = validateCategoryPair(dto.category, dto.customCategory);
     const rate = this.submissions.check(
       clientKey,
       Number(process.env.SUBMISSION_RATE_LIMIT ?? 5),
@@ -256,6 +261,7 @@ export class ConfessionsService {
         content,
         originalContent: content,
         category: dto.category,
+        ...(customCategory ? { customCategory } : {}),
         status: ConfessionStatus.PENDING,
         themeId: theme.id,
       },
@@ -282,6 +288,7 @@ export class ConfessionsService {
           publicId: true,
           content: true,
           category: true,
+          customCategory: true,
           publishedAt: true,
           theme: {
             select: {
@@ -328,6 +335,7 @@ export class ConfessionsService {
         publicId: true,
         content: true,
         category: true,
+        customCategory: true,
         publishedAt: true,
         theme: {
           select: {

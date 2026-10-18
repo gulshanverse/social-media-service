@@ -1,3 +1,4 @@
+import { Transform } from 'class-transformer';
 import { IsEnum, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import { confessionCategories } from '@ggv/types';
 
@@ -9,6 +10,12 @@ export class CreateConfessionDto {
   @IsOptional()
   @IsEnum(confessionCategories)
   category?: (typeof confessionCategories)[number];
+
+  @IsOptional()
+  @IsString()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @MaxLength(40)
+  customCategory?: string;
 
   @IsOptional()
   @IsString()

@@ -41,6 +41,7 @@ import {
   isGarbaThemeId,
 } from '@ggv/themes';
 import { normalizeReadLiveConfessionButton } from '@ggv/types';
+import { validateCategoryPair } from './confessions/category';
 
 export function assertOpenReportTransition(status: ReportStatus, action: 'resolve' | 'dismiss') {
   if (status !== ReportStatus.OPEN)
@@ -447,6 +448,7 @@ export class AdminService {
           content: true,
           originalContent: true,
           category: true,
+          customCategory: true,
           status: true,
           createdAt: true,
           updatedAt: true,
@@ -478,6 +480,7 @@ export class AdminService {
         content: true,
         originalContent: true,
         category: true,
+        customCategory: true,
         status: true,
         createdAt: true,
         updatedAt: true,
@@ -508,13 +511,14 @@ export class AdminService {
   async edit(id: string, body: UpdateConfessionDto, actor: AdminIdentity) {
     const current = await prisma.confession.findUnique({
       where: { id },
-      select: { status: true, content: true, category: true, themeId: true },
+      select: { status: true, content: true, category: true, customCategory: true, themeId: true },
     });
     if (!current) throw new NotFoundException('Confession not found.');
     assertEditableConfession(current.status);
     const data: {
       content?: string;
       category?: ConfessionCategory;
+      customCategory?: string | null;
       themeId?: string | null;
       editorId?: string;
     } = {};
@@ -541,8 +545,17 @@ export class AdminService {
         throw new BadRequestException(`Content must be between 1 and ${maxCharacters} characters.`);
       if (content !== current.content) data.content = content;
     }
+    const nextCategory = body.category ?? current.category ?? undefined;
+    const nextCustomCategory =
+      body.category !== undefined || body.customCategory !== undefined
+        ? validateCategoryPair(nextCategory, body.customCategory)
+        : (current.customCategory ?? undefined);
     if (body.category !== undefined && body.category !== current.category)
       data.category = body.category;
+    if (body.category !== undefined || body.customCategory !== undefined) {
+      if (nextCustomCategory !== current.customCategory)
+        data.customCategory = nextCustomCategory ?? null;
+    }
     if (body.themeId !== undefined) {
       if (!body.themeId) {
         if (current.themeId !== null) data.themeId = null;
@@ -562,6 +575,7 @@ export class AdminService {
           content: true,
           originalContent: true,
           category: true,
+          customCategory: true,
           status: true,
           theme: { select: { id: true, slug: true, name: true } },
         },
@@ -576,6 +590,7 @@ export class AdminService {
         content: true,
         originalContent: true,
         category: true,
+        customCategory: true,
         status: true,
         theme: { select: { id: true, slug: true, name: true } },
       },

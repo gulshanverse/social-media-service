@@ -34,6 +34,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const createConfession = (payload: {
   content: string;
   category?: string;
+  customCategory?: string;
   themeId: string;
 }) => request<SubmissionResult>('/confessions', { method: 'POST', body: JSON.stringify(payload) });
 export const getConfessions = (page = 1) =>

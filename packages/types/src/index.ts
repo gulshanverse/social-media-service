@@ -1,15 +1,22 @@
 export const confessionCategories = [
   'CRUSH',
+  'ADMIRATION',
   'RELATIONSHIP',
   'FRIENDSHIP',
   'FUNNY',
   'COLLEGE_LIFE',
-  'ADVICE',
   'APPRECIATION',
+  'ADVICE',
   'RANT',
-  'OTHER',
+  'CUSTOM',
 ] as const;
-export type ConfessionCategory = (typeof confessionCategories)[number];
+export const legacyConfessionCategories = ['OTHER'] as const;
+export const allConfessionCategories = [
+  ...confessionCategories,
+  ...legacyConfessionCategories,
+] as const;
+export type ConfessionCategory = (typeof allConfessionCategories)[number];
+export type PublicConfessionCategory = ConfessionCategory;
 export type ConfessionStatus = 'PENDING' | 'PUBLISHED' | 'REJECTED' | 'ARCHIVED';
 export type AdminRole = 'SUPER_ADMIN' | 'MODERATOR' | 'DESIGNER';
 export type ReportStatus = 'OPEN' | 'RESOLVED' | 'DISMISSED' | 'ARCHIVED';
@@ -31,7 +38,8 @@ export type PublicTheme = {
 export type PublicConfession = {
   publicId: string;
   content: string;
-  category: ConfessionCategory | null;
+  category: PublicConfessionCategory | null;
+  customCategory?: string | null;
   theme: PublicTheme | null;
   publishedAt: string;
 };
@@ -45,7 +53,6 @@ export type PublicConfessionPage = {
 };
 export type SubmissionResult = { publicId: string; status: 'PENDING'; message: string };
 export * from './read-live-button';
-
 export const vibeMatchRoundTypes = [
   'QUICK_PICK',
   'SCENARIO',
@@ -53,7 +60,6 @@ export const vibeMatchRoundTypes = [
   'THIS_OR_THAT',
 ] as const;
 export type VibeMatchRoundType = (typeof vibeMatchRoundTypes)[number];
-
 export const vibeMatchCategories = [
   'PERSONALITY',
   'SOCIAL',
@@ -63,7 +69,6 @@ export const vibeMatchCategories = [
   'LIFESTYLE',
 ] as const;
 export type VibeMatchCategory = (typeof vibeMatchCategories)[number];
-
 export const vibeDimensions = [
   'socialEnergy',
   'adventure',
@@ -75,11 +80,7 @@ export const vibeDimensions = [
 export type VibeDimension = (typeof vibeDimensions)[number];
 export type VibeDna = Record<VibeDimension, number>;
 export type VibeDnaMapping = Partial<Record<VibeDimension, number>>;
-export type VibeAnswerOption = {
-  id: string;
-  label: string;
-  dnaContribution: VibeDnaMapping;
-};
+export type VibeAnswerOption = { id: string; label: string; dnaContribution: VibeDnaMapping };
 export type VibeQuestion = {
   id: string;
   prompt: string;

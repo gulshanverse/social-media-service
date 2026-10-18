@@ -788,8 +788,13 @@ function ConfessionDetail({ admin }: { admin: Admin }) {
   const id = usePathname().split('/').pop();
   const [item, setItem] = useState<any>(null);
   const [themes, setThemes] = useState<Theme[]>([]);
-  const [form, setForm] = useState({ content: '', category: '', themeId: '' });
-  const [savedForm, setSavedForm] = useState({ content: '', category: '', themeId: '' });
+  const [form, setForm] = useState({ content: '', category: '', customCategory: '', themeId: '' });
+  const [savedForm, setSavedForm] = useState({
+    content: '',
+    category: '',
+    customCategory: '',
+    themeId: '',
+  });
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
@@ -800,6 +805,7 @@ function ConfessionDetail({ admin }: { admin: Admin }) {
         const nextForm = {
           content: value.content,
           category: value.category || '',
+          customCategory: value.customCategory || '',
           themeId: value.theme?.id || '',
         };
         setForm(nextForm);
@@ -815,6 +821,7 @@ function ConfessionDetail({ admin }: { admin: Admin }) {
   const dirty =
     form.content !== savedForm.content ||
     form.category !== savedForm.category ||
+    form.customCategory !== savedForm.customCategory ||
     form.themeId !== savedForm.themeId;
   const editable =
     !!item && ['PENDING', 'PUBLISHED'].includes(item.status) && admin.role !== 'DESIGNER';
@@ -877,6 +884,7 @@ function ConfessionDetail({ admin }: { admin: Admin }) {
     publicId: item.publicId,
     content: form.content.trim() || 'Preview your confession here.',
     category: form.category ? (form.category as PublicConfession['category']) : null,
+    customCategory: form.customCategory,
     theme: asPublicTheme(draftTheme),
     publishedAt: item.publishedAt || item.createdAt || new Date().toISOString(),
   };
@@ -934,18 +942,32 @@ function ConfessionDetail({ admin }: { admin: Admin }) {
                   <option value="">Uncategorized</option>
                   {[
                     'CRUSH',
+                    'ADMIRATION',
                     'RELATIONSHIP',
                     'FRIENDSHIP',
                     'FUNNY',
                     'COLLEGE_LIFE',
-                    'ADVICE',
                     'APPRECIATION',
+                    'ADVICE',
                     'RANT',
+                    'CUSTOM',
                     'OTHER',
                   ].map((v) => (
                     <option key={v}>{v}</option>
                   ))}
                 </select>
+                {form.category === 'CUSTOM' && (
+                  <input
+                    value={form.customCategory}
+                    onChange={(e) =>
+                      setForm({ ...form, customCategory: e.target.value.slice(0, 40) })
+                    }
+                    placeholder="Your Category"
+                    maxLength={40}
+                    aria-label="Your Category"
+                    required
+                  />
+                )}
               </label>
               <label>
                 Theme
@@ -999,7 +1021,11 @@ function ConfessionDetail({ admin }: { admin: Admin }) {
           )}
           <dl className="facts">
             <dt>Category</dt>
-            <dd>{item.category || 'Uncategorized'}</dd>
+            <dd>
+              {item.category === 'CUSTOM'
+                ? item.customCategory || 'Custom'
+                : item.category || 'Uncategorized'}
+            </dd>
             <dt>Theme</dt>
             <dd>{item.theme?.name || 'No theme'}</dd>
             <dt>Published</dt>
