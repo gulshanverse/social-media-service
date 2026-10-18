@@ -7,6 +7,8 @@ import AdminClient, {
   Dashboard,
   GarbaAdmin,
   Nav,
+  importThemeJson,
+  proposeContrastCorrections,
   refresh,
   Themes,
 } from './AdminClient';
@@ -107,6 +109,162 @@ describe('admin workspace behavior', () => {
     render(<Themes admin={admin} />);
     expect((await screen.findAllByText('Paper & Ink')).length).toBeGreaterThan(1);
     expect(screen.queryByText('Application error')).not.toBeInTheDocument();
+  });
+
+  it('saves new themes and edits without sending immutable slugs or empty dates', async () => {
+    const savedTheme = {
+      id: 'theme-1',
+      slug: 'campus-night',
+      name: 'Campus Night',
+      background: '#070a12',
+      gradient: 'linear-gradient(135deg,#070a12,#101c3b)',
+      textColor: '#ffffff',
+      accentColor: '#00b8ff',
+      fontFamily: 'Inter',
+      radius: 28,
+      status: 'DRAFT',
+      tokens: {},
+    };
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('/admin/themes?') && !init?.method)
+        return response({ items: [savedTheme], page: 1, limit: 20, total: 1, hasMore: false });
+      if (url.endsWith('/admin/themes') && init?.method === 'POST') return response(savedTheme);
+      if (url.endsWith('/admin/themes/theme-1') && init?.method === 'PATCH')
+        return response(savedTheme);
+      return response({});
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<Themes admin={admin} />);
+    await screen.findByRole('heading', { name: 'Create theme' });
+    fireEvent.change(screen.getByLabelText('Slug'), { target: { value: 'campus-night' } });
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Campus Night' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Draft' }));
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining('/admin/themes'),
+        expect.objectContaining({ method: 'POST' }),
+      ),
+    );
+    const createCall = fetchMock.mock.calls.find(([, init]) => init?.method === 'POST');
+    const createBody = JSON.parse(String(createCall?.[1]?.body));
+    expect(createBody.slug).toBe('campus-night');
+    expect(createBody).not.toHaveProperty('startAt');
+    expect(createBody).not.toHaveProperty('endAt');
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Campus Night Updated' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Draft' }));
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining('/admin/themes/theme-1'),
+        expect.objectContaining({ method: 'PATCH' }),
+      ),
+    );
+    const updateCall = fetchMock.mock.calls.find(([, init]) => init?.method === 'PATCH');
+    const updateBody = JSON.parse(String(updateCall?.[1]?.body));
+    expect(updateBody).not.toHaveProperty('slug');
+    expect(updateBody).not.toHaveProperty('startAt');
+    expect(updateBody).not.toHaveProperty('endAt');
+  });
+
+  it('proposes contrast corrections without touching unrelated advanced tokens', () => {
+    const corrections = proposeContrastCorrections({
+      name: 'Low contrast',
+      slug: 'low-contrast',
+      background: '#ffffff',
+      gradient: 'none',
+      textColor: '#eeeeee',
+      accentColor: '#00b8ff',
+      fontFamily: 'Inter',
+      radius: 28,
+      tokens: { primaryText: '#eeeeee', glow: '0 0 20px #00b8ff' },
+    });
+    expect(corrections.some((correction) => correction.key === 'primaryText')).toBe(true);
+    expect(corrections.find((correction) => correction.key === 'primaryText')?.to).toMatch(
+      /^#(?:ffffff|000000)$/,
+    );
+    expect(corrections.some((correction) => correction.key === 'glow')).toBe(false);
+    expect(
+      proposeContrastCorrections({
+        name: 'Passing',
+        slug: 'passing',
+        background: '#000000',
+        gradient: 'none',
+        textColor: '#ffffff',
+        accentColor: '#ffffff',
+        fontFamily: 'Inter',
+        radius: 28,
+        tokens: {
+          primaryText: '#ffffff',
+          secondaryText: '#ffffff',
+          mutedText: '#ffffff',
+          headingText: '#ffffff',
+          linkText: '#ffffff',
+          buttonText: '#ffffff',
+          buttonBackground: '#000000',
+          input: '#000000',
+          card: '#000000',
+          surface: '#000000',
+        },
+      }),
+    ).toEqual([]);
+  });
+
+  it('imports flat and canonical JSON without saving or losing unspecified values', () => {
+    const current = {
+      slug: 'current-theme',
+      name: 'Current Theme',
+      description: 'Keep this',
+      background: '#070a12',
+      gradient: 'linear-gradient(135deg,#070a12,#101c3b)',
+      textColor: '#ffffff',
+      accentColor: '#00b8ff',
+      fontFamily: 'Inter',
+      radius: 28,
+      layoutVariant: 'classic',
+      mode: 'dark',
+      tags: ['keep'],
+      tokens: { glassOpacity: '0.72', glow: '0 0 20px #00b8ff' },
+    };
+    const flat = importThemeJson({ backdropBlur: 18, gradientAngle: 135 }, current);
+    expect(flat.form.tokens.backdropBlur).toBe('18');
+    expect(flat.form.tokens.gradientAngle).toBe('135');
+    expect(flat.form.tokens.glassOpacity).toBe('0.72');
+    expect(flat.form.description).toBe('Keep this');
+
+    const canonical = {
+      schemaVersion: 1,
+      type: 'theme',
+      name: 'Imported Theme',
+      slug: 'imported-theme',
+      variant: 'classic',
+      mode: 'dark',
+      tags: ['imported'],
+      tokens: {
+        background: '#101522',
+        gradient: 'linear-gradient(135deg,#101522,#243c5a)',
+        textColor: '#ffffff',
+        accentColor: '#00d9ff',
+        fontFamily: 'Inter',
+        radius: 24,
+        glassOpacity: '0.64',
+        backdropBlur: '24px',
+      },
+    };
+    const complete = importThemeJson(canonical, current);
+    expect(complete.form.name).toBe('Imported Theme');
+    expect(complete.form.tokens.backdropBlur).toBe('24px');
+    expect(() => importThemeJson({ unsupported: true }, current)).toThrow(/Unsupported theme keys/);
+    expect(() => importThemeJson({ glassOpacity: { bad: true } }, current)).toThrow(
+      /primitive value/,
+    );
+    const replaced = importThemeJson({ glassOpacity: '0.4' }, current, true);
+    expect(replaced.form.description).toBe('');
+    expect(replaced.form.tokens.glow).toBe('0');
   });
 
   it('renders dashboard metrics and loading-to-success behavior', async () => {

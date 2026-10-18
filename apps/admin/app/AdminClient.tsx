@@ -7,8 +7,12 @@ import { appConfig } from '@ggv/config';
 import type { PublicConfession, PublicTheme } from '@ggv/types';
 import {
   analyzeThemeContrast,
+  contrastRatio,
+  exportPortableTheme,
   garbaThemes,
   getGarbaTheme,
+  normalizeImportedTheme,
+  parseSupportedColor,
   themePresets,
   themeToCssVariables,
   type ContrastPair,
@@ -1656,7 +1660,54 @@ function ThemeWorkspacePreview({
     </section>
   );
 }
-function AccessibilityDashboard({ theme }: { theme: Partial<Theme> }) {
+type ContrastCorrection = { key: string; from: string; to: string; reason: string };
+const CONTRAST_TOKEN_BY_PAIR: Record<string, string> = {
+  'primary-background': 'primaryText',
+  'secondary-background': 'secondaryText',
+  'muted-background': 'mutedText',
+  'heading-background': 'headingText',
+  'link-background': 'linkText',
+  button: 'buttonText',
+  placeholder: 'placeholderText',
+};
+export function proposeContrastCorrections(theme: Partial<Theme>): ContrastCorrection[] {
+  let pairs: ContrastPair[] = [];
+  try {
+    pairs = analyzeThemeContrast(theme as any);
+  } catch {
+    return [];
+  }
+  const tokens = theme.tokens || {};
+  const proposals: ContrastCorrection[] = [];
+  const changed = new Set<string>();
+  for (const pair of pairs.filter((item) => item.status === 'FAIL')) {
+    const key = CONTRAST_TOKEN_BY_PAIR[pair.id];
+    if (!key || changed.has(key)) continue;
+    const current = tokens[key] || pair.foreground;
+    if (!parseSupportedColor(current) || !parseSupportedColor(pair.background)) continue;
+    const candidates = ['#ffffff', '#000000']
+      .map((candidate) => ({ candidate, ratio: contrastRatio(candidate, pair.background) ?? 0 }))
+      .sort((a, b) => b.ratio - a.ratio);
+    const best = candidates[0];
+    if (!best || best.ratio < 4.5 || best.candidate.toLowerCase() === current.toLowerCase())
+      continue;
+    proposals.push({
+      key,
+      from: current,
+      to: best.candidate,
+      reason: `${pair.label} improves to ${best.ratio.toFixed(2)}:1`,
+    });
+    changed.add(key);
+  }
+  return proposals;
+}
+function AccessibilityDashboard({
+  theme,
+  onApplyCorrections,
+}: {
+  theme: Partial<Theme>;
+  onApplyCorrections?: (corrections: ContrastCorrection[]) => void;
+}) {
   const pairs: ContrastPair[] = (() => {
     try {
       return analyzeThemeContrast(theme as any);
@@ -1664,6 +1715,8 @@ function AccessibilityDashboard({ theme }: { theme: Partial<Theme> }) {
       return [];
     }
   })();
+  const [proposals, setProposals] = useState<ContrastCorrection[] | null>(null);
+  const failingPairs = pairs.filter((pair) => pair.status === 'FAIL');
   return (
     <section className="accessibility-dashboard" aria-labelledby="accessibility-heading">
       <div className="form-heading">
@@ -1676,45 +1729,84 @@ function AccessibilityDashboard({ theme }: { theme: Partial<Theme> }) {
           </p>
         </div>
         <span className="status">
-          {pairs.filter((pair) => pair.status === 'PASS').length}/{pairs.length} strong pairs
+          {pairs.filter((pair) => pair.status !== 'FAIL').length}/{pairs.length} contrast pairs pass
         </span>
       </div>
-      <div className="contrast-grid">
-        {pairs.map((pair) => (
-          <article className="contrast-card" key={pair.id}>
-            <div className="contrast-card-heading">
-              <strong>{pair.label}</strong>
-              <span className={`contrast-status contrast-${pair.status.toLowerCase()}`}>
-                {pair.status}
-              </span>
+      {failingPairs.length > 0 && onApplyCorrections && (
+        <div className="actions">
+          <button type="button" onClick={() => setProposals(proposeContrastCorrections(theme))}>
+            Fix Contrast
+          </button>
+          {proposals && proposals.length > 0 && (
+            <div className="notice" role="status">
+              <strong>Proposed corrections</strong>
+              <ul>
+                {proposals.map((proposal) => (
+                  <li key={proposal.key}>
+                    {proposal.key}: {proposal.from} → {proposal.to} ({proposal.reason})
+                  </li>
+                ))}
+              </ul>
+              <button
+                type="button"
+                onClick={() => {
+                  onApplyCorrections(proposals);
+                  setProposals(null);
+                }}
+              >
+                Apply corrections
+              </button>{' '}
+              <button type="button" className="secondary" onClick={() => setProposals(null)}>
+                Cancel
+              </button>
             </div>
-            <div className="contrast-ratio">{pair.ratio.toFixed(2)}:1</div>
-            <div className="wcag-levels">
-              <span className={pair.aaNormal ? 'level-pass' : 'level-fail'}>
-                AA normal {pair.aaNormal ? '✓' : '✕'}
-              </span>
-              <span className={pair.aaLarge ? 'level-pass' : 'level-fail'}>
-                AA large {pair.aaLarge ? '✓' : '✕'}
-              </span>
-              <span className={pair.aaaNormal ? 'level-pass' : 'level-fail'}>
-                AAA normal {pair.aaaNormal ? '✓' : '✕'}
-              </span>
-              <span className={pair.aaaLarge ? 'level-pass' : 'level-fail'}>
-                AAA large {pair.aaaLarge ? '✓' : '✕'}
-              </span>
+          )}
+          {proposals && proposals.length === 0 && (
+            <div className="notice error" role="alert">
+              No safe automatic correction was found for the failing pairs.
             </div>
-            <div className="contrast-swatches">
-              <span style={{ color: pair.foreground, background: pair.background }}>Aa</span>
-              <code>
-                {pair.foreground} / {pair.background}
-              </code>
-            </div>
-          </article>
-        ))}
-      </div>
-      {pairs.length === 0 && (
-        <div className="state">No meaningful color pairs could be evaluated yet.</div>
+          )}
+        </div>
       )}
+      <details className="advanced-token-editor">
+        <summary>View contrast details</summary>
+        <div className="contrast-grid">
+          {pairs.map((pair) => (
+            <article className="contrast-card" key={pair.id}>
+              <div className="contrast-card-heading">
+                <strong>{pair.label}</strong>
+                <span className={`contrast-status contrast-${pair.status.toLowerCase()}`}>
+                  {pair.status}
+                </span>
+              </div>
+              <div className="contrast-ratio">{pair.ratio.toFixed(2)}:1</div>
+              <div className="wcag-levels">
+                <span className={pair.aaNormal ? 'level-pass' : 'level-fail'}>
+                  AA normal {pair.aaNormal ? '✓' : '✕'}
+                </span>
+                <span className={pair.aaLarge ? 'level-pass' : 'level-fail'}>
+                  AA large {pair.aaLarge ? '✓' : '✕'}
+                </span>
+                <span className={pair.aaaNormal ? 'level-pass' : 'level-fail'}>
+                  AAA normal {pair.aaaNormal ? '✓' : '✕'}
+                </span>
+                <span className={pair.aaaLarge ? 'level-pass' : 'level-fail'}>
+                  AAA large {pair.aaaLarge ? '✓' : '✕'}
+                </span>
+              </div>
+              <div className="contrast-swatches">
+                <span style={{ color: pair.foreground, background: pair.background }}>Aa</span>
+                <code>
+                  {pair.foreground} / {pair.background}
+                </code>
+              </div>
+            </article>
+          ))}
+        </div>
+        {pairs.length === 0 && (
+          <div className="state">No meaningful color pairs could be evaluated yet.</div>
+        )}
+      </details>
     </section>
   );
 }
@@ -1775,6 +1867,86 @@ function portableToForm(document: any, proposedSlug?: string) {
     tokens: { ...visualTokenDefaults, ...visualTokens },
   };
 }
+const IMPORT_BASE_KEYS = new Set([
+  'background',
+  'gradient',
+  'textColor',
+  'accentColor',
+  'fontFamily',
+  'radius',
+  'borderStyle',
+  'logoVisibility',
+  'handleVisibility',
+]);
+const IMPORT_TOKEN_KEYS = new Set([...IMPORT_BASE_KEYS, ...Object.values(TOKEN_GROUPS).flat()]);
+function slugifyThemeName(value: string) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80);
+}
+export function importThemeJson(value: unknown, current: any, replace = false) {
+  if (!value || typeof value !== 'object' || Array.isArray(value))
+    throw new Error('Theme JSON must be an object.');
+  const source = value as Record<string, any>;
+  const canonical = source.type === 'theme' && source.schemaVersion === 1;
+  const suppliedTokens = canonical ? source.tokens : source;
+  if (!suppliedTokens || typeof suppliedTokens !== 'object' || Array.isArray(suppliedTokens))
+    throw new Error('Theme tokens must be an object.');
+  const unsupported = Object.keys(suppliedTokens).filter((key) => !IMPORT_TOKEN_KEYS.has(key));
+  if (unsupported.length) throw new Error(`Unsupported theme keys: ${unsupported.join(', ')}`);
+  const base = replace ? emptyTheme : current;
+  const mergedTokens = { ...base.tokens };
+  const mergedBase = { ...base };
+  for (const [key, raw] of Object.entries(suppliedTokens)) {
+    if (typeof raw === 'object' || raw === null)
+      throw new Error(`${key} must be a primitive value.`);
+    if (IMPORT_BASE_KEYS.has(key)) mergedBase[key] = raw;
+    else mergedTokens[key] = String(raw);
+  }
+  if (canonical) {
+    for (const key of [
+      'name',
+      'slug',
+      'description',
+      'icon',
+      'category',
+      'tags',
+      'mode',
+      'variant',
+    ]) {
+      if (source[key] !== undefined)
+        mergedBase[key === 'variant' ? 'layoutVariant' : key] = source[key];
+    }
+  }
+  const normalized = normalizeImportedTheme({
+    schemaVersion: 1,
+    type: 'theme',
+    name: mergedBase.name || 'Imported theme',
+    slug: mergedBase.slug || 'imported-theme',
+    description: mergedBase.description || undefined,
+    icon: mergedBase.icon || undefined,
+    category: mergedBase.category || undefined,
+    tags: mergedBase.tags || [],
+    variant: mergedBase.layoutVariant || 'classic',
+    mode: mergedBase.mode || 'dark',
+    tokens: {
+      background: mergedBase.background,
+      gradient: mergedBase.gradient,
+      textColor: mergedBase.textColor,
+      accentColor: mergedBase.accentColor,
+      fontFamily: mergedBase.fontFamily,
+      radius: mergedBase.radius,
+      borderStyle: mergedBase.borderStyle,
+      logoVisibility: mergedBase.logoVisibility,
+      handleVisibility: mergedBase.handleVisibility,
+      ...mergedTokens,
+    },
+  });
+  return { form: portableToForm(normalized), importedKeys: Object.keys(suppliedTokens) };
+}
 export function Themes({ admin }: { admin: Admin }) {
   const [data, setData] = useState<PageData<Theme> | null>(null);
   const [form, setForm] = useState<any>(emptyTheme);
@@ -1782,11 +1954,17 @@ export function Themes({ admin }: { admin: Admin }) {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [page, setPage] = useState(1);
   const [savedForm, setSavedForm] = useState<any>(emptyTheme);
   const [viewport, setViewport] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
   const [advancedJson, setAdvancedJson] = useState(JSON.stringify(emptyTheme.tokens, null, 2));
   const [advancedError, setAdvancedError] = useState('');
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [jsonInput, setJsonInput] = useState('');
+  const [jsonError, setJsonError] = useState('');
+  const [jsonSummary, setJsonSummary] = useState<string[]>([]);
+  const [replaceOnImport, setReplaceOnImport] = useState(false);
   const [importPreview, setImportPreview] = useState<any>(null);
   const [importError, setImportError] = useState('');
   const importFile = useRef<HTMLInputElement>(null);
@@ -1845,6 +2023,42 @@ export function Themes({ admin }: { admin: Admin }) {
     setSavedForm(emptyTheme);
     setAdvancedJson(JSON.stringify(next.tokens, null, 2));
     setAdvancedError('');
+    setAdvancedOpen(false);
+  }
+  function exportDraftJson() {
+    try {
+      const document = exportPortableTheme({ ...form, tokens: form.tokens });
+      setJsonInput(JSON.stringify(document, null, 2));
+      setJsonError('');
+      setJsonSummary(['Exported the current draft configuration.']);
+    } catch (e) {
+      setJsonError(e instanceof Error ? e.message : 'Draft cannot be exported.');
+    }
+  }
+  function validateJson() {
+    try {
+      const parsed = JSON.parse(jsonInput);
+      const result = importThemeJson(parsed, form, replaceOnImport);
+      setJsonError('');
+      setJsonSummary([
+        `Valid JSON. ${result.importedKeys.length} supported fields ready to import.`,
+      ]);
+      return result;
+    } catch (e) {
+      setJsonError(e instanceof Error ? e.message : 'Theme JSON is invalid.');
+      setJsonSummary([]);
+      return null;
+    }
+  }
+  function applyJsonImport() {
+    const result = validateJson();
+    if (!result) return;
+    setForm(result.form);
+    setSavedForm(replaceOnImport ? emptyTheme : savedForm);
+    setAdvancedJson(JSON.stringify(result.form.tokens, null, 2));
+    setAdvancedError('');
+    setAdvancedOpen(true);
+    setJsonSummary([`Imported ${result.importedKeys.length} supported fields into the draft.`]);
   }
   async function themeAction(id: string, action: string, method = 'POST') {
     const labels: Record<string, string> = {
@@ -1893,6 +2107,7 @@ export function Themes({ admin }: { admin: Admin }) {
   }, [dirty]);
   async function save(e: FormEvent) {
     e.preventDefault();
+    if (saving) return;
     setError('');
     setMessage('');
     let draft = form;
@@ -1902,10 +2117,18 @@ export function Themes({ admin }: { admin: Admin }) {
       setAdvancedError('Advanced / Raw Tokens must contain valid JSON.');
       return;
     }
+    const { slug, startAt, endAt, ...editableFields } = draft;
+    const payload = {
+      ...editableFields,
+      ...(editing ? {} : { slug }),
+      ...(startAt ? { startAt } : {}),
+      ...(endAt ? { endAt } : {}),
+    };
     try {
+      setSaving(true);
       await api(editing ? `/admin/themes/${editing}` : '/admin/themes', {
         method: editing ? 'PATCH' : 'POST',
-        body: JSON.stringify(draft),
+        body: JSON.stringify(payload),
       });
       setMessage(editing ? 'Draft saved successfully.' : 'Draft created successfully.');
       setForm(draft);
@@ -1915,10 +2138,12 @@ export function Themes({ admin }: { admin: Admin }) {
       setAdvancedJson(JSON.stringify(emptyTheme.tokens, null, 2));
       setAdvancedError('');
       setEditing(null);
-      if (!editing) setPage(1);
+      if (!editing && page !== 1) setPage(1);
       else load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Theme could not be saved.');
+    } finally {
+      setSaving(false);
     }
   }
   return (
@@ -2141,6 +2366,82 @@ export function Themes({ admin }: { admin: Admin }) {
               </button>
             )}
           </div>
+          <details
+            className="advanced-token-editor"
+            open={Boolean(jsonError || jsonSummary.length)}
+          >
+            <summary>Import / Export JSON</summary>
+            <p className="muted">
+              Paste a canonical exported theme or a flat set of supported design tokens. Imports are
+              validated before they change this draft.
+            </p>
+            <textarea
+              aria-label="Theme JSON import"
+              value={jsonInput}
+              onChange={(event) => {
+                setJsonInput(event.target.value);
+                setJsonError('');
+                setJsonSummary([]);
+              }}
+              rows={10}
+              spellCheck={false}
+              placeholder='{"glassOpacity":"0.72","backdropBlur":"18px"}'
+            />
+            <label className="checkbox-row">
+              <input
+                type="checkbox"
+                checked={replaceOnImport}
+                onChange={(event) => setReplaceOnImport(event.target.checked)}
+              />
+              Replace unspecified values with defaults
+            </label>
+            <div className="actions">
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => {
+                  try {
+                    setJsonInput(JSON.stringify(JSON.parse(jsonInput), null, 2));
+                    setJsonError('');
+                  } catch {
+                    setJsonError('Theme JSON is malformed and cannot be formatted.');
+                  }
+                }}
+              >
+                Format JSON
+              </button>
+              <button type="button" className="secondary" onClick={validateJson}>
+                Validate JSON
+              </button>
+              <button type="button" onClick={applyJsonImport}>
+                Import JSON
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => {
+                  setJsonInput('');
+                  setJsonError('');
+                  setJsonSummary([]);
+                }}
+              >
+                Clear
+              </button>
+              <button type="button" className="secondary" onClick={exportDraftJson}>
+                Export current draft
+              </button>
+            </div>
+            {jsonError && (
+              <div className="notice error" role="alert">
+                {jsonError}
+              </div>
+            )}
+            {jsonSummary.map((summary) => (
+              <div className="notice success" role="status" key={summary}>
+                {summary}
+              </div>
+            ))}
+          </details>
           <label>
             Slug
             <input
@@ -2155,7 +2456,17 @@ export function Themes({ admin }: { admin: Admin }) {
             Name
             <input
               value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              onChange={(e) => {
+                const name = e.target.value;
+                const generated = slugifyThemeName(form.name || '');
+                setForm({
+                  ...form,
+                  name,
+                  ...(!editing && (!form.slug || form.slug === generated)
+                    ? { slug: slugifyThemeName(name) }
+                    : {}),
+                });
+              }}
               required
               minLength={1}
             />
@@ -2202,6 +2513,52 @@ export function Themes({ admin }: { admin: Admin }) {
               />
             </label>
           </div>
+          <section className="panel quick-theme-controls" aria-labelledby="quick-visual-heading">
+            <div className="form-heading">
+              <div>
+                <p className="eyebrow">QUICK STYLE</p>
+                <h3 id="quick-visual-heading">Quick visual customization</h3>
+                <p className="muted">
+                  Tune the most common effects without opening advanced tokens.
+                </p>
+              </div>
+            </div>
+            <div className="form-grid">
+              {(['glassOpacity', 'backdropBlur', 'glowIntensity'] as const).map((key) => (
+                <label key={key}>
+                  {tokenLabel(key)}
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={Math.max(0, Math.min(1, Number(form.tokens?.[key] ?? 0)))}
+                    onChange={(event) => {
+                      const tokens = { ...form.tokens, [key]: event.target.value };
+                      setForm({ ...form, tokens });
+                      setAdvancedJson(JSON.stringify(tokens, null, 2));
+                    }}
+                  />
+                  <output>{form.tokens?.[key] ?? '0'}</output>
+                </label>
+              ))}
+              <label>
+                Button appearance
+                <select
+                  value={form.tokens?.buttonVariant || 'solid'}
+                  onChange={(event) => {
+                    const tokens = { ...form.tokens, buttonVariant: event.target.value };
+                    setForm({ ...form, tokens });
+                    setAdvancedJson(JSON.stringify(tokens, null, 2));
+                  }}
+                >
+                  {['solid', 'glass', 'outline', 'neon'].map((value) => (
+                    <option key={value}>{value}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </section>
           <div className="form-grid">
             {(['background', 'gradient', 'textColor', 'accentColor', 'fontFamily'] as const).map(
               (key) => (
@@ -2273,41 +2630,52 @@ export function Themes({ admin }: { admin: Admin }) {
               />
             </label>
           </div>
-          <VisualTokenEditor
-            tokens={form.tokens || visualTokenDefaults}
-            onChange={(tokens) => {
-              setForm({ ...form, tokens });
-              setAdvancedJson(JSON.stringify(tokens, null, 2));
-              setAdvancedError('');
-            }}
-          />
-          <details className="advanced-token-editor">
-            <summary>Advanced / Raw Tokens</summary>
+          <details
+            className="advanced-token-editor"
+            open={advancedOpen}
+            onToggle={(event) => setAdvancedOpen(event.currentTarget.open)}
+          >
+            <summary>Advanced Customization</summary>
             <p className="muted">
-              Optional advanced mode. Uses the same canonical token schema and server validation.
+              All supported typography, surfaces, borders, buttons, status, effects, and shape
+              tokens.
             </p>
-            <textarea
-              aria-label="Advanced raw tokens"
-              value={advancedJson}
-              onChange={(event) => {
-                const value = event.target.value;
-                setAdvancedJson(value);
-                try {
-                  const tokens = JSON.parse(value);
-                  if (!tokens || Array.isArray(tokens) || typeof tokens !== 'object')
-                    throw new Error();
-                  setForm({ ...form, tokens });
-                  setAdvancedError('');
-                } catch {
-                  setAdvancedError(
-                    'JSON is invalid or must be an object; the last valid draft remains active.',
-                  );
-                }
+            <VisualTokenEditor
+              tokens={form.tokens || visualTokenDefaults}
+              onChange={(tokens) => {
+                setForm({ ...form, tokens });
+                setAdvancedJson(JSON.stringify(tokens, null, 2));
+                setAdvancedError('');
               }}
-              rows={12}
-              spellCheck={false}
             />
-            {advancedError && <span className="notice error">{advancedError}</span>}
+            <details className="advanced-token-editor">
+              <summary>Advanced / Raw Tokens</summary>
+              <p className="muted">
+                Optional advanced mode. Uses the same canonical token schema and server validation.
+              </p>
+              <textarea
+                aria-label="Advanced raw tokens"
+                value={advancedJson}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setAdvancedJson(value);
+                  try {
+                    const tokens = JSON.parse(value);
+                    if (!tokens || Array.isArray(tokens) || typeof tokens !== 'object')
+                      throw new Error();
+                    setForm({ ...form, tokens });
+                    setAdvancedError('');
+                  } catch {
+                    setAdvancedError(
+                      'JSON is invalid or must be an object; the last valid draft remains active.',
+                    );
+                  }
+                }}
+                rows={12}
+                spellCheck={false}
+              />
+              {advancedError && <span className="notice error">{advancedError}</span>}
+            </details>
           </details>
           <div className="dirty-bar" role="status">
             <strong>{dirty ? 'Unsaved changes' : 'Saved snapshot'}</strong>
@@ -2326,8 +2694,17 @@ export function Themes({ admin }: { admin: Admin }) {
             )}
           </div>
           <ThemeWorkspacePreview theme={form} viewport={viewport} onViewport={setViewport} />
-          <AccessibilityDashboard theme={form} />
-          <button disabled={!dirty}>Save Draft</button>
+          <AccessibilityDashboard
+            theme={form}
+            onApplyCorrections={(corrections) => {
+              const tokens = { ...form.tokens };
+              for (const correction of corrections) tokens[correction.key] = correction.to;
+              setForm({ ...form, tokens });
+              setAdvancedJson(JSON.stringify(tokens, null, 2));
+              setAdvancedError('');
+            }}
+          />
+          <button disabled={!dirty || saving}>{saving ? 'Saving…' : 'Save Draft'}</button>
         </form>
       )}
     </section>
