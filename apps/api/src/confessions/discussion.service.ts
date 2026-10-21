@@ -184,6 +184,32 @@ export class DiscussionService {
       comment: this.safeComment(comment),
     };
   }
+  private async reactionState(confessionId: string, actorHash: string, client: any = prisma) {
+    const [rows, selectedRows] = await Promise.all([
+      client.confessionReaction.groupBy({
+        by: ['emoji'],
+        where: { confessionId },
+        _count: { _all: true },
+      }),
+      client.confessionReaction.findMany({
+        where: { confessionId, actorHash },
+        select: { emoji: true },
+      }),
+    ]);
+    const counts = rows.reduce((acc: Record<string, number>, item: any) => {
+      acc[item.emoji] = item._count._all;
+      return acc;
+    }, {});
+    const selected = selectedRows.map((row: { emoji: string }) => row.emoji);
+    return {
+      options: FIXED_REACTIONS,
+      counts,
+      customReactions: Object.entries(counts)
+        .filter(([value]) => !fixedReactionSet.has(value))
+        .map(([emoji, count]) => ({ emoji, count })),
+      selected,
+    };
+  }
   async react(publicId: string, dto: ReactionDto, rawToken: string | undefined, ip: string) {
     assertRate(`reaction:${ip}`, 60, 'Too many reactions. Please try again later.');
     const confession = await this.confession(publicId);
@@ -193,70 +219,38 @@ export class DiscussionService {
     } catch (error) {
       throw new BadRequestException((error as Error).message);
     }
-    const actorHash = hash(
-      rawToken ? `profile:${(await this.session(rawToken))?.profileId ?? ip}` : `ip:${ip}`,
-    );
-    const existing = await (prisma as any).confessionReaction.findUnique({
-      where: { confessionId_actorHash: { confessionId: confession.id, actorHash } },
-    });
-    if (existing?.emoji === emoji)
-      await (prisma as any).confessionReaction.delete({ where: { id: existing.id } });
-    else if (existing)
-      await (prisma as any).confessionReaction.update({
-        where: { id: existing.id },
-        data: { emoji },
+    const session = await this.session(rawToken);
+    const actorHash = hash(session ? `profile:${session.profileId}` : `ip:${ip}`);
+    try {
+      await (prisma as any).$transaction(async (tx: any) => {
+        const existing = await tx.confessionReaction.findUnique({
+          where: {
+            confessionId_actorHash_emoji: { confessionId: confession.id, actorHash, emoji },
+          },
+        });
+        if (existing) await tx.confessionReaction.delete({ where: { id: existing.id } });
+        else
+          await tx.confessionReaction.create({
+            data: {
+              confessionId: confession.id,
+              actorHash,
+              profileId: session?.profileId ?? null,
+              emoji,
+            },
+          });
       });
-    else
-      await (prisma as any).confessionReaction.create({
-        data: {
-          confessionId: confession.id,
-          actorHash,
-          profileId: (await this.session(rawToken))?.profileId ?? null,
-          emoji,
-        },
-      });
-    const grouped = await (prisma as any).confessionReaction.groupBy({
-      by: ['emoji'],
-      where: { confessionId: confession.id },
-      _count: { _all: true },
-    });
-    const counts = grouped.reduce((acc: Record<string, number>, item: any) => {
-      acc[item.emoji] = item._count._all;
-      return acc;
-    }, {});
-    return {
-      selected: existing?.emoji === emoji ? null : emoji,
-      counts,
-      customReactions: Object.entries(counts)
-        .filter(([value]) => !fixedReactionSet.has(value))
-        .map(([emoji, count]) => ({ emoji, count })),
-    };
+    } catch (error) {
+      // A concurrent first click may lose the unique-key race. The winning
+      // transaction already established the desired state, so return it.
+      if ((error as { code?: string }).code !== 'P2002') throw error;
+    }
+    return this.reactionState(confession.id, actorHash);
   }
   async reactions(publicId: string, rawToken: string | undefined, ip: string) {
     const confession = await this.confession(publicId);
-    const rows = await (prisma as any).confessionReaction.groupBy({
-      by: ['emoji'],
-      where: { confessionId: confession.id },
-      _count: { _all: true },
-    });
     const session = await this.session(rawToken);
-    const actorHash = hash(rawToken ? `profile:${session?.profileId ?? ip}` : `ip:${ip}`);
-    const selected = await (prisma as any).confessionReaction.findUnique({
-      where: { confessionId_actorHash: { confessionId: confession.id, actorHash } },
-      select: { emoji: true },
-    });
-    const counts = rows.reduce((acc: Record<string, number>, item: any) => {
-      acc[item.emoji] = item._count._all;
-      return acc;
-    }, {});
-    return {
-      options: FIXED_REACTIONS,
-      counts,
-      customReactions: Object.entries(counts)
-        .filter(([value]) => !fixedReactionSet.has(value))
-        .map(([emoji, count]) => ({ emoji, count })),
-      selected: selected?.emoji ?? null,
-    };
+    const actorHash = hash(session ? `profile:${session.profileId}` : `ip:${ip}`);
+    return this.reactionState(confession.id, actorHash);
   }
   async report(publicId: string, commentId: string, dto: CommentReportDto, ip: string) {
     assertRate(`comment-report:${ip}`, 5, 'Too many reports. Please wait before trying again.');

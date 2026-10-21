@@ -57,7 +57,7 @@ export default function DiscussionSection({ publicId }: { publicId: string }) {
     options: string[];
     counts: Record<string, number>;
     customReactions: { emoji: string; count: number }[];
-    selected: string | null;
+    selected: string[];
   } | null>(null);
   const [discussion, setDiscussion] = useState<DiscussionPage | null>(null);
   const [profile, setProfile] = useState<CommenterProfile | null>(null);
@@ -150,8 +150,8 @@ export default function DiscussionSection({ publicId }: { publicId: string }) {
           {(reactions?.options ?? ['❤️', '😂', '🫶', '👍', '🔥', '💡']).map((emoji) => (
             <button
               key={emoji}
-              className={`reaction-chip ${reactions?.selected === emoji ? 'reaction-chip--selected' : ''}`}
-              aria-pressed={reactions?.selected === emoji}
+              className={`reaction-chip ${reactions?.selected.includes(emoji) ? 'reaction-chip--selected' : ''}`}
+              aria-pressed={reactions?.selected.includes(emoji)}
               disabled={busy}
               onClick={() => void chooseReaction(emoji)}
             >
@@ -162,8 +162,8 @@ export default function DiscussionSection({ publicId }: { publicId: string }) {
           {reactions?.customReactions.map(({ emoji, count }) => (
             <button
               key={emoji}
-              className={`reaction-chip ${reactions.selected === emoji ? 'reaction-chip--selected' : ''}`}
-              aria-pressed={reactions.selected === emoji}
+              className={`reaction-chip ${reactions.selected.includes(emoji) ? 'reaction-chip--selected' : ''}`}
+              aria-pressed={reactions.selected.includes(emoji)}
               disabled={busy}
               onClick={() => void chooseReaction(emoji)}
             >
