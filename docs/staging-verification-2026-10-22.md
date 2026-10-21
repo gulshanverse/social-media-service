@@ -9,8 +9,8 @@ This is a continuation of the production-readiness audit. The existing user-modi
 - Repository: `gulshanverse/social-media-service`
 - Branch before this change: `main`
 - Existing remote HEAD before this change: `622c555b358d1ed8a68aa37a5fc1a34d53907a03`
-- Previous commits `2a605ab` and `622c555` were present locally and on `origin/main`.
-- Existing CI and CodeQL runs for `622c555` were successful.
+- Current remote HEAD: `77d7601441eeb82633036a51fff3450c59ace8cf`.
+- CI and CodeQL for `77d7601` completed successfully.
 - The working tree contained a user modification to `docs/production-readiness-audit.md`; it was not overwritten, reset, or staged by this continuation.
 
 ## Fresh staging API verification
@@ -21,20 +21,24 @@ The repository's existing deployment evidence identifies the authorized Render s
 
 Only safe, read-only HTTP requests were performed. No authentication, mutation, migration, or private-data operation was attempted.
 
-| Request                                 | Result | Evidence                                                                                                                                        |
-| --------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /health`                           | PASS   | HTTP 200; API reported `status: ok`.                                                                                                            |
-| `GET /health/live`                      | PASS   | HTTP 200; API reported `status: ok`.                                                                                                            |
-| `GET /health/ready`                     | PASS   | HTTP 200; response reported `database: ok`.                                                                                                     |
-| `GET /health/version`                   | PASS   | HTTP 200; deployed commit reported `622c555b358d1ed8a68aa37a5fc1a34d53907a03`; environment reported `production`.                               |
-| `GET /health/metrics`                   | PASS   | HTTP 200; operational endpoint reachable. Response contents were not copied into this report.                                                   |
-| `GET /confessions?page=0&limit=9999`    | PASS   | HTTP 200; public list endpoint returned a response. No private response data was retained here.                                                 |
-| `GET /confessions/not-a-real-public-id` | PASS   | HTTP 404 with normalized `NOT_FOUND` response and request ID.                                                                                   |
-| `GET /garba`                            | PASS   | HTTP 200; public list endpoint returned a response. No private response data was retained here.                                                 |
-| `GET /garba/not-a-real-public-id`       | PASS   | HTTP 404 with normalized `NOT_FOUND` response and request ID.                                                                                   |
-| Security headers                        | PASS   | Observed HTTPS/HSTS, CSP, `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy: no-referrer`, and `X-Request-ID`. |
+| Request                                 | Result | Evidence                                                                                                                                                                                       |
+| --------------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /health`                           | PASS   | HTTP 200; API reported `status: ok`.                                                                                                                                                           |
+| `GET /health/live`                      | PASS   | HTTP 200; API reported `status: ok`.                                                                                                                                                           |
+| `GET /health/ready`                     | PASS   | HTTP 200; response reported `database: ok`.                                                                                                                                                    |
+| `GET /health/version`                   | PASS   | HTTP 200 at `2026-10-21T20:00:52Z`; deployed commit reported `77d7601441eeb82633036a51fff3450c59ace8cf`; environment reported `production`; request ID `46406248-0ed2-49c4-8274-9af8a9a1fa08`. |
+| `GET /health/metrics`                   | PASS   | HTTP 200; operational endpoint reachable. Response contents were not copied into this report.                                                                                                  |
+| `GET /confessions?page=0&limit=9999`    | PASS   | HTTP 200; public list endpoint returned a response. No private response data was retained here.                                                                                                |
+| `GET /confessions/not-a-real-public-id` | PASS   | HTTP 404 with normalized `NOT_FOUND` response and request ID.                                                                                                                                  |
+| `GET /garba`                            | PASS   | HTTP 200; public list endpoint returned a response. No private response data was retained here.                                                                                                |
+| `GET /garba/not-a-real-public-id`       | PASS   | HTTP 404 with normalized `NOT_FOUND` response and request ID.                                                                                                                                  |
+| Security headers                        | PASS   | Observed HTTPS/HSTS, CSP, `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy: no-referrer`, and `X-Request-ID`.                                                |
 
 The staging API was reachable and database-ready at verification time. This does not prove that the deployed frontend/admin applications, browser cookies, migrations, backups, or complete user journeys are production-ready.
+
+### Post-deployment identity-route verification
+
+After staging reported commit `77d7601441eeb82633036a51fff3450c59ace8cf`, `GET /confessions/identity` returned **HTTP 200** at `2026-10-21T20:00:52Z`, with request ID `69fbc4f3-0236-4270-aa49-6abf7b4ae1e1`. The response body was empty/null for an unauthenticated request, which is the expected commenter identity response shape and is not the previous confession-detail `404`.
 
 ## Defect discovered and fixed
 
@@ -56,7 +60,7 @@ The staging API was reachable and database-ready at verification time. This does
 - Complete API test suite: PASS.
 - Local Nest route mapping after the fix showed `GET /confessions/identity` before `GET /confessions/:publicId`.
 
-The already-running staging deployment still contains the previous commit until the new fix is deployed. A post-deployment request to `GET /confessions/identity` must be made before this specific staging behavior can be marked resolved remotely.
+The staging deployment has now been updated to the fix commit, and the identity-route smoke test passed remotely. The route-order defect is therefore **resolved in the verified staging deployment**.
 
 ## Docker and database limitations
 
@@ -71,13 +75,11 @@ The staging API was verified, but no public web origin or authorized admin web o
 
 ## Release decision
 
-**BLOCKED — not ready for production release.** The focused route defect is fixed in source and covered by a regression test, and the documented staging API currently passes safe health/readiness checks. Release still requires deployment of this fix followed by the identity-route smoke test, Docker image validation, authorized staging migration/integration tests, backup/restore evidence, and hosted browser verification.
+**BLOCKED — not ready for production release.** The focused route defect is fixed in source, covered by a regression test, deployed to staging, and verified by the identity-route smoke test. Release still requires Docker image validation, authorized staging migration/integration tests, backup/restore evidence, and hosted browser verification.
 
 ## Next exact actions
 
-1. Deploy the new source commit to the authorized staging API.
-2. Verify `GET /confessions/identity` returns the commenter identity response rather than confession detail 404.
-3. Build and start the production Docker image in an environment with Docker, with migrations run separately by the release job.
-4. Confirm the staging database identity and backup before applying any migration.
-5. Run the full PostgreSQL persistence/moderation journey and browser tests from the existing release checklist.
-6. Reassess the final production-readiness status only after those checks pass.
+1. Build and start the production Docker image in an environment with Docker, with migrations run separately by the release job.
+2. Confirm the staging database identity and backup before applying any migration.
+3. Run the full PostgreSQL persistence/moderation journey and browser tests from the existing release checklist.
+4. Reassess the final production-readiness status only after those checks pass.
