@@ -17,12 +17,13 @@ Production release is not recommended yet because no authorized staging PostgreS
 
 - Remote: `https://github.com/gulshanverse/social-media-service.git`
 - Branch: `main`
-- HEAD: `4c2ec850bb1bb2b456c1f06df7cb9f83688abee0`
-- Working tree: clean at start; one intentional modification remains (`Dockerfile`).
-- Remote synchronization: `main` matched `origin/main` at audit start.
+- Baseline HEAD: `4c2ec850bb1bb2b456c1f06df7cb9f83688abee0`
+- Fix commit: `2a605ab777fce449acedfa99f7255490163e589b`
+- Working tree: clean after the pushed fix and report artifact.
+- Remote synchronization: `origin/main` confirmed at `2a605ab777fce449acedfa99f7255490163e589b`.
 - Referenced commits verified: `e03355487f6602401d14e4ebcf0d6b434b033332` and `4c2ec850bb1bb2b456c1f06df7cb9f83688abee0` exist on the branch.
-- Latest CI: successful for `4c2ec85` — [CI run 39653995705](https://github.com/gulshanverse/social-media-service/actions/runs/39653995705).
-- Latest CodeQL: successful for `4c2ec85` — [CodeQL run 39653995775](https://github.com/gulshanverse/social-media-service/actions/runs/39653995775).
+- Post-fix CI: successful for `2a605ab` — [CI run 39660094438](https://github.com/gulshanverse/social-media-service/actions/runs/39660094438).
+- Post-fix CodeQL: successful for `2a605ab` — [CodeQL run 39660094427](https://github.com/gulshanverse/social-media-service/actions/runs/39660094427).
 - No tracked private key/certificate files or real environment files were found; only `.env.example` is tracked.
 
 ## 3. Verified architecture and feature matrix
@@ -102,9 +103,10 @@ The actual Vercel/Render project settings, live environment values, deployment l
 ## 10. GitHub changes
 
 - Changed file: `Dockerfile`.
-- Local commit created: **No** — no commit or push was performed because an explicit push/commit authorization was not provided.
-- Push status: **Not pushed**.
-- Final local CI status: local quality gates pass after the fix; GitHub CI/CodeQL evidence is for the audited pre-fix HEAD `4c2ec85`. A new GitHub run will require a user-authorized commit/push.
+- Commit: `2a605ab777fce449acedfa99f7255490163e589b` (`fix: align API container startup with migration workflow`).
+- Push status: **Pushed and confirmed** — `origin/main` points to the same SHA.
+- Post-fix CI: **PASS** — [CI run 39660094438](https://github.com/gulshanverse/social-media-service/actions/runs/39660094438).
+- Post-fix CodeQL: **PASS** — [CodeQL run 39660094427](https://github.com/gulshanverse/social-media-service/actions/runs/39660094427).
 
 ## 11. Remaining blockers
 
