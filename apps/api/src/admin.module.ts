@@ -18,10 +18,18 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { put } from '@vercel/blob';
-import { AdminRole } from '@prisma/client';
+import { AdminRole, ConfessionCommentStatus } from '@prisma/client';
 import { AdminAuthController } from './admin.controller';
 import { AdminService } from './admin.service';
-import { JwtAuthGuard, Permissions, Roles, RolesGuard, requireUser } from './admin-auth';
+import {
+  JwtAuthGuard,
+  Permissions,
+  Roles,
+  RolesGuard,
+  prisma,
+  recordAudit,
+  requireUser,
+} from './admin-auth';
 import { PERMISSIONS } from './permissions';
 import { RbacController, RbacService } from './rbac.module';
 import {
@@ -57,6 +65,68 @@ export class AdminController {
   @Get('dashboard')
   dashboard(@Req() req: { user?: ReturnType<typeof requireUser> }) {
     return this.service.dashboardExtended(requireUser(req));
+  }
+  @Permissions(PERMISSIONS.CONFESSIONS_READ)
+  @Get('confession-comments')
+  comments(@Query('status') status?: string, @Query('page') rawPage?: string) {
+    const page = Math.min(100, Math.max(1, Number(rawPage) || 1));
+    const validStatus =
+      status && Object.values(ConfessionCommentStatus).includes(status as ConfessionCommentStatus)
+        ? (status as ConfessionCommentStatus)
+        : undefined;
+    const where = validStatus ? { status: validStatus } : {};
+    return Promise.all([
+      prisma.confessionComment.findMany({
+        where,
+        orderBy: { createdAt: 'asc' },
+        skip: (page - 1) * 25,
+        take: 25,
+        include: {
+          profile: true,
+          confession: { select: { publicId: true, content: true } },
+          parent: { select: { content: true } },
+        },
+      }),
+      prisma.confessionComment.count({ where }),
+    ]).then(([items, total]) => ({ items, page, limit: 25, total, hasMore: page * 25 < total }));
+  }
+  @Permissions(PERMISSIONS.CONFESSIONS_MODERATE)
+  @Post('confession-comments/:id/:action')
+  async moderateComment(
+    @Param('id') id: string,
+    @Param('action') action: 'approve' | 'reject' | 'archive' | 'lock',
+    @Req() req: { user?: ReturnType<typeof requireUser> },
+  ) {
+    const statusByAction = {
+      approve: ConfessionCommentStatus.PUBLISHED,
+      reject: ConfessionCommentStatus.REJECTED,
+      archive: ConfessionCommentStatus.ARCHIVED,
+      lock: ConfessionCommentStatus.LOCKED,
+    } as const;
+    const status = statusByAction[action];
+    if (!status) throw new BadRequestException('Unsupported comment moderation action.');
+    const result = await prisma.confessionComment.updateMany({
+      where: {
+        id,
+        status: {
+          in: [
+            ConfessionCommentStatus.PENDING,
+            ConfessionCommentStatus.PUBLISHED,
+            ConfessionCommentStatus.LOCKED,
+          ],
+        },
+      },
+      data: { status },
+    });
+    if (!result.count)
+      throw new BadRequestException('Comment is unavailable or already moderated.');
+    await recordAudit(
+      requireUser(req).id,
+      `COMMENT_${action.toUpperCase()}`,
+      'CONFESSION_COMMENT',
+      id,
+    );
+    return { id, status };
   }
   @Permissions(PERMISSIONS.USERS_MANAGE)
   @Get('users')

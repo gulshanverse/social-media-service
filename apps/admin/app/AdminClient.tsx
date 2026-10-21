@@ -216,7 +216,12 @@ export function asPublicTheme(theme: Partial<Theme> | null | undefined): PublicT
 export function Nav({ admin, onNavigate }: { admin: Admin; onNavigate?: () => void }) {
   const links: [string, string][] = [['/', 'Dashboard']];
   if (admin.role !== 'DESIGNER')
-    links.push(['/confessions', 'Queue'], ['/reports', 'Reports'], ['/garba', 'Garba']);
+    links.push(
+      ['/confessions', 'Queue'],
+      ['/comments', 'Comments'],
+      ['/reports', 'Reports'],
+      ['/garba', 'Garba'],
+    );
   if (admin.role === 'SUPER_ADMIN') links.push(['/audit-logs', 'Audit']);
   if (admin.role === 'SUPER_ADMIN') links.push(['/users', 'Administrators']);
   if (admin.role === 'SUPER_ADMIN') links.push(['/rbac', 'Dynamic RBAC']);
@@ -3757,6 +3762,106 @@ export function Administrators() {
     </section>
   );
 }
+function CommentModeration() {
+  const [data, setData] = useState<PageData<any> | null>(null);
+  const [status, setStatus] = useState('PENDING');
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  async function load() {
+    setLoading(true);
+    setError('');
+    try {
+      setData(await api(`/admin/confession-comments?${qs({ status, page })}`));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not load comments.');
+    } finally {
+      setLoading(false);
+    }
+  }
+  useEffect(() => {
+    void load();
+  }, [status, page]);
+  async function moderate(id: string, action: string) {
+    if (!confirm(`Confirm ${action} comment?`)) return;
+    try {
+      await api(`/admin/confession-comments/${id}/${action}`, { method: 'POST' });
+      setMessage(`Comment ${action}d successfully.`);
+      await load();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Moderation action failed.');
+    }
+  }
+  return (
+    <section>
+      <p className="eyebrow">TRUST & SAFETY</p>
+      <h1>Confession comments</h1>
+      <p className="muted">Review replies and their confession context before publication.</p>
+      <div className="filters">
+        <label>
+          Status
+          <select
+            value={status}
+            onChange={(event) => {
+              setStatus(event.target.value);
+              setPage(1);
+            }}
+          >
+            <option>PENDING</option>
+            <option>PUBLISHED</option>
+            <option>REJECTED</option>
+            <option>ARCHIVED</option>
+            <option>LOCKED</option>
+          </select>
+        </label>
+      </div>
+      <Notice error={error} message={message} />
+      {loading && <div className="state">Loading comments…</div>}
+      {!loading && data?.items.length === 0 && (
+        <div className="state empty">No comments match this view.</div>
+      )}
+      <div className="list">
+        {data?.items.map((comment) => (
+          <article className="list-card" key={comment.id}>
+            <div className="row-title">
+              <strong>{comment.profile.displayName}</strong>
+              <Status value={comment.status} />
+            </div>
+            <p>{comment.content}</p>
+            <p className="muted">
+              Confession {comment.confession.publicId} · {formatDate(comment.createdAt)}
+            </p>
+            {comment.parent?.content && (
+              <p className="muted">Reply context: {comment.parent.content}</p>
+            )}
+            <div className="actions">
+              {comment.status === 'PENDING' && (
+                <>
+                  <button onClick={() => void moderate(comment.id, 'approve')}>Approve</button>
+                  <button className="danger" onClick={() => void moderate(comment.id, 'reject')}>
+                    Reject
+                  </button>
+                </>
+              )}
+              {['PUBLISHED', 'LOCKED'].includes(comment.status) && (
+                <button className="danger" onClick={() => void moderate(comment.id, 'archive')}>
+                  Archive
+                </button>
+              )}
+              {comment.status !== 'LOCKED' && comment.status !== 'ARCHIVED' && (
+                <button className="secondary" onClick={() => void moderate(comment.id, 'lock')}>
+                  Lock
+                </button>
+              )}
+            </div>
+          </article>
+        ))}
+      </div>
+      <Pager data={data} onPage={setPage} />
+    </section>
+  );
+}
 export default function AdminClient() {
   const pathname = usePathname();
   const router = useRouter();
@@ -3811,6 +3916,8 @@ export default function AdminClient() {
       <Confessions />
     ) : pathname.startsWith('/confessions/') ? (
       <ConfessionDetail admin={admin} />
+    ) : pathname === '/comments' ? (
+      <CommentModeration />
     ) : pathname === '/reports' ? (
       <Reports />
     ) : pathname === '/garba' ? (

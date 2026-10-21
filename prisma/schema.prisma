@@ -64,6 +64,14 @@ enum GarbaCommentStatus {
   ARCHIVED
 }
 
+enum ConfessionCommentStatus {
+  PENDING
+  PUBLISHED
+  REJECTED
+  ARCHIVED
+  LOCKED
+}
+
 enum ReportStatus {
   OPEN
   RESOLVED
@@ -171,10 +179,13 @@ model Confession {
   viewCount       Int                 @default(0)
   shareCount      Int                 @default(0)
   reportCount     Int                 @default(0)
+  commentsLocked  Boolean             @default(false)
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
   publishedAt     DateTime?
   reports         Report[]
+  comments        ConfessionComment[]
+  reactions       ConfessionReaction[]
 
   @@index([status, createdAt])
   @@index([themeId, createdAt])
@@ -185,6 +196,8 @@ model Report {
   id           String       @id @default(cuid())
   confessionId String
   confession   Confession   @relation(fields: [confessionId], references: [id])
+  commentId    String?
+  comment      ConfessionComment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
   reason       String
   details      String?
   status       ReportStatus @default(OPEN)
@@ -196,7 +209,69 @@ model Report {
 
   @@index([status, createdAt])
   @@index([confessionId])
+  @@index([commentId])
   @@index([reviewerId])
+}
+
+model CommenterProfile {
+  id                String               @id @default(cuid())
+  displayName       String
+  instagramUsername String
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  sessions          CommenterSession[]
+  comments          ConfessionComment[]
+  reactions         ConfessionReaction[]
+
+  @@index([instagramUsername])
+}
+
+model CommenterSession {
+  id         String           @id @default(cuid())
+  tokenHash  String           @unique
+  profileId  String
+  profile    CommenterProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime         @default(now())
+  lastUsedAt DateTime?
+
+  @@index([profileId])
+  @@index([expiresAt, revokedAt])
+}
+
+model ConfessionComment {
+  id           String                  @id @default(cuid())
+  confessionId String
+  confession   Confession              @relation(fields: [confessionId], references: [id], onDelete: Cascade)
+  profileId    String
+  profile      CommenterProfile        @relation(fields: [profileId], references: [id], onDelete: Restrict)
+  parentId     String?
+  parent       ConfessionComment?      @relation("ConfessionCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies      ConfessionComment[]     @relation("ConfessionCommentReplies")
+  content      String
+  status       ConfessionCommentStatus @default(PENDING)
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+  reports      Report[]
+
+  @@index([confessionId, status, parentId, createdAt])
+  @@index([parentId, status, createdAt])
+  @@index([profileId, createdAt])
+}
+
+model ConfessionReaction {
+  id           String            @id @default(cuid())
+  confessionId String
+  confession   Confession        @relation(fields: [confessionId], references: [id], onDelete: Cascade)
+  profileId    String?
+  profile      CommenterProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  actorHash    String
+  emoji        String
+  createdAt    DateTime          @default(now())
+
+  @@unique([confessionId, actorHash])
+  @@index([confessionId, emoji])
 }
 
 model AuditLog {

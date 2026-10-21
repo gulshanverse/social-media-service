@@ -20,6 +20,7 @@ export class ApiRequestError extends Error {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${apiUrl}${path}`, {
     ...init,
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
   });
   const body = (await response.json().catch(() => null)) as { message?: string } | null;
@@ -65,4 +66,63 @@ export const reportConfession = (publicId: string, reason: string, details?: str
       method: 'POST',
       body: JSON.stringify({ reason, ...(details === undefined ? {} : { details }) }),
     },
+  );
+
+export type CommenterProfile = {
+  id: string;
+  displayName: string;
+  instagramUsername: string;
+  instagramUrl: string;
+};
+export type DiscussionComment = {
+  id: string;
+  content: string;
+  parentId: string | null;
+  createdAt: string;
+  profile: CommenterProfile;
+  replyCount: number;
+  replies: DiscussionComment[];
+};
+export type DiscussionPage = {
+  items: DiscussionComment[];
+  page: number;
+  limit: number;
+  total: number;
+  hasMore: boolean;
+};
+export type ReactionState = {
+  options: string[];
+  counts: Record<string, number>;
+  customReactions: { emoji: string; count: number }[];
+  selected: string | null;
+};
+export const getCommenterIdentity = () =>
+  request<CommenterProfile | null>('/confessions/identity', { cache: 'no-store' });
+export const registerCommenter = (payload: { displayName: string; instagramUsername: string }) =>
+  request<{ profile: CommenterProfile }>('/confessions/identity', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+export const getConfessionReactions = (publicId: string) =>
+  request<ReactionState>(`/confessions/${encodeURIComponent(publicId)}/reactions`, {
+    cache: 'no-store',
+  });
+export const reactToConfession = (publicId: string, emoji: string) =>
+  request<ReactionState & { selected: string | null }>(
+    `/confessions/${encodeURIComponent(publicId)}/reactions`,
+    { method: 'POST', body: JSON.stringify({ emoji }) },
+  );
+export const getDiscussion = (publicId: string, page = 1) =>
+  request<DiscussionPage>(`/confessions/${encodeURIComponent(publicId)}/comments?page=${page}`, {
+    cache: 'no-store',
+  });
+export const postDiscussionComment = (publicId: string, content: string, parentId?: string) =>
+  request<{ status: string; message: string; comment: DiscussionComment }>(
+    `/confessions/${encodeURIComponent(publicId)}/comments`,
+    { method: 'POST', body: JSON.stringify({ content, ...(parentId ? { parentId } : {}) }) },
+  );
+export const reportDiscussionComment = (publicId: string, commentId: string, reason = 'OTHER') =>
+  request<{ status: string; message: string }>(
+    `/confessions/${encodeURIComponent(publicId)}/comments/${encodeURIComponent(commentId)}/report`,
+    { method: 'POST', body: JSON.stringify({ reason }) },
   );

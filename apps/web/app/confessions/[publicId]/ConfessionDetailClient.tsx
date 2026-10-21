@@ -6,6 +6,7 @@ import type { PublicConfession } from '@ggv/types';
 import { ConfessionCard } from '../../../components/ConfessionCard';
 import { ShareMenu } from '../../../components/ShareMenu';
 import { getConfession } from '../../../lib/api';
+import DiscussionSection from './DiscussionSection';
 
 export default function ConfessionDetailClient({
   publicId,
@@ -69,6 +70,7 @@ export default function ConfessionDetailClient({
                 Report this
               </Link>
             </div>
+            <DiscussionSection publicId={publicId} />
             <div className="detail-cta">
               <h2>Have something to say?</h2>
               <Link className="ggv-button" href="/send">
