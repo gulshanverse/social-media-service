@@ -62,12 +62,27 @@ After staging reported commit `77d7601441eeb82633036a51fff3450c59ace8cf`, `GET /
 
 The staging deployment has now been updated to the fix commit, and the identity-route smoke test passed remotely. The route-order defect is therefore **resolved in the verified staging deployment**.
 
+### Render deployment and environment-label review
+
+The authorized Render workspace independently identifies the target as service `social-media-service-staging-api` (`srv-dao3vvek1f9s73aivdf0`). Render reports that it:
+
+- points to `https://github.com/gulshanverse/social-media-service` on branch `main`;
+- uses the repository `Dockerfile` and `/health/live` health check;
+- runs as one Docker web-service instance in the Singapore region;
+- auto-deploys new commits; and
+- has a live deployment for commit `7f8d783ece303114f89fec62b66e7a85cee2a46b`.
+
+The API's `/health/version` response reports `environment: production`. Source inspection confirms this field is the process `NODE_ENV`, which intentionally controls production-mode behavior such as secure cookies and fail-closed configuration; it is not an independent database-identity assertion. Therefore the label discrepancy is explained as **production-mode runtime in a service named staging**, not proof that the backing database is production. Render's read-only service metadata did not expose the database identity or backup state, so the database remains unverified and no migration was attempted.
+
+Render deployment record: `dep-dbchk6e0m5vs73dcsnvg`, status `live`, completed `2026-10-21T20:02:45Z`.
+
 ## Docker and database limitations
 
 - Docker is unavailable in the sandbox (`docker` command not found), so production image build/startup and runtime dependency inspection remain BLOCKED.
 - No local PostgreSQL server or authorized staging `DATABASE_URL` was available to this session. No migration was applied.
 - No backup file, isolated recovery environment, or restore evidence was available. Backup/restore verification remains BLOCKED.
 - The documented migration architecture remains a dedicated migration/release job followed by starting the runtime image; the Dockerfile runtime command does not invoke Prisma or migrations.
+- Render service/deployment inspection: **PASS** independently for service identity and live commit; database identity and backup status: **BLOCKED** because the read-only service metadata does not expose them.
 
 ## Browser and hosted frontend limitations
 
