@@ -94,7 +94,7 @@ export type ReactionState = {
   options: string[];
   counts: Record<string, number>;
   customReactions: { emoji: string; count: number }[];
-  selected: string | null;
+  selected: string[];
 };
 export const getCommenterIdentity = () =>
   request<CommenterProfile | null>('/confessions/identity', { cache: 'no-store' });
@@ -108,10 +108,10 @@ export const getConfessionReactions = (publicId: string) =>
     cache: 'no-store',
   });
 export const reactToConfession = (publicId: string, emoji: string) =>
-  request<ReactionState & { selected: string | null }>(
-    `/confessions/${encodeURIComponent(publicId)}/reactions`,
-    { method: 'POST', body: JSON.stringify({ emoji }) },
-  );
+  request<ReactionState>(`/confessions/${encodeURIComponent(publicId)}/reactions`, {
+    method: 'POST',
+    body: JSON.stringify({ emoji }),
+  });
 export const getDiscussion = (publicId: string, page = 1) =>
   request<DiscussionPage>(`/confessions/${encodeURIComponent(publicId)}/comments?page=${page}`, {
     cache: 'no-store',

@@ -270,7 +270,7 @@ model ConfessionReaction {
   emoji        String
   createdAt    DateTime          @default(now())
 
-  @@unique([confessionId, actorHash])
+  @@unique([confessionId, actorHash, emoji])
   @@index([confessionId, emoji])
 }
 
