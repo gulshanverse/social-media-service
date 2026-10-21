@@ -11,7 +11,8 @@ import {
 import { SubmissionRateLimiter } from './rate-limit';
 
 @Module({
-  controllers: [ConfessionsController, DiscussionController],
+  // Register fixed discussion routes before the public :publicId route.
+  controllers: [DiscussionController, ConfessionsController],
   providers: [
     ConfessionsService,
     DiscussionService,
