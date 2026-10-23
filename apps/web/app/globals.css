@@ -1518,10 +1518,12 @@ body:has(.college-profile-page) .public-header {
 }
 @media (min-width: 801px) {
   .confession-card--detailed .confession-card__content {
-    max-width: 34ch;
+    width: 100%;
+    max-width: none;
     margin-right: auto;
     margin-left: auto;
     text-align: left;
+    box-sizing: border-box;
   }
 }
 .card-grid {
