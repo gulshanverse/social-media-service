@@ -1518,7 +1518,7 @@ body:has(.college-profile-page) .public-header {
 }
 @media (min-width: 801px) {
   .confession-card--detailed .confession-card__content {
-    max-width: 34ch;
+    max-width: 30ch;
     margin-right: auto;
     margin-left: 0;
     text-align: left;
