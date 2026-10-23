@@ -167,18 +167,25 @@
   background-blend-mode: soft-light;
 }
 .confession-card__content {
+  margin: 0;
+  max-width: 34ch;
   color: var(--theme-card-body-color, var(--theme-primary-text, var(--theme-text, inherit)));
   font-family: var(
     --theme-card-body-font,
     var(--theme-body-font, var(--theme-font-family, inherit))
   );
   font-size: var(--theme-card-body-font-size, var(--card-text-size, 16px));
-  font-weight: var(--theme-card-body-weight, 600);
+  font-weight: var(--theme-card-body-weight, 560);
   font-style: var(--theme-card-body-font-style, normal);
-  line-height: var(--theme-card-body-line-height, 1.25);
-  letter-spacing: var(--theme-card-body-letter-spacing, normal);
+  line-height: var(--theme-card-body-line-height, 1.58);
+  letter-spacing: var(--theme-card-body-letter-spacing, -0.01em);
   text-shadow: var(--theme-card-body-text-shadow, none);
   text-align: var(--theme-card-body-text-align, inherit);
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: var(--preview-lines, 5);
+  overflow: hidden;
 }
 .confession-card__top {
   gap: var(--theme-card-header-gap, 14px);
