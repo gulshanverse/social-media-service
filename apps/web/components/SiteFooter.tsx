@@ -9,49 +9,48 @@ export function SiteFooter() {
             <span aria-hidden="true">♛</span>
             <strong>College Confession</strong>
           </Link>
-          <p className="footer-tagline">Share it. Read it. Keep it thoughtful.</p>
-          <p className="footer-description">Campus thoughts, reviewed before publication.</p>
+          <p className="footer-tagline">A thoughtful corner of campus life.</p>
+          <p className="footer-description">
+            Anonymous submissions, human review, and room for real conversation.
+          </p>
           <div className="footer-actions">
             <Link className="footer-button footer-button--secondary" href="/confessions">
-              Explore
+              Explore confessions
             </Link>
             <Link className="footer-button" href="/send">
-              Send
+              Send confession
             </Link>
           </div>
         </section>
 
         <nav className="footer-nav" aria-label="Footer navigation">
-          <section className="footer-nav-group" aria-labelledby="footer-platform">
-            <h2 id="footer-platform">Platform</h2>
-            <Link href="/about">About</Link>
-            <Link href="/how-it-works">How it works</Link>
-            <Link href="/send">Send</Link>
-            <Link href="/faq">FAQ</Link>
-          </section>
-          <section className="footer-nav-group" aria-labelledby="footer-community">
-            <h2 id="footer-community">Community</h2>
-            <Link href="/confessions">Explore the community</Link>
-          </section>
-          <section className="footer-nav-group" aria-labelledby="footer-safety">
-            <h2 id="footer-safety">Safety &amp; trust</h2>
-            <Link href="/community-guidelines">Guidelines</Link>
-            <Link href="/safety">Safety &amp; moderation</Link>
-            <Link href="/report">Report content</Link>
-            <Link href="/privacy">Privacy</Link>
-            <Link href="/terms">Terms</Link>
+          <section className="footer-nav-group" aria-labelledby="footer-explore">
+            <h2 id="footer-explore">Explore</h2>
+            <Link href="/confessions">Confessions</Link>
+            <Link href="/vibematch">VibeMatch</Link>
+            <Link href="/garba">GrabA</Link>
+            <span className="footer-coming-soon">
+              Buy &amp; Sell <small>Coming soon</small>
+            </span>
+            <span className="footer-coming-soon">
+              Find Your Partner <small>Coming soon</small>
+            </span>
           </section>
           <section className="footer-nav-group" aria-labelledby="footer-support">
             <h2 id="footer-support">Support</h2>
-            <Link href="/contact">Help center &amp; contact</Link>
+            <Link href="/community-guidelines">Community guidelines</Link>
+            <Link href="/privacy">Privacy policy</Link>
+            <Link href="/report">Report content</Link>
+            <Link href="/faq">FAQ</Link>
+            <Link href="/contact">Contact</Link>
           </section>
         </nav>
       </div>
 
-      <section className="footer-connect" aria-label="Connect">
+      <section className="footer-connect" aria-label="Trust note">
         <div>
-          <h2>Connect</h2>
-          <p>Follow the campus pulse.</p>
+          <h2>Built for students</h2>
+          <p>Share it. Read it. Keep it thoughtful.</p>
         </div>
         <p className="footer-independent">
           Independent platform · Not an official university service
@@ -60,7 +59,7 @@ export function SiteFooter() {
 
       <div className="footer-bottom">
         <span>© 2026 CollegeConfession</span>
-        <span>Built for students · All rights reserved.</span>
+        <span>Made for campus communities · All rights reserved.</span>
       </div>
     </footer>
   );
