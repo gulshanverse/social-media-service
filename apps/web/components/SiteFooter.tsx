@@ -28,7 +28,7 @@ export function SiteFooter() {
             <h2 id="footer-explore">Explore</h2>
             <Link href="/confessions">Confessions</Link>
             <Link href="/vibematch">VibeMatch</Link>
-            <Link href="/garba">GrabA</Link>
+            <Link href="/garba">Garba</Link>
             <span className="footer-coming-soon">
               Buy &amp; Sell <small>Coming soon</small>
             </span>

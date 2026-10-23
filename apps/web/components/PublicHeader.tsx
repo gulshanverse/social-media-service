@@ -2,13 +2,12 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { ThemeToggle } from './ThemeToggle';
 
 const primaryLinks = [
   ['/', 'Home'],
   ['/confessions', 'Confessions'],
   ['/vibematch', 'VibeMatch'],
-  ['/garba', 'GrabA'],
+  ['/garba', 'Garba'],
 ] as const;
 
 const moreLinks = [
@@ -40,14 +39,10 @@ export function PublicHeader() {
     }
 
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        setOpen(false);
-      }
+      if (event.key === 'Escape') setOpen(false);
     }
 
-    if (open) {
-      document.addEventListener('keydown', handleKeyDown);
-    }
+    if (open) document.addEventListener('keydown', handleKeyDown);
 
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
@@ -94,16 +89,14 @@ export function PublicHeader() {
             </div>
           </details>
         </nav>
-        <div className="public-header__actions">
-          <ThemeToggle />
-          <Link className="public-header-cta" href="/send">
-            Send confession
-          </Link>
-        </div>
+        <Link className="public-header-cta" href="/send">
+          Send confession
+        </Link>
       </div>
       {open && (
         <button
           className="public-menu-backdrop"
+          type="button"
           aria-label="Close navigation menu"
           onClick={() => setOpen(false)}
         />
@@ -127,9 +120,6 @@ export function PublicHeader() {
             </Link>
           ),
         )}
-        <div className="public-drawer-theme">
-          <ThemeToggle />
-        </div>
         <Link className="home-button" href="/send" onClick={() => setOpen(false)}>
           Send a confession
         </Link>

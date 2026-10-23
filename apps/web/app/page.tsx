@@ -30,10 +30,10 @@ const services: Service[] = [
   },
   {
     icon: '✺',
-    title: 'GrabA',
+    title: 'Garba',
     description: 'Find Garba circles, partners, and festive campus connections.',
     href: '/garba',
-    action: 'Explore GrabA',
+    action: 'Explore Garba',
     accent: 'peach',
   },
   {

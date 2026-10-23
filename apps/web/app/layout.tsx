@@ -50,11 +50,6 @@ export default function Layout({ children }: Readonly<{ children: React.ReactNod
   return (
     <html lang="en" className={`${dmSans.variable} ${spaceGrotesk.variable}`}>
       <body>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(() => { try { const key = 'college-confession-theme'; const stored = localStorage.getItem(key); const theme = stored === 'light' || stored === 'dark' ? stored : (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'); document.body.dataset.theme = theme; } catch (_) {} })();`,
-          }}
-        />
         <PublicHeader />
         {children}
         <SiteFooter />
