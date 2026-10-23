@@ -484,11 +484,6 @@ a:hover .confession-card {
 .confession-card--detailed .confession-card__content {
   font-size: clamp(2.2rem, 5vw, 4.7rem);
 }
-@media (min-width: 801px) {
-  .confession-card--detailed .confession-card__content {
-    text-align: center;
-  }
-}
 .skeleton-card {
   height: 330px;
   border-radius: 28px;
