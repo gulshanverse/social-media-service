@@ -1516,6 +1516,14 @@ body:has(.college-profile-page) .public-header {
   line-height: 1.58;
   letter-spacing: -0.015em;
 }
+@media (min-width: 801px) {
+  .confession-card--detailed .confession-card__content {
+    max-width: 34ch;
+    margin-right: auto;
+    margin-left: 0;
+    text-align: left;
+  }
+}
 .card-grid {
   align-items: start;
 }
