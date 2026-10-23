@@ -3664,9 +3664,9 @@ body[data-theme='light']:has(.home-shell) {
   --home-surface-strong: #f0eef3;
   --home-text: #142039;
   --home-muted: #59667b;
-  --home-subtle: #778298;
+  --home-subtle: #59667b;
   --home-border: rgba(20, 32, 57, 0.13);
-  --home-pink: #d93e72;
+  --home-pink: #b92f5f;
   --home-pink-soft: #ffe5ee;
   --home-lavender: #7967d8;
   --home-cyan: #267f91;
@@ -3683,9 +3683,9 @@ body[data-theme='light']:has(.home-shell) {
     --home-surface-strong: #f0eef3;
     --home-text: #142039;
     --home-muted: #59667b;
-    --home-subtle: #778298;
+    --home-subtle: #59667b;
     --home-border: rgba(20, 32, 57, 0.13);
-    --home-pink: #d93e72;
+    --home-pink: #b92f5f;
     --home-pink-soft: #ffe5ee;
     --home-lavender: #7967d8;
     --home-cyan: #267f91;
@@ -4304,10 +4304,10 @@ body:has(.home-shell) .footer-nav-group a:hover {
   }
   .public-menu-button {
     display: block;
-    flex: 0 0 42px;
-    width: 42px;
-    height: 42px;
-    padding: 9px;
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+    padding: 10px;
   }
   .public-menu-button span {
     background: var(--home-text);
