@@ -16,6 +16,16 @@ export function ThemeToggle() {
     const nextTheme: Theme = stored === 'light' || stored === 'dark' ? stored : getSystemTheme();
     setTheme(nextTheme);
     document.body.dataset.theme = nextTheme;
+
+    function handleThemeChange(event: Event) {
+      const nextTheme = (event as CustomEvent<Theme>).detail;
+      if (nextTheme !== 'light' && nextTheme !== 'dark') return;
+      setTheme(nextTheme);
+      document.body.dataset.theme = nextTheme;
+    }
+
+    document.addEventListener('college-confession-theme-change', handleThemeChange);
+    return () => document.removeEventListener('college-confession-theme-change', handleThemeChange);
   }, []);
 
   function toggleTheme() {
@@ -23,6 +33,9 @@ export function ThemeToggle() {
     setTheme(nextTheme);
     window.localStorage.setItem('college-confession-theme', nextTheme);
     document.body.dataset.theme = nextTheme;
+    document.dispatchEvent(
+      new CustomEvent('college-confession-theme-change', { detail: nextTheme }),
+    );
   }
 
   return (

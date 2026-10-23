@@ -1590,7 +1590,7 @@ body:has(.college-profile-page) .public-header {
   padding: 0 18px;
 }
 
-@media (max-width: 620px) {
+@media (max-width: 820px) {
   .public-header {
     min-height: 64px;
     padding: 10px 16px;
@@ -3811,6 +3811,25 @@ body:has(.home-shell) .public-header-cta {
 .public-drawer-theme .theme-toggle {
   width: 100%;
   justify-content: center;
+}
+body:has(.home-shell) .public-drawer {
+  background: var(--home-surface);
+  color: var(--home-text);
+  box-shadow: 20px 0 60px color-mix(in srgb, var(--home-text) 22%, transparent);
+}
+body:has(.home-shell) .public-drawer-heading {
+  border-bottom-color: var(--home-border);
+}
+body:has(.home-shell) .public-drawer-heading button,
+body:has(.home-shell) .public-drawer a {
+  color: var(--home-text);
+}
+body:has(.home-shell) .public-drawer a:hover,
+body:has(.home-shell) .public-drawer a:focus-visible {
+  background: var(--home-surface-strong);
+}
+body:has(.home-shell) .public-menu-backdrop {
+  background: color-mix(in srgb, var(--home-text) 48%, transparent);
 }
 
 .home-shell {

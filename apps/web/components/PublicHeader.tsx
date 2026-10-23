@@ -26,8 +26,35 @@ export function PublicHeader() {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    document.body.classList.toggle('public-menu-open', open);
-    return () => document.body.classList.remove('public-menu-open');
+    const body = document.body;
+    const previousOverflow = body.style.overflow;
+    const previousPaddingRight = body.style.paddingRight;
+
+    body.classList.toggle('public-menu-open', open);
+    if (open) {
+      body.style.overflow = 'hidden';
+      body.style.paddingRight = `${window.innerWidth - document.documentElement.clientWidth}px`;
+    } else {
+      body.style.overflow = previousOverflow;
+      body.style.paddingRight = previousPaddingRight;
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setOpen(false);
+      }
+    }
+
+    if (open) {
+      document.addEventListener('keydown', handleKeyDown);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      body.classList.remove('public-menu-open');
+      body.style.overflow = previousOverflow;
+      body.style.paddingRight = previousPaddingRight;
+    };
   }, [open]);
 
   return (
