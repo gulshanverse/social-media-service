@@ -7,6 +7,7 @@ import { appConfig } from '@ggv/config';
 import type { PublicConfession, PublicTheme } from '@ggv/types';
 import {
   analyzeThemeContrast,
+  advancedThemeTokenKeys,
   contrastRatio,
   exportPortableTheme,
   garbaThemes,
@@ -1884,7 +1885,11 @@ const IMPORT_BASE_KEYS = new Set([
   'logoVisibility',
   'handleVisibility',
 ]);
-const IMPORT_TOKEN_KEYS = new Set([...IMPORT_BASE_KEYS, ...Object.values(TOKEN_GROUPS).flat()]);
+const IMPORT_TOKEN_KEYS = new Set([
+  ...IMPORT_BASE_KEYS,
+  ...Object.values(TOKEN_GROUPS).flat(),
+  ...advancedThemeTokenKeys,
+]);
 function slugifyThemeName(value: string) {
   return value
     .toLowerCase()

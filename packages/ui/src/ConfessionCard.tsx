@@ -48,10 +48,25 @@ export function ConfessionCard({
     '--preview-lines': display?.previewLines ?? 5,
   };
 
+  const advancedTokens = theme?.tokens ?? {};
+  for (const [key, value] of Object.entries(advancedTokens)) {
+    const variable = `--theme-${key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}`;
+    (style as Record<string, string | number>)[variable] = value;
+  }
+  const token = (key: string, fallback: string) => advancedTokens[key] || fallback;
+
   return (
     <article
       className={`confession-card ${detailed ? 'confession-card--detailed' : ''} ${className}`.trim()}
       style={style}
+      data-card-style={token('cardStyle', 'standard')}
+      data-card-layout={token('cardLayout', 'classic')}
+      data-card-header-layout={token('cardHeaderLayout', 'inline')}
+      data-card-footer-layout={token('cardFooterLayout', 'inline')}
+      data-card-quote-style={token('cardQuoteStyle', 'none')}
+      data-card-glow={token('cardGlowEnabled', 'false')}
+      data-card-border-style={token('cardBorderStyle', 'solid')}
+      data-card-pattern={token('cardPattern', 'none')}
     >
       <div className="confession-card__top">
         <span className="confession-card__brand">♛ COLLEGE CONFESSION</span>
