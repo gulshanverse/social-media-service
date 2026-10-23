@@ -170,10 +170,12 @@
   margin: 0;
   max-width: 34ch;
   color: var(--theme-card-body-color, var(--theme-primary-text, var(--theme-text, inherit)));
-  font-family: var(
-    --theme-card-body-font,
-    var(--theme-body-font, var(--theme-font-family, inherit))
-  );
+  font-family:
+    var(
+      --theme-card-body-font,
+      var(--theme-body-font, var(--theme-font-family, var(--font-space-grotesk, Arial)))
+    ),
+    var(--font-space-grotesk, Arial), sans-serif;
   font-size: var(--theme-card-body-font-size, var(--card-text-size, 16px));
   font-weight: var(--theme-card-body-weight, 560);
   font-style: var(--theme-card-body-font-style, normal);
@@ -200,10 +202,12 @@
     --theme-card-metadata-color,
     var(--theme-card-author-color, var(--theme-accent, currentColor))
   );
-  font-family: var(
-    --theme-card-metadata-font,
-    var(--theme-body-font, var(--theme-font-family, inherit))
-  );
+  font-family:
+    var(
+      --theme-card-metadata-font,
+      var(--theme-body-font, var(--theme-font-family, var(--font-space-grotesk, Arial)))
+    ),
+    var(--font-space-grotesk, Arial), sans-serif;
   text-transform: var(--theme-card-metadata-text-transform, none);
   letter-spacing: var(--theme-card-metadata-letter-spacing, 0.1em);
 }
