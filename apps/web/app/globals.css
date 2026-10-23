@@ -1,6 +1,10 @@
 * {
   box-sizing: border-box;
 }
+:root {
+  --font-dm-sans: 'Trebuchet MS', Arial, sans-serif;
+  --font-space-grotesk: 'Trebuchet MS', Arial, sans-serif;
+}
 body {
   margin: 0;
   background: #070a12;
