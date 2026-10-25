@@ -4396,6 +4396,9 @@ body:has(.home-shell) .footer-nav-group a:hover {
   body:not(:has(.college-profile-page)):not(:has(.vibe-shell)) .public-header {
     max-width: none;
     min-height: 0;
+    position: sticky;
+    top: 0;
+    z-index: 30;
     padding: 0;
     background: #0d1220;
     border-bottom: 1px solid rgba(181, 195, 220, 0.16);
