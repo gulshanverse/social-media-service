@@ -132,7 +132,15 @@ async function main() {
         { permissionKey: 'reports.read', effect: PermissionEffect.GRANT },
       ],
     ),
-    ['dashboard.read', 'reports.read', 'themes.read', 'themes.manage', 'profile.manage'],
+    [
+      'dashboard.read',
+      'reports.read',
+      'themes.read',
+      'themes.manage',
+      'profile.manage',
+      'bawalbox.read',
+      'bawalbox.manage',
+    ],
   );
   assert.deepEqual(
     effectivePermissionKeys(
@@ -158,6 +166,9 @@ async function main() {
       'garba.edit',
       'garba.moderate',
       'garba.seasons.manage',
+      'bawalbox.read',
+      'bawalbox.manage',
+      'bawalbox.moderate',
       'roles.manage',
       'permissions.manage',
     ],
@@ -210,6 +221,8 @@ async function main() {
       'themes.read',
       'themes.manage',
       'profile.manage',
+      'bawalbox.read',
+      'bawalbox.manage',
     ]);
     await assert.rejects(
       () =>

@@ -1,4 +1,5 @@
 @import './feed-discovery.css';
+@import '../app/bawalbox/bawalbox.css';
 
 * {
   box-sizing: border-box;

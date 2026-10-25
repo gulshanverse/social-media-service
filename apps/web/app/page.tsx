@@ -29,6 +29,14 @@ const services: Service[] = [
     accent: 'lavender',
   },
   {
+    icon: '?',
+    title: 'BawalBox',
+    description: 'Ask the question everyone is thinking and hear your campus answer.',
+    href: '/bawalbox',
+    action: 'Open BawalBox',
+    accent: 'pink',
+  },
+  {
     icon: '✺',
     title: 'Garba',
     description: 'Find Garba circles, partners, and festive campus connections.',
