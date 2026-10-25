@@ -10,6 +10,8 @@ import { createHash, randomBytes } from 'node:crypto';
 import { prisma } from '../admin-auth';
 
 export const VIBE_SESSION_COOKIE = 'vibe_session';
+export const VIBE_GUEST_SESSION_COOKIE = 'vibe_guest_session';
+export const VIBE_GUEST_SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export const VIBE_STATE_CHANGING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 export const hashValue = (value: string) => createHash('sha256').update(value).digest('hex');
@@ -83,7 +85,7 @@ export async function atomicallyClaimMagicLink(
   return result.count === 1;
 }
 
-export type VibeRequest = Request & { vibeIdentityId?: string };
+export type VibeRequest = Request & { vibeIdentityId?: string; vibeGuestSessionId?: string };
 
 export async function requireIdentity(request: VibeRequest) {
   const token = readCookie(request.headers.cookie, VIBE_SESSION_COOKIE);
@@ -107,11 +109,33 @@ export async function requireIdentity(request: VibeRequest) {
   return session.identity;
 }
 
+export async function requireVibeSession(request: VibeRequest) {
+  if (request.headers['x-vibematch-mode'] !== 'guest') {
+    const identity = await requireIdentity(request);
+    return { kind: 'identity' as const, identity };
+  }
+  const guestToken = readCookie(request.headers.cookie, VIBE_GUEST_SESSION_COOKIE);
+  if (guestToken) {
+    const guest = await prisma.vibeGuestSession.findUnique({
+      where: { tokenHash: hashValue(guestToken) },
+    });
+    if (!guest || guest.revokedAt || guest.expiresAt <= new Date())
+      throw new UnauthorizedException('This Quick Play session has expired. Start a new game.');
+    await prisma.vibeGuestSession.update({
+      where: { id: guest.id },
+      data: { lastUsedAt: new Date() },
+    });
+    request.vibeGuestSessionId = guest.id;
+    return { kind: 'guest' as const, guest };
+  }
+  throw new UnauthorizedException('This Quick Play session has expired. Start a new game.');
+}
+
 @Injectable()
 export class VibeAuthGuard implements CanActivate {
   async canActivate(context: ExecutionContext) {
     const request = context.switchToHttp().getRequest<VibeRequest>();
-    await requireIdentity(request);
+    await requireVibeSession(request);
     return true;
   }
 }
@@ -131,4 +155,15 @@ export function setSessionCookie(response: Response, token: string) {
 
 export function clearSessionCookie(response: Response) {
   response.clearCookie(VIBE_SESSION_COOKIE, { ...cookieOptions(), maxAge: undefined });
+}
+
+export function setGuestSessionCookie(response: Response, token: string) {
+  response.cookie(VIBE_GUEST_SESSION_COOKIE, token, {
+    ...cookieOptions(),
+    maxAge: VIBE_GUEST_SESSION_TTL_MS,
+  });
+}
+
+export function clearGuestSessionCookie(response: Response) {
+  response.clearCookie(VIBE_GUEST_SESSION_COOKIE, { ...cookieOptions(), maxAge: undefined });
 }

@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { vibeDimensions } from '@ggv/types';
+import { ApiRequestError } from '../../lib/api';
 import {
   blockMatch,
   getDiscovery,
@@ -27,6 +28,7 @@ export function ResultsClient() {
   const sessionId = params.get('session') || vibeStorage.getServerSessionId();
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState('');
+  const [guestSessionExpired, setGuestSessionExpired] = useState(false);
   const [discovery, setDiscovery] = useState<ServerDiscovery | null>(null);
   const [matchesLoading, setMatchesLoading] = useState(true);
   const [matchesError, setMatchesError] = useState('');
@@ -56,27 +58,42 @@ export function ResultsClient() {
       return;
     }
     let active = true;
-    getServerResult(sessionId)
-      .then((value) => {
-        if (active) setResult(value);
-      })
-      .catch((cause) => {
-        if (active)
-          setError(cause instanceof Error ? cause.message : 'Unable to load your result.');
-      });
-    getDiscovery()
-      .then((value) => {
-        if (active) setDiscovery(value);
-      })
-      .catch((cause) => {
-        if (active)
-          setMatchesError(
-            cause instanceof Error ? cause.message : 'We could not load your campus matches.',
-          );
-      })
-      .finally(() => {
-        if (active) setMatchesLoading(false);
-      });
+    (async () => {
+      try {
+        const value = await getServerResult(sessionId);
+        if (!active) return;
+        setResult(value);
+        if (value.guest) {
+          setMatchesLoading(false);
+          return;
+        }
+        try {
+          setDiscovery(await getDiscovery());
+        } catch (cause) {
+          if (active)
+            setMatchesError(
+              cause instanceof Error ? cause.message : 'We could not load your campus matches.',
+            );
+        } finally {
+          if (active) setMatchesLoading(false);
+        }
+      } catch (cause) {
+        if (active) {
+          if (
+            cause instanceof ApiRequestError &&
+            cause.status === 401 &&
+            vibeStorage.isQuickPlay()
+          ) {
+            vibeStorage.clearSession();
+            setGuestSessionExpired(true);
+            setError('Your Quick Play session expired or is no longer valid.');
+          } else {
+            setError(cause instanceof Error ? cause.message : 'Unable to load your result.');
+          }
+          setMatchesLoading(false);
+        }
+      }
+    })();
     return () => {
       active = false;
     };
@@ -125,9 +142,20 @@ export function ResultsClient() {
       <VibeMatchShell compact>
         <div className="vibe-loading" role="alert">
           {error}
-          <Link className="vibe-primary-button" href="/vibematch/create">
-            Return to profile
-          </Link>
+          {guestSessionExpired ? (
+            <>
+              <Link className="vibe-primary-button" href="/vibematch/quick-play?expired=1">
+                Start a new Quick Play
+              </Link>
+              <Link className="vibe-secondary-button" href="/vibematch/create">
+                Explore My Vibe Profile
+              </Link>
+            </>
+          ) : (
+            <Link className="vibe-primary-button" href="/vibematch/create">
+              Return to profile
+            </Link>
+          )}
         </div>
       </VibeMatchShell>
     );
@@ -160,7 +188,13 @@ export function ResultsClient() {
             <br />
             <em>taking shape.</em>
           </h1>
-          <p>Your result is saved to your private VibeMatch identity.</p>
+          <p>
+            {result.guest
+              ? result.guestExpiresAt
+                ? `Your result is saved to this Quick Play session until ${new Date(result.guestExpiresAt).toLocaleString()}.`
+                : 'Your result is saved to this seven-day Quick Play session.'
+              : 'Your result is saved to your private VibeMatch identity.'}
+          </p>
         </div>
         <div className="vibe-results__score-card">
           <div className="vibe-results__score-meta">
@@ -204,118 +238,134 @@ export function ResultsClient() {
           This is a playful reflection of your choices, not a psychological diagnosis.
         </p>
 
-        <section className="vibe-discovery" aria-labelledby="discovery-title">
-          <header className="vibe-discovery__intro">
-            <p className="vibe-kicker">
-              <span>04</span> GAME FIRST, MATCHES SECOND
-            </p>
-            <h2 id="discovery-title">
-              Your campus,
-              <br />
-              <em>your top three.</em>
-            </h2>
+        {result.guest ? (
+          <section className="vibe-guest-result-note" aria-labelledby="guest-result-title">
+            <h2 id="guest-result-title">Your game, your call.</h2>
             <p>
-              Picked from completed VibeMatch games at {discovery?.campus ?? 'your campus'}. Every
-              score is deterministic—not a popularity rating.
+              Quick Play progress is tied to this browser session and expires after seven days. It
+              cannot be recovered on another device and is not automatically transferred into a
+              profile. Your Instagram handle was user-provided and is not verified or shown in
+              discovery.
             </p>
-          </header>
-
-          {matchesLoading ? (
-            <LoadingPanel label="Finding your campus frequency…" />
-          ) : matchesError ? (
-            <div className="vibe-discovery__notice" role="alert">
-              <p>{matchesError}</p>
-              <button className="vibe-secondary-button" type="button" onClick={refreshDiscovery}>
-                Try again
-              </button>
-            </div>
-          ) : discovery?.matches.length ? (
-            <ol className="vibe-match-list" aria-label="Your top three VibeMatch results">
-              {discovery.matches.map((match, index) => (
-                <li
-                  className={`vibe-match-card vibe-match-card--${index + 1}`}
-                  key={match.blockToken}
-                >
-                  <div className="vibe-match-card__topline">
-                    <span className="vibe-match-card__rank">0{index + 1} / CAMPUS SIGNAL</span>
-                    <span
-                      className="vibe-match-card__score"
-                      aria-label={`${match.score} percent vibe match`}
-                    >
-                      {match.score}% <small>VIBE MATCH</small>
-                    </span>
-                  </div>
-                  <div className="vibe-match-card__identity">
-                    <span className="vibe-match-card__glyph" aria-hidden="true">
-                      {index === 0 ? '✳' : index === 1 ? '◒' : '⌁'}
-                    </span>
-                    <div>
-                      <h3>{match.nickname}</h3>
-                      <p>{match.college}</p>
-                    </div>
-                  </div>
-                  <p className="vibe-match-card__title">{match.title}</p>
-                  <p className="vibe-match-card__tagline">“{match.tagline}”</p>
-                  <div className="vibe-match-card__why">
-                    <h4>Why your vibes line up</h4>
-                    <ul>
-                      {match.whyYouMatch.map((reason) => (
-                        <li key={reason}>
-                          <span aria-hidden="true">✦</span> {reason}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  {match.sharedInterests.length > 0 && (
-                    <div className="vibe-match-card__interests" aria-label="Shared interests">
-                      {match.sharedInterests.map((interest) => (
-                        <span key={interest}>{interest}</span>
-                      ))}
-                    </div>
-                  )}
-                  <button
-                    className="vibe-match-card__hide"
-                    type="button"
-                    disabled={blockingKey === match.blockToken}
-                    onClick={() => void hideMatch(match.blockToken, match.nickname)}
-                    aria-label={`Hide ${match.nickname} from your VibeMatch discovery`}
-                  >
-                    {blockingKey === match.blockToken ? 'Hiding…' : 'Hide this vibe'}
-                  </button>
-                </li>
-              ))}
-            </ol>
-          ) : (
-            <div className="vibe-discovery__empty" role="status">
-              <span aria-hidden="true">✧</span>
-              <h3>Your vibe is still loading.</h3>
-              <p>
-                There are no campus matches ready to show right now. Check back as more people play
-                through VibeMatch.
+            <Link className="vibe-secondary-button" href="/vibematch/create">
+              Explore My Vibe Profile
+            </Link>
+          </section>
+        ) : (
+          <section className="vibe-discovery" aria-labelledby="discovery-title">
+            <header className="vibe-discovery__intro">
+              <p className="vibe-kicker">
+                <span>04</span> GAME FIRST, MATCHES SECOND
               </p>
-            </div>
-          )}
-          {lastBlocked && (
-            <div className="vibe-block-notice" role="status">
-              <span>{lastBlocked.nickname} is hidden from your discovery.</span>
-              <button type="button" onClick={() => void undoHide()} disabled={unblocking}>
-                {unblocking ? 'Restoring…' : 'Undo'}
-              </button>
-            </div>
-          )}
-          {blockError && (
-            <p className="vibe-form-error" role="alert">
-              {blockError}
+              <h2 id="discovery-title">
+                Your campus,
+                <br />
+                <em>your top three.</em>
+              </h2>
+              <p>
+                Picked from completed VibeMatch games at {discovery?.campus ?? 'your campus'}. Every
+                score is deterministic—not a popularity rating.
+              </p>
+            </header>
+
+            {matchesLoading ? (
+              <LoadingPanel label="Finding your campus frequency…" />
+            ) : matchesError ? (
+              <div className="vibe-discovery__notice" role="alert">
+                <p>{matchesError}</p>
+                <button className="vibe-secondary-button" type="button" onClick={refreshDiscovery}>
+                  Try again
+                </button>
+              </div>
+            ) : discovery?.matches.length ? (
+              <ol className="vibe-match-list" aria-label="Your top three VibeMatch results">
+                {discovery.matches.map((match, index) => (
+                  <li
+                    className={`vibe-match-card vibe-match-card--${index + 1}`}
+                    key={match.blockToken}
+                  >
+                    <div className="vibe-match-card__topline">
+                      <span className="vibe-match-card__rank">0{index + 1} / CAMPUS SIGNAL</span>
+                      <span
+                        className="vibe-match-card__score"
+                        aria-label={`${match.score} percent vibe match`}
+                      >
+                        {match.score}% <small>VIBE MATCH</small>
+                      </span>
+                    </div>
+                    <div className="vibe-match-card__identity">
+                      <span className="vibe-match-card__glyph" aria-hidden="true">
+                        {index === 0 ? '✳' : index === 1 ? '◒' : '⌁'}
+                      </span>
+                      <div>
+                        <h3>{match.nickname}</h3>
+                        <p>{match.college}</p>
+                      </div>
+                    </div>
+                    <p className="vibe-match-card__title">{match.title}</p>
+                    <p className="vibe-match-card__tagline">“{match.tagline}”</p>
+                    <div className="vibe-match-card__why">
+                      <h4>Why your vibes line up</h4>
+                      <ul>
+                        {match.whyYouMatch.map((reason) => (
+                          <li key={reason}>
+                            <span aria-hidden="true">✦</span> {reason}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    {match.sharedInterests.length > 0 && (
+                      <div className="vibe-match-card__interests" aria-label="Shared interests">
+                        {match.sharedInterests.map((interest) => (
+                          <span key={interest}>{interest}</span>
+                        ))}
+                      </div>
+                    )}
+                    <button
+                      className="vibe-match-card__hide"
+                      type="button"
+                      disabled={blockingKey === match.blockToken}
+                      onClick={() => void hideMatch(match.blockToken, match.nickname)}
+                      aria-label={`Hide ${match.nickname} from your VibeMatch discovery`}
+                    >
+                      {blockingKey === match.blockToken ? 'Hiding…' : 'Hide this vibe'}
+                    </button>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <div className="vibe-discovery__empty" role="status">
+                <span aria-hidden="true">✧</span>
+                <h3>Your vibe is still loading.</h3>
+                <p>
+                  There are no campus matches ready to show right now. Check back as more people
+                  play through VibeMatch.
+                </p>
+              </div>
+            )}
+            {lastBlocked && (
+              <div className="vibe-block-notice" role="status">
+                <span>{lastBlocked.nickname} is hidden from your discovery.</span>
+                <button type="button" onClick={() => void undoHide()} disabled={unblocking}>
+                  {unblocking ? 'Restoring…' : 'Undo'}
+                </button>
+              </div>
+            )}
+            {blockError && (
+              <p className="vibe-form-error" role="alert">
+                {blockError}
+              </p>
+            )}
+            <p className="vibe-discovery__privacy">
+              Matches are private to VibeMatch. Contact details stay hidden; a match never reveals
+              anyone’s Instagram or identity in another campus community.
             </p>
-          )}
-          <p className="vibe-discovery__privacy">
-            Matches are private to VibeMatch. Contact details stay hidden; a match never reveals
-            anyone’s Instagram or identity in another campus community.
-          </p>
-          <p className="vibe-discovery__method">
-            Compatibility v{discovery?.algorithmVersion ?? '1'} · transparent deterministic scoring
-          </p>
-        </section>
+            <p className="vibe-discovery__method">
+              Compatibility v{discovery?.algorithmVersion ?? '1'} · transparent deterministic
+              scoring
+            </p>
+          </section>
+        )}
 
         <div className="vibe-results__actions">
           <Link

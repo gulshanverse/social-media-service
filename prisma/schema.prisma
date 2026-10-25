@@ -97,20 +97,20 @@ enum PermissionEffect {
 }
 
 model AdminUser {
-  id           String         @id @default(cuid())
-  email        String         @unique
-  passwordHash String
-  name         String?
-  isActive     Boolean        @default(true)
-  bannedAt     DateTime?
-  deletedAt    DateTime?
-  role         AdminRole      @default(SUPER_ADMIN)
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  confessions  Confession[]   @relation("ConfessionEditor")
-  auditLogs    AuditLog[]     @relation("AuditActor")
-  reports      Report[]       @relation("ReportReviewer")
-  sessions     AdminSession[]
+  id             String          @id @default(cuid())
+  email          String          @unique
+  passwordHash   String
+  name           String?
+  isActive       Boolean         @default(true)
+  bannedAt       DateTime?
+  deletedAt      DateTime?
+  role           AdminRole       @default(SUPER_ADMIN)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  confessions    Confession[]    @relation("ConfessionEditor")
+  auditLogs      AuditLog[]      @relation("AuditActor")
+  reports        Report[]        @relation("ReportReviewer")
+  sessions       AdminSession[]
   themeFavorites ThemeFavorite[]
   roleAssignments AdminRoleAssignment[]
   permissionOverrides AdminPermissionOverride[]
@@ -134,8 +134,8 @@ model AdminSession {
 }
 
 model Theme {
-  id               String       @id @default(cuid())
-  slug             String       @unique
+  id               String          @id @default(cuid())
+  slug             String          @unique
   name             String
   description      String?
   icon             String?
@@ -146,18 +146,18 @@ model Theme {
   textColor        String
   accentColor      String
   fontFamily       String
-  borderStyle      String       @default("solid")
-  radius           Int          @default(28)
-  logoVisibility   Boolean      @default(true)
-  handleVisibility Boolean      @default(true)
-  layoutVariant    String       @default("classic")
-  mode             String       @default("dark")
-  status           ThemeStatus  @default(ACTIVE)
+  borderStyle      String          @default("solid")
+  radius           Int             @default(28)
+  logoVisibility   Boolean         @default(true)
+  handleVisibility Boolean         @default(true)
+  layoutVariant    String          @default("classic")
+  mode             String          @default("dark")
+  status           ThemeStatus     @default(ACTIVE)
   startAt          DateTime?
   endAt            DateTime?
   tokens           Json?
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
   confessions      Confession[]
   favorites        ThemeFavorite[]
 
@@ -363,22 +363,22 @@ model AdminPermissionOverride {
 }
 
 model CollegeConfessionProfileSettings {
-  id                  String   @id @default("default")
-  handle              String   @default("@college.confession.ggv")
-  headerMessage       String   @default("send me anonymous weekly Confession!")
-  defaultPrompt       String   @default("Are u talking to anyone??")
-  communityButtonText String   @default("Visit Community")
-  communityPath       String   @default("/confessions")
-  bottomButtonText    String   @default("Get your own messages!")
-  profileImageUrl     String?
-  themePreset         String   @default("sunset")
-  maxCharacters       Int      @default(1000)
-  cardTextSize        Int      @default(16)
-  previewLines        Int      @default(5)
-  prompts             Json
+  id                       String   @id @default("default")
+  handle                   String   @default("@college.confession.ggv")
+  headerMessage            String   @default("send me anonymous weekly Confession!")
+  defaultPrompt            String   @default("Are u talking to anyone??")
+  communityButtonText      String   @default("Visit Community")
+  communityPath            String   @default("/confessions")
+  bottomButtonText         String   @default("Get your own messages!")
+  profileImageUrl          String?
+  themePreset              String   @default("sunset")
+  maxCharacters            Int      @default(1000)
+  cardTextSize             Int      @default(16)
+  previewLines             Int      @default(5)
+  prompts                  Json
   readLiveConfessionButton Json?
-  updatedAt           DateTime @updatedAt
-  updatedBy           String?
+  updatedAt                DateTime @updatedAt
+  updatedBy                String?
 
   @@index([updatedAt])
 }
@@ -536,6 +536,7 @@ model GarbaReport {
   @@index([status, createdAt])
   @@index([postId])
 }
+
 enum VibeIdentityStatus {
   ACTIVE
   SUSPENDED
@@ -556,17 +557,17 @@ enum VibeSessionStatus {
 }
 
 model VibeIdentity {
-  id              String                @id @default(cuid())
-  emailHash       String                @unique
-  ageConfirmed    Boolean               @default(false)
-  status          VibeIdentityStatus    @default(ACTIVE)
-  createdAt       DateTime              @default(now())
-  updatedAt       DateTime              @updatedAt
-  sessions        VibeIdentitySession[]
-  profile         VibeProfile?
-  magicLinks      VibeMagicLink[]
-  blocksMade      VibeBlock[]           @relation("VibeBlocker")
-  blocksReceived  VibeBlock[]           @relation("VibeBlocked")
+  id             String                @id @default(cuid())
+  emailHash      String                @unique
+  ageConfirmed   Boolean               @default(false)
+  status         VibeIdentityStatus    @default(ACTIVE)
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  sessions       VibeIdentitySession[]
+  profile        VibeProfile?
+  magicLinks     VibeMagicLink[]
+  blocksMade     VibeBlock[]           @relation("VibeBlocker")
+  blocksReceived VibeBlock[]           @relation("VibeBlocked")
 
   @@index([status, createdAt])
 }
@@ -582,6 +583,21 @@ model VibeIdentitySession {
   lastUsedAt DateTime?
 
   @@index([identityId, expiresAt])
+  @@index([expiresAt])
+  @@index([revokedAt])
+}
+
+model VibeGuestSession {
+  id                String        @id @default(cuid())
+  displayName       String
+  instagramUsername String
+  tokenHash         String        @unique
+  expiresAt         DateTime
+  revokedAt         DateTime?
+  createdAt         DateTime      @default(now())
+  lastUsedAt        DateTime?
+  gameSessions      VibeSession[]
+
   @@index([expiresAt])
   @@index([revokedAt])
 }
@@ -647,8 +663,10 @@ model VibeProfile {
 
 model VibeSession {
   id             String              @id @default(cuid())
-  profileId      String
-  profile        VibeProfile         @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId      String?
+  profile        VibeProfile?        @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  guestSessionId String?
+  guestSession   VibeGuestSession?   @relation(fields: [guestSessionId], references: [id], onDelete: Cascade)
   seed           Int
   totalRounds    Int
   currentRound   Int                 @default(0)
@@ -662,6 +680,7 @@ model VibeSession {
   dnaSnapshots   VibeDnaSnapshot[]
 
   @@index([profileId, status, updatedAt])
+  @@index([guestSessionId, status, updatedAt])
 }
 
 model VibeSessionAnswer {

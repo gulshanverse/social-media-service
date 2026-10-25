@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ApiRequestError } from '../../lib/api';
 import { blockMatch, getDiscovery, getServerResult, unblockMatch } from '../../lib/vibematch/api';
+import { vibeStorage } from '../../lib/vibematch/storage';
 import { ResultsClient } from '../../components/vibematch/ResultsClient';
 
 vi.mock('next/navigation', () => ({
@@ -15,7 +17,7 @@ vi.mock('../../lib/vibematch/api', () => ({
 }));
 
 vi.mock('../../lib/vibematch/storage', () => ({
-  vibeStorage: { getServerSessionId: () => null, clearSession: vi.fn() },
+  vibeStorage: { getServerSessionId: () => null, clearSession: vi.fn(), isQuickPlay: vi.fn() },
 }));
 
 const dnaResult = {
@@ -45,6 +47,8 @@ const match = {
 };
 
 beforeEach(() => {
+  vi.clearAllMocks();
+  vi.mocked(vibeStorage.isQuickPlay).mockReturnValue(false);
   vi.mocked(getServerResult).mockResolvedValue(dnaResult);
   vi.mocked(getDiscovery).mockResolvedValue({
     algorithmVersion: 'v1',
@@ -56,6 +60,37 @@ beforeEach(() => {
 });
 
 describe('VibeMatch discovery results', () => {
+  it('renders guest results without requesting profile discovery or implying conversion', async () => {
+    vi.mocked(getServerResult).mockResolvedValueOnce({
+      ...dnaResult,
+      guest: true,
+      guestExpiresAt: '2026-11-01T00:00:00.000Z',
+    });
+    render(<ResultsClient />);
+    expect(await screen.findByRole('heading', { name: /Your vibe is/ })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Your game, your call.' })).toBeTruthy();
+    expect(screen.getByText(/not automatically transferred/i)).toBeTruthy();
+    expect(getDiscovery).not.toHaveBeenCalled();
+  });
+
+  it('offers a new Quick Play when the guest session expires before results can be loaded', async () => {
+    vi.mocked(vibeStorage.isQuickPlay).mockReturnValue(true);
+    vi.mocked(getServerResult).mockRejectedValueOnce(
+      new ApiRequestError('This Quick Play session has expired. Start a new game.', 401),
+    );
+
+    render(<ResultsClient />);
+
+    expect((await screen.findByRole('alert')).textContent).toMatch(
+      /Quick Play session expired or is no longer valid/i,
+    );
+    expect(screen.getByRole('link', { name: 'Start a new Quick Play' }).getAttribute('href')).toBe(
+      '/vibematch/quick-play?expired=1',
+    );
+    expect(vibeStorage.clearSession).toHaveBeenCalled();
+    expect(getDiscovery).not.toHaveBeenCalled();
+  });
+
   it('shows the game result and a privacy-safe top match from the server', async () => {
     render(<ResultsClient />);
     expect(await screen.findByRole('heading', { name: 'Alex' })).toBeTruthy();

@@ -4478,3 +4478,219 @@ body:has(.home-shell) .footer-nav-group a:hover {
     font-size: 0.68rem;
   }
 }
+
+/* VibeMatch guest-first entry: retain the existing neon palette and keep the mode choice usable on narrow screens. */
+.vibe-mode-options {
+  display: grid;
+  gap: 12px;
+  margin-top: 28px;
+}
+.vibe-mode-card {
+  min-width: 0;
+  min-height: 108px;
+  padding: 18px 20px;
+  display: grid;
+  gap: 7px;
+  border: 1px solid #2b3750;
+  border-radius: 18px;
+  color: #dce4f3;
+  background: rgba(14, 19, 31, 0.88);
+  text-decoration: none;
+  transition:
+    border-color 0.18s ease,
+    background-color 0.18s ease,
+    transform 0.18s ease;
+}
+.vibe-mode-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(139, 92, 246, 0.75);
+  background: #11182a;
+}
+.vibe-mode-card:focus-visible,
+.vibe-guest-form input:focus-visible,
+.vibe-guest-form button:focus-visible,
+.vibe-guest-profile-link a:focus-visible {
+  outline: 3px solid var(--vibe-cyan);
+  outline-offset: 3px;
+}
+.vibe-mode-card--quick {
+  border-color: rgba(139, 92, 246, 0.7);
+  background: linear-gradient(120deg, rgba(139, 92, 246, 0.2), rgba(14, 19, 31, 0.95) 68%);
+}
+.vibe-mode-card__eyebrow {
+  color: var(--vibe-cyan);
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+.vibe-mode-card strong {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: #fff;
+  font:
+    700 1.16rem var(--font-space-grotesk),
+    sans-serif;
+}
+.vibe-mode-card strong span {
+  color: var(--vibe-lime);
+}
+.vibe-mode-card > span:last-child,
+.vibe-mode-note {
+  color: #a8afbf;
+  font-size: 0.83rem;
+  line-height: 1.5;
+}
+.vibe-mode-note {
+  margin: 12px 0 0;
+  font-size: 0.75rem;
+}
+.vibe-guest-page {
+  width: min(100% - 40px, 650px);
+  margin: 0 auto;
+  padding: 40px 0 max(64px, env(safe-area-inset-bottom));
+}
+.vibe-guest-page h1 {
+  margin: 0;
+  color: #fff;
+  font:
+    600 clamp(2.7rem, 9vw, 5rem)/0.98 var(--font-space-grotesk),
+    sans-serif;
+  letter-spacing: -0.07em;
+  overflow-wrap: anywhere;
+}
+.vibe-guest-page__intro {
+  max-width: 570px;
+  margin: 18px 0 24px;
+  color: #a8afbf;
+  line-height: 1.6;
+}
+.vibe-guest-form {
+  display: grid;
+  gap: 10px;
+  padding: clamp(18px, 4vw, 30px);
+  border: 1px solid #202b40;
+  border-radius: 22px;
+  background: rgba(10, 14, 24, 0.88);
+}
+.vibe-guest-form label {
+  margin-top: 8px;
+  color: #e7ecf5;
+  font-weight: 750;
+}
+.vibe-guest-form input {
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  padding: 11px 14px;
+  border: 1px solid #35415a;
+  border-radius: 12px;
+  color: #fff;
+  background: #0c1220;
+  font: inherit;
+  font-size: 16px;
+}
+.vibe-guest-form small {
+  color: #8793a9;
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+.vibe-guest-handle {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  padding-left: 13px;
+  border: 1px solid #35415a;
+  border-radius: 12px;
+  color: var(--vibe-cyan);
+  background: #0c1220;
+  font-weight: 800;
+}
+.vibe-guest-handle input {
+  border: 0;
+  background: transparent;
+}
+.vibe-guest-form__privacy,
+.vibe-guest-expiry,
+.vibe-guest-profile-link {
+  color: #a8afbf;
+  font-size: 0.82rem;
+  line-height: 1.6;
+}
+.vibe-guest-form__privacy {
+  margin: 10px 0;
+  padding: 13px;
+  border-left: 2px solid var(--vibe-cyan);
+  background: rgba(34, 211, 238, 0.06);
+}
+.vibe-guest-form button {
+  width: 100%;
+  min-height: 52px;
+  margin-top: 4px;
+  font: inherit;
+  font-weight: 800;
+}
+.vibe-guest-form button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+.vibe-guest-expiry {
+  padding: 14px 16px;
+  border: 1px solid rgba(200, 255, 0, 0.45);
+  border-radius: 12px;
+  color: #e6f5ad;
+  background: rgba(200, 255, 0, 0.06);
+}
+.vibe-guest-profile-link a {
+  color: var(--vibe-cyan);
+  text-underline-offset: 3px;
+}
+.vibe-guest-result-note {
+  margin-top: 52px;
+  padding: clamp(20px, 5vw, 32px);
+  border: 1px solid rgba(34, 211, 238, 0.3);
+  border-radius: 20px;
+  background: rgba(34, 211, 238, 0.055);
+}
+.vibe-guest-result-note h2 {
+  margin: 0;
+  color: #fff;
+  font:
+    700 clamp(1.5rem, 5vw, 2rem) var(--font-space-grotesk),
+    sans-serif;
+}
+.vibe-guest-result-note p {
+  color: #a8afbf;
+  line-height: 1.65;
+}
+.vibe-guest-result-note .vibe-secondary-button {
+  min-height: 48px;
+  text-decoration: none;
+}
+@media (max-width: 760px) {
+  .vibe-mode-options {
+    gap: 10px;
+  }
+  .vibe-mode-card {
+    min-height: 112px;
+    padding: 17px;
+  }
+}
+@media (max-width: 360px) {
+  .vibe-guest-page {
+    width: calc(100% - 32px);
+    padding-top: 28px;
+  }
+  .vibe-guest-form {
+    padding: 16px;
+  }
+  .vibe-mode-card__eyebrow {
+    font-size: 0.58rem;
+    letter-spacing: 0.08em;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vibe-mode-card {
+    transition: none;
+  }
+}

@@ -36,9 +36,12 @@ export function GameplayClient() {
           }
         }
       } catch (cause) {
-        if (cause instanceof ApiRequestError && cause.status === 401)
-          router.replace('/vibematch/create');
-        else setError(cause instanceof Error ? cause.message : 'Unable to load this round.');
+        if (cause instanceof ApiRequestError && cause.status === 401) {
+          if (vibeStorage.isQuickPlay()) {
+            vibeStorage.clearSession();
+            router.replace('/vibematch/quick-play?expired=1');
+          } else router.replace('/vibematch/create');
+        } else setError(cause instanceof Error ? cause.message : 'Unable to load this round.');
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -97,6 +100,10 @@ export function GameplayClient() {
         </div>
         <div
           className="vibe-progress"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={progress}
           aria-label={`Round ${round.currentRound + 1} of ${round.totalRounds}`}
         >
           <span style={{ width: `${progress}%` }} />
