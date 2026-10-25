@@ -32,16 +32,20 @@ import {
   hashValue,
   normalizeEmail,
   requireIdentity,
+  requireVibeSession,
   setSessionCookie,
+  setGuestSessionCookie,
   clearSessionCookie,
   VibeAuthGuard,
   VibeCsrfGuard,
+  VIBE_GUEST_SESSION_TTL_MS,
   type VibeRequest,
 } from './auth';
 import {
   AnswerDto,
   BlockMatchDto,
   EligibilityDto,
+  GuestStartDto,
   MagicLinkDto,
   ProfileDto,
   VIBE_INTENTS,
@@ -196,6 +200,9 @@ type MatchProfileRecord = {
   }>;
 };
 
+type SessionOwner =
+  { profileId: string; guestSessionId?: never } | { guestSessionId: string; profileId?: never };
+
 function matchingParticipant(profile: MatchProfileRecord): MatchParticipant {
   const selected = profile.sessions.find((session) => {
     const snapshot = session.dnaSnapshots[0];
@@ -238,7 +245,36 @@ function matchingParticipant(profile: MatchProfileRecord): MatchParticipant {
 @Controller('vibematch/auth')
 export class VibeAuthController {
   private readonly limiter = new SubmissionRateLimiter();
+  private readonly guestStartLimiter = new SubmissionRateLimiter();
   constructor(@Inject('VIBE_EMAIL_PROVIDER') private readonly emailProvider: EmailProvider) {}
+  @Post('guest/start')
+  @UseGuards(VibeCsrfGuard)
+  async startGuest(
+    @Body() dto: GuestStartDto,
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const ip = request.ip || 'anonymous';
+    if (!this.guestStartLimiter.check(ip, 5, 60 * 60).allowed)
+      throw new HttpException(
+        'Too many Quick Play starts. Please try again later.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    const now = new Date();
+    await prisma.vibeGuestSession.deleteMany({ where: { expiresAt: { lte: now } } });
+    const token = createToken();
+    const expiresAt = new Date(now.getTime() + VIBE_GUEST_SESSION_TTL_MS);
+    await prisma.vibeGuestSession.create({
+      data: {
+        displayName: dto.displayName.trim(),
+        instagramUsername: dto.instagramUsername.trim().replace(/^@/, ''),
+        tokenHash: hashValue(token),
+        expiresAt,
+      },
+    });
+    setGuestSessionCookie(response, token);
+    return { guest: true, expiresAt: expiresAt.toISOString(), durationDays: 7 };
+  }
   @Post('magic-link') async requestLink(@Body() dto: MagicLinkDto, @Req() request: Request) {
     const key = request.ip || 'anonymous';
     const result = this.limiter.check(
@@ -358,6 +394,7 @@ export class VibeAuthController {
 @UseGuards(VibeAuthGuard, VibeCsrfGuard)
 export class VibeMatchController {
   private readonly limiter = new SubmissionRateLimiter();
+  private readonly guestAnswerLimiter = new SubmissionRateLimiter();
   private readonly discoveryLimiter = new SubmissionRateLimiter();
   private readonly blockLimiter = new SubmissionRateLimiter();
   @Get('colleges') colleges() {
@@ -561,18 +598,29 @@ export class VibeMatchController {
     return { deleted: true };
   }
   @Post('sessions') async createSession(@Req() request: VibeRequest) {
-    const identity = await requireIdentity(request);
-    const profile = await prisma.vibeProfile.findUnique({ where: { identityId: identity.id } });
-    if (!profile || profile.status !== 'ACTIVE' || !identity.ageConfirmed)
-      throw new HttpException('An active eligible profile is required.', HttpStatus.FORBIDDEN);
+    const principal = await requireVibeSession(request);
+    let owner: SessionOwner;
+    let rateLimitKey: string;
+    if (principal.kind === 'guest') {
+      owner = { guestSessionId: principal.guest.id };
+      rateLimitKey = `guest:${principal.guest.id}`;
+    } else {
+      const profile = await prisma.vibeProfile.findUnique({
+        where: { identityId: principal.identity.id },
+      });
+      if (!profile || profile.status !== 'ACTIVE' || !principal.identity.ageConfirmed)
+        throw new HttpException('An active eligible profile is required.', HttpStatus.FORBIDDEN);
+      owner = { profileId: profile.id };
+      rateLimitKey = `identity:${principal.identity.id}`;
+    }
     const unfinished = await prisma.vibeSession.findFirst({
-      where: { profileId: profile.id, status: 'PLAYING' },
+      where: { ...owner, status: 'PLAYING' },
       orderBy: { updatedAt: 'desc' },
     });
-    if (unfinished) return this.sessionPayload(unfinished.id, profile.id);
+    if (unfinished) return this.sessionPayload(unfinished.id, owner);
     if (
       !this.limiter.check(
-        identity.id,
+        rateLimitKey,
         Number(process.env.VIBEMATCH_SESSION_RATE_LIMIT ?? 10),
         Number(process.env.VIBEMATCH_SESSION_RATE_WINDOW_SECONDS ?? 3600),
       ).allowed
@@ -585,17 +633,18 @@ export class VibeMatchController {
     const questionIds = selectQuestions(seed).map((q) => q.id);
     const session = await prisma.vibeSession.create({
       data: {
-        profileId: profile.id,
+        ...owner,
         seed,
         totalRounds: questionIds.length,
         questionIds,
         scoringVersion: VIBE_SCORING_VERSION,
       },
     });
-    return this.sessionPayload(session.id, profile.id);
+    return this.sessionPayload(session.id, owner);
   }
   @Get('sessions/:id') async getSession(@Param('id') id: string, @Req() request: VibeRequest) {
-    return this.sessionPayload(id, (await this.profileFor(request)).id);
+    const session = await this.ownedSession(id, request);
+    return this.sessionPayload(id, this.sessionOwner(session));
   }
   @Get('sessions/:id/current-round') async currentRound(
     @Param('id') id: string,
@@ -613,6 +662,14 @@ export class VibeMatchController {
     @Req() request: VibeRequest,
   ) {
     const session = await this.ownedSession(id, request);
+    if (
+      request.vibeGuestSessionId &&
+      !this.guestAnswerLimiter.check(request.vibeGuestSessionId, 40, 60 * 60).allowed
+    )
+      throw new HttpException(
+        'Too many answer attempts. Please try again later.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
     const existingByKey = await prisma.vibeSessionAnswer.findUnique({
       where: { sessionId_idempotencyKey: { sessionId: id, idempotencyKey: dto.idempotencyKey } },
     });
@@ -622,7 +679,10 @@ export class VibeMatchController {
           'That idempotency key was already used for a different answer.',
           HttpStatus.CONFLICT,
         );
-      return { session: await this.sessionPayload(id, session.profileId), duplicate: true };
+      return {
+        session: await this.sessionPayload(id, this.sessionOwner(session)),
+        duplicate: true,
+      };
     }
     const questionId = (session.questionIds as string[])[session.currentRound];
     const question = findQuestion(questionId);
@@ -665,7 +725,7 @@ export class VibeMatchController {
       });
       if (outcome.completed) await this.completeDna(id, session.scoringVersion);
       return {
-        session: await this.sessionPayload(id, session.profileId),
+        session: await this.sessionPayload(id, this.sessionOwner(session)),
         duplicate: outcome.duplicate,
       };
     } catch (error) {
@@ -680,7 +740,10 @@ export class VibeMatchController {
             'That idempotency key was already used for a different answer.',
             HttpStatus.CONFLICT,
           );
-        return { session: await this.sessionPayload(id, session.profileId), duplicate: true };
+        return {
+          session: await this.sessionPayload(id, this.sessionOwner(session)),
+          duplicate: true,
+        };
       }
       const racedByQuestion = await prisma.vibeSessionAnswer.findUnique({
         where: { sessionId_questionId: { sessionId: id, questionId } },
@@ -688,7 +751,10 @@ export class VibeMatchController {
       if (racedByQuestion) {
         if (racedByQuestion.optionId !== option.id)
           throw new HttpException('This round has already been answered.', HttpStatus.CONFLICT);
-        return { session: await this.sessionPayload(id, session.profileId), duplicate: true };
+        return {
+          session: await this.sessionPayload(id, this.sessionOwner(session)),
+          duplicate: true,
+        };
       }
       throw error;
     }
@@ -701,34 +767,45 @@ export class VibeMatchController {
     if (session.status !== 'COMPLETED')
       throw new HttpException('Session is not complete.', HttpStatus.BAD_REQUEST);
     await this.completeDna(id, session.scoringVersion);
-    return this.result(id, session.profileId);
+    return this.result(id, this.sessionOwner(session));
   }
   @Get('sessions/:id/result') async resultEndpoint(
     @Param('id') id: string,
     @Req() request: VibeRequest,
   ) {
     const session = await this.ownedSession(id, request);
-    return this.result(id, session.profileId);
-  }
-  private async profileFor(request: VibeRequest) {
-    const identity = await requireIdentity(request);
-    const profile = await prisma.vibeProfile.findUnique({ where: { identityId: identity.id } });
-    if (!profile || profile.status === 'DELETED')
-      throw new HttpException('Profile not found.', HttpStatus.NOT_FOUND);
-    return profile;
+    return this.result(id, this.sessionOwner(session));
   }
   private async ownedSession(id: string, request: VibeRequest) {
-    const profile = await this.profileFor(request);
+    const principal = await requireVibeSession(request);
+    let owner: SessionOwner;
+    if (principal.kind === 'guest') owner = { guestSessionId: principal.guest.id };
+    else {
+      const profile = await prisma.vibeProfile.findUnique({
+        where: { identityId: principal.identity.id },
+      });
+      if (!profile || profile.status === 'DELETED')
+        throw new HttpException('Profile not found.', HttpStatus.NOT_FOUND);
+      owner = { profileId: profile.id };
+    }
     const session = await prisma.vibeSession.findFirst({
-      where: { id, profileId: profile.id },
+      where: { id, ...owner },
       include: { answers: { orderBy: { round: 'asc' } } },
     });
     if (!session) throw new HttpException('Session not found.', HttpStatus.NOT_FOUND);
     return session;
   }
-  private async sessionPayload(id: string, profileId: string) {
+  private sessionOwner(session: {
+    profileId: string | null;
+    guestSessionId: string | null;
+  }): SessionOwner {
+    if (session.profileId) return { profileId: session.profileId };
+    if (session.guestSessionId) return { guestSessionId: session.guestSessionId };
+    throw new HttpException('Session has no valid owner.', HttpStatus.INTERNAL_SERVER_ERROR);
+  }
+  private async sessionPayload(id: string, owner: SessionOwner) {
     const session = await prisma.vibeSession.findFirst({
-      where: { id, profileId },
+      where: { id, ...owner },
       include: { answers: { orderBy: { round: 'asc' } } },
     });
     if (!session) throw new HttpException('Session not found.', HttpStatus.NOT_FOUND);
@@ -764,7 +841,7 @@ export class VibeMatchController {
         },
       });
   }
-  private async result(id: string, profileId: string) {
+  private async result(id: string, owner: SessionOwner) {
     const snapshot = await prisma.vibeDnaSnapshot.findFirst({
       where: { sessionId: id },
       orderBy: { calculatedAt: 'desc' },
@@ -782,7 +859,19 @@ export class VibeMatchController {
       },
     });
     if (!snapshot) throw new HttpException('Result not found.', HttpStatus.NOT_FOUND);
-    return { sessionId: id, profileId: undefined, result: snapshot };
+    if ('guestSessionId' in owner)
+      return {
+        sessionId: id,
+        guest: true,
+        guestExpiresAt: (
+          await prisma.vibeGuestSession.findUniqueOrThrow({
+            where: { id: owner.guestSessionId },
+            select: { expiresAt: true },
+          })
+        ).expiresAt.toISOString(),
+        result: snapshot,
+      };
+    return { sessionId: id, guest: false, result: snapshot };
   }
 }
 

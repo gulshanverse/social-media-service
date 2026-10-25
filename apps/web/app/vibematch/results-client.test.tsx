@@ -45,6 +45,7 @@ const match = {
 };
 
 beforeEach(() => {
+  vi.clearAllMocks();
   vi.mocked(getServerResult).mockResolvedValue(dnaResult);
   vi.mocked(getDiscovery).mockResolvedValue({
     algorithmVersion: 'v1',
@@ -56,6 +57,19 @@ beforeEach(() => {
 });
 
 describe('VibeMatch discovery results', () => {
+  it('renders guest results without requesting profile discovery or implying conversion', async () => {
+    vi.mocked(getServerResult).mockResolvedValueOnce({
+      ...dnaResult,
+      guest: true,
+      guestExpiresAt: '2026-11-01T00:00:00.000Z',
+    });
+    render(<ResultsClient />);
+    expect(await screen.findByRole('heading', { name: /Your vibe is/ })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Your game, your call.' })).toBeTruthy();
+    expect(screen.getByText(/not automatically transferred/i)).toBeTruthy();
+    expect(getDiscovery).not.toHaveBeenCalled();
+  });
+
   it('shows the game result and a privacy-safe top match from the server', async () => {
     render(<ResultsClient />);
     expect(await screen.findByRole('heading', { name: 'Alex' })).toBeTruthy();

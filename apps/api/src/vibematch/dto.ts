@@ -1,3 +1,4 @@
+import { Transform } from 'class-transformer';
 import {
   IsArray,
   IsBoolean,
@@ -6,6 +7,7 @@ import {
   IsOptional,
   IsString,
   MaxLength,
+  Matches,
   MinLength,
 } from 'class-validator';
 export const VIBE_INTENTS = [
@@ -18,6 +20,20 @@ export const VIBE_INTENTS = [
 ] as const;
 export class MagicLinkDto {
   @IsEmail() email!: string;
+}
+export class GuestStartDto {
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @MinLength(2)
+  @MaxLength(60)
+  displayName!: string;
+
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim().replace(/^@/, '') : value))
+  @IsString()
+  @MinLength(1)
+  @MaxLength(30)
+  @Matches(/^[A-Za-z0-9._]+$/)
+  instagramUsername!: string;
 }
 export class EligibilityDto {
   @IsBoolean() ageConfirmed!: boolean;

@@ -20,12 +20,26 @@ export function LandingClient() {
             Answer quick scenarios, discover your Vibe DNA, and get closer to people with compatible
             energy.
           </p>
-          <div className="vibe-landing__actions">
-            <Link className="vibe-primary-button" href="/vibematch/create">
-              Create Your Vibe <span aria-hidden="true">↗</span>
+          <div className="vibe-mode-options" aria-label="Choose how to play VibeMatch">
+            <Link className="vibe-mode-card vibe-mode-card--quick" href="/vibematch/quick-play">
+              <span className="vibe-mode-card__eyebrow">START IN A MINUTE · NO EMAIL</span>
+              <strong>
+                Quick Play <span aria-hidden="true">↗</span>
+              </strong>
+              <span>Jump in, find your vibe, and discover your connections.</span>
             </Link>
-            <span className="vibe-action-hint">No password. No public directory.</span>
+            <Link className="vibe-mode-card" href="/vibematch/create">
+              <span className="vibe-mode-card__eyebrow">OPTIONAL · EMAIL MAGIC LINK</span>
+              <strong>
+                My Vibe Profile <span aria-hidden="true">↗</span>
+              </strong>
+              <span>Save your journey and pick up where you left off.</span>
+            </Link>
           </div>
+          <p className="vibe-mode-note">
+            You can create a profile later. Quick Play progress is separate and is not automatically
+            transferred.
+          </p>
           <PrivacyNote />
         </div>
         <div className="vibe-launch-card" aria-label="VibeMatch game preview">

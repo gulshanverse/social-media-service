@@ -22,6 +22,8 @@ vi.mock('../../lib/vibematch/storage', () => ({
     getServerSessionId: () => null,
     setServerSessionId: vi.fn(),
     clearSession: vi.fn(),
+    isQuickPlay: () => false,
+    setQuickPlay: vi.fn(),
   },
 }));
 let serverRound = 0;

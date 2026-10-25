@@ -1,11 +1,16 @@
 import type { VibeQuestion, VibeProfile, VibeSession } from '@ggv/types';
 import { ApiRequestError } from '../api';
+import { vibeStorage } from './storage';
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${apiUrl}${path}`, {
     ...init,
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(vibeStorage.isQuickPlay() ? { 'X-VibeMatch-Mode': 'guest' } : {}),
+      ...(init?.headers ?? {}),
+    },
   });
   const body = (await response.json().catch(() => null)) as { message?: string } | null;
   if (!response.ok)
@@ -37,6 +42,14 @@ export const verifyMagicLink = (token: string) =>
   request<{ authenticated: boolean; hasProfile: boolean }>('/vibematch/auth/verify', {
     method: 'POST',
     body: JSON.stringify({ token }),
+  }).then((result) => {
+    vibeStorage.setQuickPlay(false);
+    return result;
+  });
+export const startGuestPlay = (payload: { displayName: string; instagramUsername: string }) =>
+  request<{ guest: true; expiresAt: string; durationDays: 7 }>('/vibematch/auth/guest/start', {
+    method: 'POST',
+    body: JSON.stringify(payload),
   });
 export const getProfile = () =>
   request<ServerProfile | null>('/vibematch/profile', { cache: 'no-store' });
@@ -73,6 +86,8 @@ export const answerServerSession = (id: string, optionId: string, idempotencyKey
 export const getServerResult = (id: string) =>
   request<{
     sessionId: string;
+    guest?: boolean;
+    guestExpiresAt?: string;
     result: {
       socialEnergy: number;
       adventure: number;
