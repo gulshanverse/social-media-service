@@ -4408,6 +4408,7 @@ body:has(.home-shell) .footer-nav-group a:hover {
   }
 
   body:not(:has(.college-profile-page)):not(:has(.vibe-shell)) .public-header-brand {
+    flex: 1;
     min-width: 0;
     gap: 8px;
     color: #f8fafc;
@@ -4431,7 +4432,7 @@ body:has(.home-shell) .footer-nav-group a:hover {
   body:not(:has(.college-profile-page)):not(:has(.vibe-shell)) .public-header-cta {
     flex: 0 0 auto;
     min-height: 44px;
-    margin-left: 0;
+    margin-left: auto;
     padding: 10px 10px;
     border: 1px solid #ff5f92;
     background: #ff5f92;
