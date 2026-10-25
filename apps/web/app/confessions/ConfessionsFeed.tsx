@@ -58,17 +58,14 @@ export default function ConfessionsFeed({ initialQuery }: Props) {
   const requestId = useRef(0);
 
   useEffect(() => {
+    const nextSearch = searchInput.trim() || undefined;
     const timer = window.setTimeout(
       () =>
         setQuery((current) => ({
           ...current,
-          search: searchInput.trim() || undefined,
-          page: 1,
-          sort: searchInput.trim()
-            ? current.sort
-            : current.sort === 'relevance'
-              ? 'newest'
-              : current.sort,
+          search: nextSearch,
+          ...(current.search === nextSearch ? {} : { page: 1 }),
+          sort: nextSearch ? current.sort : current.sort === 'relevance' ? 'newest' : current.sort,
         })),
       350,
     );
