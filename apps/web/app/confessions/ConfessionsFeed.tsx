@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PublicConfessionPage } from '@ggv/types';
 import { allConfessionCategories } from '@ggv/types';
 import { ConfessionCard } from '../../components/ConfessionCard';
@@ -9,6 +10,18 @@ import { type ConfessionFeedQuery, getConfessions } from '../../lib/api';
 
 type Props = { initialQuery: ConfessionFeedQuery };
 type DateRange = NonNullable<ConfessionFeedQuery['dateRange']>;
+type HistoryMode = 'push' | 'replace';
+type ServiceSlide = {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  accent: string;
+  href?: string;
+};
+
+type PageItem = number | 'ellipsis';
+
 const categoryLabels: Record<string, string> = {
   CRUSH: 'Crush',
   ADMIRATION: 'Admiration',
@@ -22,7 +35,8 @@ const categoryLabels: Record<string, string> = {
   CUSTOM: 'Custom',
   OTHER: 'Other',
 };
-const icons: Record<string, string> = {
+
+const categoryIcons: Record<string, string> = {
   ALL: '✦',
   CRUSH: '♡',
   ADMIRATION: '✧',
@@ -36,41 +50,153 @@ const icons: Record<string, string> = {
   CUSTOM: '⌁',
   OTHER: '•',
 };
+
+const categoryAccents: Record<string, string> = {
+  ALL: 'pink',
+  CRUSH: 'rose',
+  ADMIRATION: 'lilac',
+  RELATIONSHIP: 'peach',
+  FRIENDSHIP: 'sky',
+  FUNNY: 'mint',
+  COLLEGE_LIFE: 'amber',
+  APPRECIATION: 'lemon',
+  ADVICE: 'blue',
+  RANT: 'coral',
+  CUSTOM: 'violet',
+  OTHER: 'slate',
+};
+
+const serviceSlides: ServiceSlide[] = [
+  {
+    id: 'vibematch',
+    title: 'VibeMatch',
+    description: 'Meet your campus vibe.',
+    icon: '◌',
+    accent: 'pink',
+    href: '/vibematch',
+  },
+  {
+    id: 'garba',
+    title: 'Campus Garba',
+    description: 'Celebrate together.',
+    icon: '✺',
+    accent: 'amber',
+    href: '/garba',
+  },
+  {
+    id: 'rentals',
+    title: 'Rentals & Finds',
+    description: 'Student essentials, made easier.',
+    icon: '＋',
+    accent: 'cyan',
+  },
+];
+
 const defaultQuery: ConfessionFeedQuery = { page: 1, dateRange: 'all', sort: 'newest' };
+
 function label(value?: string) {
   return value ? (categoryLabels[value] ?? value) : '';
 }
+
 function queryString(query: ConfessionFeedQuery) {
   const params = new URLSearchParams();
-  for (const [key, value] of Object.entries(query))
+  for (const [key, value] of Object.entries(query)) {
     if (value && value !== 'all' && value !== 1) params.set(key, String(value));
+  }
   return params.toString();
 }
 
+function pageItems(current: number, totalPages: number): PageItem[] {
+  if (totalPages <= 7) return Array.from({ length: totalPages }, (_, index) => index + 1);
+  const pages = new Set<number>([1, totalPages, current, current - 1, current + 1]);
+  const ordered = [...pages].filter((page) => page > 0 && page <= totalPages).sort((a, b) => a - b);
+  return ordered.flatMap((page, index) => [
+    ...(index > 0 && page - ordered[index - 1] > 1 ? (['ellipsis'] as const) : []),
+    page,
+  ]);
+}
+
 export default function ConfessionsFeed({ initialQuery }: Props) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const {
+    page: initialPage,
+    search: initialSearch,
+    category: initialCategory,
+    customCategory: initialCustomCategory,
+    dateRange: initialDateRange,
+    startDate: initialStartDate,
+    endDate: initialEndDate,
+    sort: initialSort,
+  } = initialQuery;
   const [query, setQuery] = useState<ConfessionFeedQuery>({ ...defaultQuery, ...initialQuery });
-  const [searchInput, setSearchInput] = useState(initialQuery.search ?? '');
+  const [searchInput, setSearchInput] = useState(initialSearch ?? '');
   const [data, setData] = useState<PublicConfessionPage | null>(null);
   const [error, setError] = useState('');
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
-  const [draft, setDraft] = useState(query);
+  const [draft, setDraft] = useState({ ...defaultQuery, ...initialQuery });
+  const [serviceIndex, setServiceIndex] = useState(0);
   const requestId = useRef(0);
+  const serviceTrack = useRef<HTMLDivElement>(null);
+  const pointerStart = useRef<number | null>(null);
+  const serviceDragged = useRef(false);
+
+  const navigate = useCallback(
+    (nextQuery: ConfessionFeedQuery, mode: HistoryMode = 'push') => {
+      const next = { ...defaultQuery, ...nextQuery };
+      setQuery(next);
+      const search = queryString(next);
+      const href = search ? `${pathname}?${search}` : pathname;
+      if (mode === 'replace') router.replace(href, { scroll: false });
+      else router.push(href, { scroll: false });
+    },
+    [pathname, router],
+  );
 
   useEffect(() => {
     const nextSearch = searchInput.trim() || undefined;
-    const timer = window.setTimeout(
-      () =>
-        setQuery((current) => ({
-          ...current,
+    if (nextSearch === query.search) return;
+    const timer = window.setTimeout(() => {
+      navigate(
+        {
+          ...query,
           search: nextSearch,
-          ...(current.search === nextSearch ? {} : { page: 1 }),
-          sort: nextSearch ? current.sort : current.sort === 'relevance' ? 'newest' : current.sort,
-        })),
-      350,
-    );
+          page: 1,
+          sort: nextSearch ? query.sort : query.sort === 'relevance' ? 'newest' : query.sort,
+        },
+        'replace',
+      );
+    }, 350);
     return () => window.clearTimeout(timer);
-  }, [searchInput]);
+  }, [navigate, query, query.search, searchInput]);
+
+  useEffect(() => {
+    const nextInitialQuery = {
+      ...defaultQuery,
+      page: initialPage,
+      search: initialSearch,
+      category: initialCategory,
+      customCategory: initialCustomCategory,
+      dateRange: initialDateRange,
+      startDate: initialStartDate,
+      endDate: initialEndDate,
+      sort: initialSort,
+    };
+    setQuery(nextInitialQuery);
+    setSearchInput(initialSearch ?? '');
+    setDraft(nextInitialQuery);
+  }, [
+    initialCategory,
+    initialCustomCategory,
+    initialDateRange,
+    initialEndDate,
+    initialPage,
+    initialSearch,
+    initialSort,
+    initialStartDate,
+  ]);
+
   useEffect(() => {
     const id = ++requestId.current;
     setData(null);
@@ -84,6 +210,7 @@ export default function ConfessionsFeed({ initialQuery }: Props) {
           setError(caught instanceof Error ? caught.message : 'Could not load confessions.');
       });
   }, [query]);
+
   useEffect(() => {
     if (sheetOpen) setDraft(query);
   }, [sheetOpen, query]);
@@ -106,35 +233,124 @@ export default function ConfessionsFeed({ initialQuery }: Props) {
       ].filter(Boolean) as { key: keyof ConfessionFeedQuery; text: string }[],
     [query],
   );
+
   const clearAll = () => {
     setSearchInput('');
-    setQuery({ ...defaultQuery });
+    navigate({ ...defaultQuery });
     setSortOpen(false);
   };
+
   const removeFilter = (key: keyof ConfessionFeedQuery) =>
-    setQuery((current) => ({
-      ...current,
+    navigate({
+      ...query,
       [key]: undefined,
       ...(key === 'dateRange'
         ? { dateRange: 'all', startDate: undefined, endDate: undefined }
         : {}),
       page: 1,
-    }));
+    });
+
   const retry = () => setQuery((current) => ({ ...current }));
+  const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
+  const firstResult = data && data.total > 0 ? (data.page - 1) * data.limit + 1 : 0;
+  const lastResult = data ? Math.min(data.page * data.limit, data.total) : 0;
+
+  const selectService = (index: number) => {
+    setServiceIndex(index);
+    serviceTrack.current?.scrollTo({
+      left: index * (serviceTrack.current.clientWidth || 1),
+      behavior: 'smooth',
+    });
+  };
 
   return (
     <main className="site-shell">
       <section className="feed-heading">
         <div>
-          <p className="eyebrow">THE CAMPUS WALL</p>
-          <h1 aria-label="Confessions from your people.">
-            Confessions from
+          <p className="eyebrow">THE CAMPUS HUB</p>
+          <h1 aria-label="Your campus. Your people.">
+            Your campus.
             <br />
-            <span>your people.</span>
+            <span>Your people.</span>
           </h1>
         </div>
-        <p>Anonymous thoughts, reviewed and shared with the community.</p>
+        <p>Confessions, connections and campus life.</p>
       </section>
+
+      <section className="featured-services" aria-label="Featured campus services">
+        <div
+          className="featured-services__track"
+          ref={serviceTrack}
+          onScroll={(event) => {
+            const track = event.currentTarget;
+            const nextIndex = Math.round(track.scrollLeft / Math.max(track.clientWidth, 1));
+            if (nextIndex !== serviceIndex) setServiceIndex(nextIndex);
+          }}
+          onPointerDown={(event) => {
+            pointerStart.current = event.clientX;
+            serviceDragged.current = false;
+          }}
+          onPointerMove={(event) => {
+            if (pointerStart.current !== null && Math.abs(event.clientX - pointerStart.current) > 8)
+              serviceDragged.current = true;
+          }}
+          onPointerUp={() => {
+            pointerStart.current = null;
+          }}
+          onPointerCancel={() => {
+            pointerStart.current = null;
+          }}
+        >
+          {serviceSlides.map((slide) => {
+            const content = (
+              <>
+                <span className="featured-service__icon" aria-hidden="true">
+                  {slide.icon}
+                </span>
+                <span>
+                  <strong>{slide.title}</strong>
+                  <small>{slide.description}</small>
+                </span>
+                {!slide.href && <em>Coming soon</em>}
+                {slide.href && (
+                  <span className="featured-service__arrow" aria-hidden="true">
+                    ↗
+                  </span>
+                )}
+              </>
+            );
+            return slide.href ? (
+              <Link
+                className={`featured-service featured-service--${slide.accent}`}
+                href={slide.href}
+                key={slide.id}
+                onClick={(event) => {
+                  if (serviceDragged.current) event.preventDefault();
+                }}
+              >
+                {content}
+              </Link>
+            ) : (
+              <div className={`featured-service featured-service--${slide.accent}`} key={slide.id}>
+                {content}
+              </div>
+            );
+          })}
+        </div>
+        <div className="featured-services__dots" aria-label="Featured service slides">
+          {serviceSlides.map((slide, index) => (
+            <button
+              type="button"
+              key={slide.id}
+              className={index === serviceIndex ? 'is-active' : ''}
+              aria-label={`Show ${slide.title}`}
+              aria-current={index === serviceIndex ? 'true' : undefined}
+              onClick={() => selectService(index)}
+            />
+          ))}
+        </div>
+      </section>
+
       <section className="discovery-controls" aria-label="Find confessions">
         <div className="search-row">
           <div className="search-field">
@@ -166,23 +382,29 @@ export default function ConfessionsFeed({ initialQuery }: Props) {
           </button>
         </div>
         <div className="category-scroller" aria-label="Categories">
-          {['ALL', ...allConfessionCategories].map((category) => (
-            <button
-              type="button"
-              key={category}
-              className={`category-tile ${(category === 'ALL' ? !query.category : query.category === category) ? 'category-tile--active' : ''}`}
-              onClick={() =>
-                setQuery((current) => ({
-                  ...current,
-                  category: category === 'ALL' ? undefined : category,
-                  page: 1,
-                }))
-              }
-            >
-              <span aria-hidden="true">{icons[category]}</span>
-              <small>{category === 'ALL' ? 'All' : label(category)}</small>
-            </button>
-          ))}
+          {['ALL', ...allConfessionCategories].map((category) => {
+            const selected = category === 'ALL' ? !query.category : query.category === category;
+            return (
+              <button
+                type="button"
+                key={category}
+                aria-pressed={selected}
+                className={`category-tile category-tile--${categoryAccents[category]} ${selected ? 'category-tile--active' : ''}`}
+                onClick={() =>
+                  navigate({
+                    ...query,
+                    category: category === 'ALL' ? undefined : category,
+                    page: 1,
+                  })
+                }
+              >
+                <span className="category-tile__icon" aria-hidden="true">
+                  {categoryIcons[category]}
+                </span>
+                <small>{category === 'ALL' ? 'All' : label(category)}</small>
+              </button>
+            );
+          })}
         </div>
         {!!activeFilters.length && (
           <div className="active-filters" aria-label="Active filters">
@@ -202,8 +424,16 @@ export default function ConfessionsFeed({ initialQuery }: Props) {
           </div>
         )}
       </section>
+
       <div className="feed-toolbar">
-        <h2>Recent confessions</h2>
+        <div>
+          <h2>Recent confessions</h2>
+          {data && (
+            <p className="result-summary">
+              Showing {firstResult}–{lastResult} of {data.total} results
+            </p>
+          )}
+        </div>
         <div className="sort-wrap">
           <button
             type="button"
@@ -216,7 +446,7 @@ export default function ConfessionsFeed({ initialQuery }: Props) {
               ? 'Oldest first'
               : query.sort === 'relevance'
                 ? 'Relevance'
-                : 'Newest first'}
+                : 'Newest first'}{' '}
             ⌄
           </button>
           {sortOpen && (
@@ -232,7 +462,7 @@ export default function ConfessionsFeed({ initialQuery }: Props) {
                   aria-checked={query.sort === sort}
                   key={sort}
                   onClick={() => {
-                    setQuery((current) => ({ ...current, sort, page: 1 }));
+                    navigate({ ...query, sort, page: 1 });
                     setSortOpen(false);
                   }}
                 >
@@ -248,6 +478,7 @@ export default function ConfessionsFeed({ initialQuery }: Props) {
           )}
         </div>
       </div>
+
       {error ? (
         <section className="state-panel">
           <h2>Couldn’t load the wall.</h2>
@@ -257,7 +488,7 @@ export default function ConfessionsFeed({ initialQuery }: Props) {
           </button>
         </section>
       ) : !data ? (
-        <section className="card-grid">
+        <section className="card-grid" aria-busy="true" aria-label="Loading confessions">
           {[1, 2, 3].map((item) => (
             <div className="skeleton-card" key={item} />
           ))}
@@ -278,26 +509,46 @@ export default function ConfessionsFeed({ initialQuery }: Props) {
               <ConfessionCard key={item.publicId} confession={item} display={data.display} />
             ))}
           </section>
-          <div className="feed-pagination">
-            {data.page > 1 && (
-              <Link
-                className="ghost-button"
-                href={`/confessions?${queryString({ ...query, page: data.page - 1 })}`}
-              >
-                Previous
-              </Link>
-            )}
-            {data.hasMore && (
-              <Link
-                className="ghost-button"
-                href={`/confessions?${queryString({ ...query, page: data.page + 1 })}`}
-              >
-                Load more confessions
-              </Link>
-            )}
-          </div>
+          <nav className="feed-pagination" aria-label="Confession pages">
+            <button
+              type="button"
+              className="pagination-button"
+              disabled={data.page <= 1}
+              onClick={() => navigate({ ...query, page: data.page - 1 })}
+            >
+              Previous
+            </button>
+            <div className="pagination-pages">
+              {pageItems(data.page, totalPages).map((item, index) =>
+                item === 'ellipsis' ? (
+                  <span className="pagination-ellipsis" key={`ellipsis-${index}`}>
+                    …
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    className={`pagination-button pagination-number ${item === data.page ? 'is-current' : ''}`}
+                    aria-current={item === data.page ? 'page' : undefined}
+                    key={item}
+                    onClick={() => navigate({ ...query, page: item })}
+                  >
+                    {item}
+                  </button>
+                ),
+              )}
+            </div>
+            <button
+              type="button"
+              className="pagination-button"
+              disabled={!data.hasMore}
+              onClick={() => navigate({ ...query, page: data.page + 1 })}
+            >
+              Next
+            </button>
+          </nav>
         </>
       )}
+
       {sheetOpen && (
         <div
           className="filter-backdrop"
@@ -402,6 +653,7 @@ export default function ConfessionsFeed({ initialQuery }: Props) {
                 className="ghost-button"
                 onClick={() => {
                   setDraft({ ...defaultQuery });
+                  setSearchInput('');
                 }}
               >
                 Clear all
@@ -410,7 +662,7 @@ export default function ConfessionsFeed({ initialQuery }: Props) {
                 type="button"
                 className="ggv-button"
                 onClick={() => {
-                  setQuery({ ...draft, page: 1, search: searchInput.trim() || undefined });
+                  navigate({ ...draft, page: 1, search: searchInput.trim() || undefined });
                   setSheetOpen(false);
                 }}
               >
