@@ -19,6 +19,9 @@ export const PERMISSIONS = {
   GARBA_EDIT: 'garba.edit',
   GARBA_MODERATE: 'garba.moderate',
   GARBA_SEASONS_MANAGE: 'garba.seasons.manage',
+  BAWALBOX_READ: 'bawalbox.read',
+  BAWALBOX_MANAGE: 'bawalbox.manage',
+  BAWALBOX_MODERATE: 'bawalbox.moderate',
   ROLES_MANAGE: 'roles.manage',
   PERMISSIONS_MANAGE: 'permissions.manage',
 } as const;
@@ -50,6 +53,9 @@ const permissionEntries: ReadonlyArray<[PermissionKey, string, boolean]> = [
   [PERMISSIONS.GARBA_EDIT, 'Edit Garba content', false],
   [PERMISSIONS.GARBA_MODERATE, 'Transition Garba moderation state', false],
   [PERMISSIONS.GARBA_SEASONS_MANAGE, 'Manage Garba seasons', false],
+  [PERMISSIONS.BAWALBOX_READ, 'Read BawalBox content and settings', false],
+  [PERMISSIONS.BAWALBOX_MANAGE, 'Manage BawalBox branding and questions', false],
+  [PERMISSIONS.BAWALBOX_MODERATE, 'Moderate BawalBox responses', false],
   [PERMISSIONS.ROLES_MANAGE, 'Manage custom administrator roles', true],
   [PERMISSIONS.PERMISSIONS_MANAGE, 'Assign permissions and overrides', true],
 ];
@@ -90,12 +96,16 @@ const LEGACY_ROLE_PERMISSIONS: Record<AdminRole, ReadonlySet<PermissionKey>> = {
     PERMISSIONS.GARBA_READ,
     PERMISSIONS.GARBA_EDIT,
     PERMISSIONS.GARBA_MODERATE,
+    PERMISSIONS.BAWALBOX_READ,
+    PERMISSIONS.BAWALBOX_MODERATE,
   ]),
   [AdminRole.DESIGNER]: new Set([
     PERMISSIONS.DASHBOARD_READ,
     PERMISSIONS.THEMES_READ,
     PERMISSIONS.THEMES_MANAGE,
     PERMISSIONS.PROFILE_MANAGE,
+    PERMISSIONS.BAWALBOX_READ,
+    PERMISSIONS.BAWALBOX_MANAGE,
   ]),
 };
 

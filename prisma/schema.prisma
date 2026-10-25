@@ -78,6 +78,18 @@ enum ReportStatus {
   DISMISSED
   ARCHIVED
 }
+enum BawalBoxQuestionStatus {
+  DRAFT
+  PUBLISHED
+  PAUSED
+  ARCHIVED
+}
+enum BawalBoxResponseStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  ARCHIVED
+}
 
 enum PermissionEffect {
   GRANT
@@ -102,6 +114,7 @@ model AdminUser {
   themeFavorites ThemeFavorite[]
   roleAssignments AdminRoleAssignment[]
   permissionOverrides AdminPermissionOverride[]
+  bawalBoxResponsesModerated BawalBoxResponse[] @relation("BawalBoxResponseModerator")
 }
 
 model AdminSession {
@@ -368,6 +381,78 @@ model CollegeConfessionProfileSettings {
   updatedBy           String?
 
   @@index([updatedAt])
+}
+
+model BawalBoxSettings {
+  id                        String   @id @default("default")
+  brandName                 String   @default("BawalBox")
+  tagline                   String   @default("Sawaal ek, bawal anek!")
+  shortDescription          String   @default("Anonymous campus questions, honest answers, and a little good-natured bawal.")
+  longDescription           String   @default("Ask the question everyone is thinking and let your campus answer anonymously. Responses are reviewed before they appear.")
+  logoUrl                   String?
+  accentColor               String   @default("#ff2d75")
+  seoTitle                  String   @default("BawalBox — Anonymous campus questions")
+  seoDescription            String   @default("Ask, answer, and discover the questions shaping campus life.")
+  socialTitle               String   @default("BawalBox — Sawaal ek, bawal anek!")
+  socialDescription         String   @default("Anonymous campus questions and community answers.")
+  socialImageUrl            String?
+  homepageTeaserTitle       String   @default("Ask the question everyone is thinking.")
+  homepageTeaserDescription String   @default("BawalBox is now open for anonymous campus questions.")
+  homepageTeaserCta         String   @default("Open BawalBox")
+  navLabel                  String   @default("BawalBox")
+  navVisible                Boolean  @default(true)
+  teaserVisible             Boolean  @default(true)
+  introTitle                String   @default("The question is anonymous. The bawal is communal.")
+  introDescription          String   @default("Share a question, read what your campus thinks, and keep it kind. No public profile required.")
+  introCta                  String   @default("Ask anonymously")
+  archivedVisible           Boolean  @default(true)
+  emptyStateText            String   @default("No question is live right now. Check back soon for the next one.")
+  heroEnabled               Boolean  @default(true)
+  heroHeading               String   @default("BawalBox is open")
+  heroSubtitle              String   @default("One question. Many campus answers.")
+  heroTagline               String   @default("Sawaal ek, bawal anek!")
+  heroCtaLabel              String   @default("Try the question")
+  heroCtaUrl                String   @default("/bawalbox")
+  heroDesktopImageUrl       String?
+  heroMobileImageUrl        String?
+  heroAltText               String   @default("BawalBox anonymous campus questions")
+  updatedAt                 DateTime @updatedAt
+  updatedBy                 String?
+}
+
+model BawalBoxQuestion {
+  id           String                @id @default(cuid())
+  title        String
+  description  String?
+  instructions String?
+  category     String?
+  startAt      DateTime?
+  endAt        DateTime?
+  status       BawalBoxQuestionStatus @default(DRAFT)
+  featured     Boolean               @default(false)
+  answerLimit  Int?
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+  publishedAt  DateTime?
+  responses    BawalBoxResponse[]
+  @@index([status, startAt, endAt])
+  @@index([featured, status])
+}
+
+model BawalBoxResponse {
+  id          String               @id @default(cuid())
+  questionId  String
+  question    BawalBoxQuestion     @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  content     String
+  status      BawalBoxResponseStatus @default(PENDING)
+  pinned      Boolean              @default(false)
+  moderatorId String?
+  moderator   AdminUser?           @relation("BawalBoxResponseModerator", fields: [moderatorId], references: [id])
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  moderatedAt DateTime?
+  @@index([questionId, status, pinned, createdAt])
+  @@index([status, createdAt])
 }
 
 model GarbaSeason {

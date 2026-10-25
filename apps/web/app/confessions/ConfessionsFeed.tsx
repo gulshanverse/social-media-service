@@ -76,6 +76,14 @@ const serviceSlides: ServiceSlide[] = [
     href: '/vibematch',
   },
   {
+    id: 'bawalbox',
+    title: 'BawalBox',
+    description: 'One question. Many campus answers.',
+    icon: '?',
+    accent: 'pink',
+    href: '/bawalbox',
+  },
+  {
     id: 'garba',
     title: 'Campus Garba',
     description: 'Celebrate together.',

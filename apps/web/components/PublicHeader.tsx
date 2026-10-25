@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 const primaryLinks = [
   ['/', 'Home'],
   ['/confessions', 'Confessions'],
+  ['/bawalbox', 'BawalBox'],
   ['/vibematch', 'VibeMatch'],
   ['/garba', 'Garba'],
 ] as const;

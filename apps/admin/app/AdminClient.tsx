@@ -21,6 +21,7 @@ import {
 import { ConfessionCard as SharedConfessionCard, GarbaCard, Logo } from '@ggv/ui';
 import ProfilePage from './ProfilePage';
 import RbacManagement from './RbacManagement';
+import BawalBoxStudio from './BawalBoxStudio';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 type Role = 'SUPER_ADMIN' | 'MODERATOR' | 'DESIGNER';
@@ -229,6 +230,7 @@ export function Nav({ admin, onNavigate }: { admin: Admin; onNavigate?: () => vo
   links.push(['/themes', 'Themes']);
   if (admin.role === 'SUPER_ADMIN' || admin.role === 'DESIGNER')
     links.push(['/profile-page', 'Profile Page']);
+  links.push(['/bawalbox', 'BawalBox Studio']);
   return (
     <nav className="admin-nav" aria-label="Admin navigation">
       {links.map(([href, label]) => (
@@ -3937,6 +3939,8 @@ export default function AdminClient() {
       <Themes admin={admin} />
     ) : pathname === '/profile-page' ? (
       <ProfilePage />
+    ) : pathname === '/bawalbox' ? (
+      <BawalBoxStudio />
     ) : (
       <Dashboard admin={admin} />
     );
