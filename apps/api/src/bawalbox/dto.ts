@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
   IsEnum,
@@ -57,7 +57,11 @@ export class UpdateBawalBoxSettingsDto {
 }
 
 export class CreateBawalBoxQuestionDto {
-  @IsString() @MinLength(3) @MaxLength(180) title!: string;
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @MinLength(3)
+  @MaxLength(180)
+  title!: string;
   @IsOptional() @IsString() @MaxLength(500) description?: string;
   @IsOptional() @IsString() @MaxLength(500) instructions?: string;
   @IsOptional() @IsString() @MaxLength(80) category?: string;
@@ -68,7 +72,27 @@ export class CreateBawalBoxQuestionDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(10000) answerLimit?: number;
 }
 
-export class UpdateBawalBoxQuestionDto extends CreateBawalBoxQuestionDto {}
+export class UpdateBawalBoxQuestionDto {
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsOptional()
+  @IsString()
+  @MinLength(3)
+  @MaxLength(180)
+  title?: string;
+  @IsOptional() @IsString() @MaxLength(500) description?: string | null;
+  @IsOptional() @IsString() @MaxLength(500) instructions?: string | null;
+  @IsOptional() @IsString() @MaxLength(80) category?: string | null;
+  @IsOptional() @IsISO8601() startAt?: string | null;
+  @IsOptional() @IsISO8601() endAt?: string | null;
+  @IsOptional() @IsEnum(BawalBoxQuestionStatus) status?: BawalBoxQuestionStatus;
+  @IsOptional() @IsBoolean() featured?: boolean;
+  @IsOptional()
+  @Transform(({ value }) => (value === null ? null : Number(value)))
+  @IsInt()
+  @Min(1)
+  @Max(10000)
+  answerLimit?: number | null;
+}
 
 export class BawalBoxQuestionQueryDto {
   @IsOptional() @IsEnum(BawalBoxQuestionStatus) status?: BawalBoxQuestionStatus;
