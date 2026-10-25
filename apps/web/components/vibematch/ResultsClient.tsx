@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { vibeDimensions } from '@ggv/types';
+import { ApiRequestError } from '../../lib/api';
 import {
   blockMatch,
   getDiscovery,
@@ -27,6 +28,7 @@ export function ResultsClient() {
   const sessionId = params.get('session') || vibeStorage.getServerSessionId();
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState('');
+  const [guestSessionExpired, setGuestSessionExpired] = useState(false);
   const [discovery, setDiscovery] = useState<ServerDiscovery | null>(null);
   const [matchesLoading, setMatchesLoading] = useState(true);
   const [matchesError, setMatchesError] = useState('');
@@ -77,7 +79,17 @@ export function ResultsClient() {
         }
       } catch (cause) {
         if (active) {
-          setError(cause instanceof Error ? cause.message : 'Unable to load your result.');
+          if (
+            cause instanceof ApiRequestError &&
+            cause.status === 401 &&
+            vibeStorage.isQuickPlay()
+          ) {
+            vibeStorage.clearSession();
+            setGuestSessionExpired(true);
+            setError('Your Quick Play session expired or is no longer valid.');
+          } else {
+            setError(cause instanceof Error ? cause.message : 'Unable to load your result.');
+          }
           setMatchesLoading(false);
         }
       }
@@ -130,9 +142,20 @@ export function ResultsClient() {
       <VibeMatchShell compact>
         <div className="vibe-loading" role="alert">
           {error}
-          <Link className="vibe-primary-button" href="/vibematch/create">
-            Return to profile
-          </Link>
+          {guestSessionExpired ? (
+            <>
+              <Link className="vibe-primary-button" href="/vibematch/quick-play?expired=1">
+                Start a new Quick Play
+              </Link>
+              <Link className="vibe-secondary-button" href="/vibematch/create">
+                Explore My Vibe Profile
+              </Link>
+            </>
+          ) : (
+            <Link className="vibe-primary-button" href="/vibematch/create">
+              Return to profile
+            </Link>
+          )}
         </div>
       </VibeMatchShell>
     );

@@ -6,6 +6,7 @@ import {
   atomicallyClaimMagicLink,
   assertVibeStateChangingOrigin,
   createToken,
+  setGuestSessionCookie,
   emailHash,
   hashValue,
   isAllowedVibeOrigin,
@@ -54,14 +55,13 @@ import {
   const guestRecord = {
     id: 'guest-session-test',
     expiresAt: new Date(Date.now() + VIBE_GUEST_SESSION_TTL_MS),
-    revokedAt: null,
+    revokedAt: null as Date | null,
   };
   let touchedGuestId = '';
   setPrismaForTests({
     vibeGuestSession: {
       findUnique: async ({ where }: { where: { tokenHash: string } }) => {
-        assert.equal(where.tokenHash, hashValue(guestToken));
-        return guestRecord;
+        return where.tokenHash === hashValue(guestToken) ? guestRecord : null;
       },
       update: async ({ where }: { where: { id: string } }) => {
         touchedGuestId = where.id;
@@ -85,6 +85,22 @@ import {
     },
   } as never;
   guestRecord.expiresAt = new Date(Date.now() - 1);
+  await assert.rejects(
+    () => requireVibeSession(expiredGuestRequest),
+    /Quick Play session has expired/,
+  );
+  const malformedGuestRequest = {
+    headers: {
+      'x-vibematch-mode': 'guest',
+      cookie: `${VIBE_GUEST_SESSION_COOKIE}=not-a-valid-token`,
+    },
+  } as never;
+  await assert.rejects(
+    () => requireVibeSession(malformedGuestRequest),
+    /Quick Play session has expired/,
+  );
+  guestRecord.expiresAt = new Date(Date.now() + VIBE_GUEST_SESSION_TTL_MS);
+  guestRecord.revokedAt = new Date();
   await assert.rejects(
     () => requireVibeSession(expiredGuestRequest),
     /Quick Play session has expired/,
@@ -135,6 +151,9 @@ import {
   assert.equal(createdGuestGame.session.id, 'guest-game-one');
   assert.equal(testSessions[0].guestSessionId, 'guest-one');
   assert.equal(testSessions[0].profileId, undefined);
+  const resumedGuestGame = await controller.createSession(firstGuestRequest);
+  assert.equal(resumedGuestGame.session.id, 'guest-game-one');
+  assert.equal(testSessions.length, 1);
   const secondGuestRequest = {
     headers: {
       'x-vibematch-mode': 'guest',
@@ -145,6 +164,23 @@ import {
     () => controller.currentRound('guest-game-one', secondGuestRequest),
     /Session not found/,
   );
+  await assert.rejects(
+    () =>
+      controller.answer(
+        'guest-game-one',
+        { optionId: 'option-a', idempotencyKey: 'answer-key-1' },
+        secondGuestRequest,
+      ),
+    /Session not found/,
+  );
+  await assert.rejects(
+    () => controller.resultEndpoint('guest-game-one', secondGuestRequest),
+    /Session not found/,
+  );
+  await assert.rejects(
+    () => controller.getProfile(secondGuestRequest),
+    /VibeMatch sign-in required/,
+  );
   setPrismaForTests(realPrisma);
 
   assert.equal(normalizeEmail('  Person@Example.COM '), 'person@example.com');
@@ -152,6 +188,26 @@ import {
   const token = createToken();
   assert.equal(token.length > 30, true);
   assert.notEqual(token, hashValue(token));
+  const previousNodeEnv = process.env.NODE_ENV;
+  process.env.NODE_ENV = 'production';
+  let guestCookie: { name: string; token: string; options: Record<string, unknown> } | undefined;
+  setGuestSessionCookie(
+    {
+      cookie: (name: string, value: string, options: Record<string, unknown>) => {
+        guestCookie = { name, token: value, options };
+      },
+    } as never,
+    token,
+  );
+  if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+  else process.env.NODE_ENV = previousNodeEnv;
+  assert.equal(guestCookie?.name, VIBE_GUEST_SESSION_COOKIE);
+  assert.equal(guestCookie?.token, token);
+  assert.equal(guestCookie?.options.httpOnly, true);
+  assert.equal(guestCookie?.options.secure, true);
+  assert.equal(guestCookie?.options.sameSite, 'none');
+  assert.equal(guestCookie?.options.path, '/vibematch');
+  assert.equal(guestCookie?.options.maxAge, VIBE_GUEST_SESSION_TTL_MS);
 
   const selected = selectQuestions(42);
   assert.equal(selected.length, 7);
