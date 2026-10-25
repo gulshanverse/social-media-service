@@ -1,0 +1,77 @@
+name: Production database migration
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-database-migration
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: Deploy committed production migrations
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: Production
+    steps:
+      - name: Check out the exact release commit
+        uses: actions/checkout@v4
+        with:
+          ref: 143a627e2bec0a358cf829b48de932b89f132924
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: pnpm db:generate
+
+      - name: Validate Prisma schema
+        run: pnpm prisma validate
+        env:
+          DATABASE_URL: postgresql://check:check@127.0.0.1:5432/check?schema=public
+
+      - name: Verify production database target without printing credentials
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          node --input-type=module <<'NODE'
+          const raw = process.env.DATABASE_URL;
+          if (!raw) throw new Error('Production DATABASE_URL is missing.');
+          let url;
+          try {
+            url = new URL(raw);
+          } catch {
+            throw new Error('Production DATABASE_URL is malformed.');
+          }
+          const expectedHost = 'ep-withered-water-ao977rqa.c-2.ap-southeast-1.aws.neon.tech';
+          const database = decodeURIComponent(url.pathname.replace(/^\//, ''));
+          if (url.protocol !== 'postgres:' && url.protocol !== 'postgresql:') {
+            throw new Error('Production DATABASE_URL must use PostgreSQL.');
+          }
+          if (url.hostname !== expectedHost || database !== 'neondb') {
+            throw new Error('Production DATABASE_URL does not match the approved Neon production target.');
+          }
+          console.log('Production database target verified: approved Neon production endpoint and database.');
+          NODE
+
+      - name: Apply committed migrations
+        run: pnpm db:migrate:deploy
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
