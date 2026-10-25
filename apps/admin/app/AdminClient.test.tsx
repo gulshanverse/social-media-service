@@ -1,7 +1,17 @@
 import '@testing-library/jest-dom/vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import AdminClient, { Confessions, Dashboard, GarbaAdmin, Nav } from './AdminClient';
+import AdminClient, {
+  asPublicTheme,
+  Confessions,
+  Dashboard,
+  GarbaAdmin,
+  Nav,
+  importThemeJson,
+  proposeContrastCorrections,
+  refresh,
+  Themes,
+} from './AdminClient';
 
 const navigation = vi.hoisted(() => ({ pathname: '/', push: vi.fn() }));
 
@@ -76,6 +86,256 @@ describe('admin workspace behavior', () => {
     expect(screen.queryByText('Queue')).not.toBeInTheDocument();
     expect(screen.queryByText('Reports')).not.toBeInTheDocument();
     expect(screen.queryByText('Audit')).not.toBeInTheDocument();
+  });
+
+  it('keeps the Themes page renderable when a legacy theme has malformed preview CSS', async () => {
+    const malformed = {
+      id: 'legacy-theme',
+      name: 'Paper & Ink',
+      background: '#F1EBDD',
+      gradient: 'linear-gradient(135deg, #F7F3E8 0%, #E7E0CF',
+      textColor: '#202020',
+      accentColor: '#8B1E1E',
+      fontFamily: 'Lora',
+      radius: 25,
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        response({ items: [malformed], page: 1, limit: 20, total: 1, hasMore: false }),
+      ),
+    );
+    expect(asPublicTheme(malformed)?.gradient).toBe('linear-gradient(135deg,#151c2b,#243c5a)');
+    render(<Themes admin={admin} />);
+    expect((await screen.findAllByText('Paper & Ink')).length).toBeGreaterThan(1);
+    expect(screen.queryByText('Application error')).not.toBeInTheDocument();
+  });
+
+  it('deletes a draft theme by database id, refreshes the list, and reports success', async () => {
+    const theme = {
+      id: 'theme-db-id',
+      name: 'Campus Dark',
+      slug: 'campus-dark',
+      background: '#070a12',
+      gradient: 'linear-gradient(135deg,#070a12,#101c3b)',
+      textColor: '#ffffff',
+      accentColor: '#00b8ff',
+      fontFamily: 'Inter',
+      radius: 28,
+      status: 'DRAFT',
+      tokens: {},
+    };
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('/admin/themes?') && !init?.method)
+        return response({ items: [theme], page: 1, limit: 20, total: 1, hasMore: false });
+      if (url.endsWith('/admin/themes/theme-db-id') && init?.method === 'DELETE')
+        return response({ id: theme.id, deleted: true });
+      return response({});
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    render(<Themes admin={admin} />);
+    await screen.findByText(/campus-dark/);
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining('/admin/themes/theme-db-id'),
+        expect.objectContaining({ method: 'DELETE' }),
+      ),
+    );
+    expect(
+      fetchMock.mock.calls.some(([input]) => String(input).includes('/campus-dark/delete')),
+    ).toBe(false);
+    expect(await screen.findByText('Delete completed successfully.')).toBeInTheDocument();
+  });
+
+  it('disables deletion for published themes with an explanation', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        response({
+          items: [
+            {
+              id: 'protected-theme-id',
+              name: 'Published Campus',
+              slug: 'published-campus',
+              background: '#070a12',
+              gradient: 'none',
+              textColor: '#fff',
+              accentColor: '#00b8ff',
+              fontFamily: 'Inter',
+              radius: 28,
+              status: 'PUBLISHED',
+              _count: { confessions: 2 },
+            },
+          ],
+          page: 1,
+          limit: 20,
+          total: 1,
+          hasMore: false,
+        }),
+      ),
+    );
+    render(<Themes admin={admin} />);
+    const deleteButton = await screen.findByRole('button', { name: 'Delete' });
+    expect(deleteButton).toBeDisabled();
+    expect(screen.getByText('Published themes cannot be deleted.')).toBeInTheDocument();
+  });
+
+  it('saves new themes and edits without sending immutable slugs or empty dates', async () => {
+    const savedTheme = {
+      id: 'theme-1',
+      slug: 'campus-night',
+      name: 'Campus Night',
+      background: '#070a12',
+      gradient: 'linear-gradient(135deg,#070a12,#101c3b)',
+      textColor: '#ffffff',
+      accentColor: '#00b8ff',
+      fontFamily: 'Inter',
+      radius: 28,
+      status: 'DRAFT',
+      tokens: {},
+    };
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('/admin/themes?') && !init?.method)
+        return response({ items: [savedTheme], page: 1, limit: 20, total: 1, hasMore: false });
+      if (url.endsWith('/admin/themes') && init?.method === 'POST') return response(savedTheme);
+      if (url.endsWith('/admin/themes/theme-1') && init?.method === 'PATCH')
+        return response(savedTheme);
+      return response({});
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<Themes admin={admin} />);
+    await screen.findByRole('heading', { name: 'Create theme' });
+    fireEvent.change(screen.getByLabelText('Slug'), { target: { value: 'campus-night' } });
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Campus Night' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Draft' }));
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining('/admin/themes'),
+        expect.objectContaining({ method: 'POST' }),
+      ),
+    );
+    const createCall = fetchMock.mock.calls.find(([, init]) => init?.method === 'POST');
+    const createBody = JSON.parse(String(createCall?.[1]?.body));
+    expect(createBody.slug).toBe('campus-night');
+    expect(createBody).not.toHaveProperty('startAt');
+    expect(createBody).not.toHaveProperty('endAt');
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Campus Night Updated' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save Draft' }));
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining('/admin/themes/theme-1'),
+        expect.objectContaining({ method: 'PATCH' }),
+      ),
+    );
+    const updateCall = fetchMock.mock.calls.find(([, init]) => init?.method === 'PATCH');
+    const updateBody = JSON.parse(String(updateCall?.[1]?.body));
+    expect(updateBody).not.toHaveProperty('slug');
+    expect(updateBody).not.toHaveProperty('startAt');
+    expect(updateBody).not.toHaveProperty('endAt');
+  });
+
+  it('proposes contrast corrections without touching unrelated advanced tokens', () => {
+    const corrections = proposeContrastCorrections({
+      name: 'Low contrast',
+      slug: 'low-contrast',
+      background: '#ffffff',
+      gradient: 'none',
+      textColor: '#eeeeee',
+      accentColor: '#00b8ff',
+      fontFamily: 'Inter',
+      radius: 28,
+      tokens: { primaryText: '#eeeeee', glow: '0 0 20px #00b8ff' },
+    });
+    expect(corrections.some((correction) => correction.key === 'primaryText')).toBe(true);
+    expect(corrections.find((correction) => correction.key === 'primaryText')?.to).toMatch(
+      /^#(?:ffffff|000000)$/,
+    );
+    expect(corrections.some((correction) => correction.key === 'glow')).toBe(false);
+    expect(
+      proposeContrastCorrections({
+        name: 'Passing',
+        slug: 'passing',
+        background: '#000000',
+        gradient: 'none',
+        textColor: '#ffffff',
+        accentColor: '#ffffff',
+        fontFamily: 'Inter',
+        radius: 28,
+        tokens: {
+          primaryText: '#ffffff',
+          secondaryText: '#ffffff',
+          mutedText: '#ffffff',
+          headingText: '#ffffff',
+          linkText: '#ffffff',
+          buttonText: '#ffffff',
+          buttonBackground: '#000000',
+          input: '#000000',
+          card: '#000000',
+          surface: '#000000',
+        },
+      }),
+    ).toEqual([]);
+  });
+
+  it('imports flat and canonical JSON without saving or losing unspecified values', () => {
+    const current = {
+      slug: 'current-theme',
+      name: 'Current Theme',
+      description: 'Keep this',
+      background: '#070a12',
+      gradient: 'linear-gradient(135deg,#070a12,#101c3b)',
+      textColor: '#ffffff',
+      accentColor: '#00b8ff',
+      fontFamily: 'Inter',
+      radius: 28,
+      layoutVariant: 'classic',
+      mode: 'dark',
+      tags: ['keep'],
+      tokens: { glassOpacity: '0.72', glow: '0 0 20px #00b8ff' },
+    };
+    const flat = importThemeJson({ backdropBlur: 18, gradientAngle: 135 }, current);
+    expect(flat.form.tokens.backdropBlur).toBe('18');
+    expect(flat.form.tokens.gradientAngle).toBe('135');
+    expect(flat.form.tokens.glassOpacity).toBe('0.72');
+    expect(flat.form.description).toBe('Keep this');
+
+    const canonical = {
+      schemaVersion: 1,
+      type: 'theme',
+      name: 'Imported Theme',
+      slug: 'imported-theme',
+      variant: 'classic',
+      mode: 'dark',
+      tags: ['imported'],
+      tokens: {
+        background: '#101522',
+        gradient: 'linear-gradient(135deg,#101522,#243c5a)',
+        textColor: '#ffffff',
+        accentColor: '#00d9ff',
+        fontFamily: 'Inter',
+        radius: 24,
+        glassOpacity: '0.64',
+        backdropBlur: '24px',
+      },
+    };
+    const complete = importThemeJson(canonical, current);
+    expect(complete.form.name).toBe('Imported Theme');
+    expect(complete.form.tokens.backdropBlur).toBe('24px');
+    expect(() => importThemeJson({ unsupported: true }, current)).toThrow(/Unsupported theme keys/);
+    expect(() => importThemeJson({ glassOpacity: { bad: true } }, current)).toThrow(
+      /primitive value/,
+    );
+    const replaced = importThemeJson({ glassOpacity: '0.4' }, current, true);
+    expect(replaced.form.description).toBe('');
+    expect(replaced.form.tokens.glow).toBe('0');
   });
 
   it('renders dashboard metrics and loading-to-success behavior', async () => {
@@ -163,6 +423,25 @@ describe('admin workspace behavior', () => {
     expect(await screen.findByRole('heading', { name: 'Garba moderation' })).toBeInTheDocument();
     expect(await screen.findByText('4')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Garba' })).toHaveAttribute('href', '/garba');
+  });
+
+  it('shares one refresh request when concurrent callers refresh together', async () => {
+    let resolveRefresh: ((value: Response) => void) | undefined;
+    const refreshResponse = new Promise<Response>((resolve) => {
+      resolveRefresh = resolve;
+    });
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      expect(String(input)).toContain('/admin/auth/refresh');
+      return refreshResponse;
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const first = refresh();
+    const second = refresh();
+    resolveRefresh?.(response({ accessToken: 'shared-token' }));
+
+    await expect(Promise.all([first, second])).resolves.toEqual(['shared-token', 'shared-token']);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('keeps ALL explicit when opening Total posts from Garba overview', async () => {

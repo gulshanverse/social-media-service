@@ -6,6 +6,7 @@ import type { PublicConfession } from '@ggv/types';
 import { ConfessionCard } from '../../../components/ConfessionCard';
 import { ShareMenu } from '../../../components/ShareMenu';
 import { getConfession } from '../../../lib/api';
+import DiscussionSection from './DiscussionSection';
 
 export default function ConfessionDetailClient({
   publicId,
@@ -49,8 +50,10 @@ export default function ConfessionDetailClient({
             </div>
             <div className="detail-actions">
               <span>
-                {confession.category?.replace('_', ' ') ?? 'CAMPUS THOUGHT'} ·{' '}
-                {new Date(confession.publishedAt).toLocaleDateString()}
+                {(confession.category === 'CUSTOM'
+                  ? confession.customCategory || 'Custom'
+                  : confession.category?.replace('_', ' ')) ?? 'CAMPUS THOUGHT'}{' '}
+                · {new Date(confession.publishedAt).toLocaleDateString()}
               </span>
               <ShareMenu
                 url={
@@ -67,6 +70,7 @@ export default function ConfessionDetailClient({
                 Report this
               </Link>
             </div>
+            <DiscussionSection publicId={publicId} />
             <div className="detail-cta">
               <h2>Have something to say?</h2>
               <Link className="ggv-button" href="/send">

@@ -21,6 +21,7 @@ import {
   createEmailProvider,
   DevelopmentEmailProvider,
   ResendEmailProvider,
+  UnconfiguredEmailProvider,
 } from './email-provider';
 import {
   addContribution,
@@ -397,6 +398,11 @@ import {
     atomicallyClaimMagicLink(atomicUpdate, 'link-1'),
   ]);
   assert.equal(claims.filter(Boolean).length, 1);
+  const configuredProvider = { sendMagicLink: async () => undefined };
+  assert.equal(
+    createEmailProvider({ NODE_ENV: 'production' }, configuredProvider),
+    configuredProvider,
+  );
   assert.ok(createEmailProvider({ NODE_ENV: 'development' }) instanceof DevelopmentEmailProvider);
   assert.ok(
     createEmailProvider({
@@ -407,9 +413,16 @@ import {
       WEB_ORIGIN: 'https://vibe.example.com/',
     }) instanceof ResendEmailProvider,
   );
-  assert.throws(
-    () => createEmailProvider({ NODE_ENV: 'production' }),
-    /RESEND_API_KEY, VIBEMATCH_EMAIL_FROM, VIBEMATCH_APP_URL/,
+  const unavailable = createEmailProvider({ NODE_ENV: 'production' });
+  assert.ok(unavailable instanceof UnconfiguredEmailProvider);
+  await assert.rejects(
+    () =>
+      unavailable.sendMagicLink({
+        email: 'user@example.com',
+        token: 'token',
+        expiresAt: new Date(),
+      }),
+    /EmailProvider is not configured/,
   );
   const validOrigin = {
     method: 'POST',

@@ -20,6 +20,7 @@ export class ApiRequestError extends Error {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${apiUrl}${path}`, {
     ...init,
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
   });
   const body = (await response.json().catch(() => null)) as { message?: string } | null;
@@ -34,10 +35,27 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const createConfession = (payload: {
   content: string;
   category?: string;
+  customCategory?: string;
   themeId: string;
 }) => request<SubmissionResult>('/confessions', { method: 'POST', body: JSON.stringify(payload) });
-export const getConfessions = (page = 1) =>
-  request<PublicConfessionPage>(`/confessions?page=${page}&limit=12`, { cache: 'no-store' });
+export type ConfessionFeedQuery = {
+  page?: number;
+  search?: string;
+  category?: string;
+  customCategory?: string;
+  dateRange?: 'all' | 'today' | '7d' | '30d' | 'custom';
+  startDate?: string;
+  endDate?: string;
+  sort?: 'newest' | 'oldest' | 'relevance';
+};
+export const getConfessions = (input: ConfessionFeedQuery | number = {}) => {
+  const query = typeof input === 'number' ? { page: input } : input;
+  const params = new URLSearchParams({ page: String(query.page ?? 1), limit: '12' });
+  for (const [key, value] of Object.entries(query)) {
+    if (key !== 'page' && value) params.set(key, String(value));
+  }
+  return request<PublicConfessionPage>(`/confessions?${params.toString()}`, { cache: 'no-store' });
+};
 export const getConfession = (publicId: string) =>
   request<PublicConfession>(`/confessions/${encodeURIComponent(publicId)}`, { cache: 'no-store' });
 export type PublicProfileSettings = {
@@ -64,4 +82,63 @@ export const reportConfession = (publicId: string, reason: string, details?: str
       method: 'POST',
       body: JSON.stringify({ reason, ...(details === undefined ? {} : { details }) }),
     },
+  );
+
+export type CommenterProfile = {
+  id: string;
+  displayName: string;
+  instagramUsername: string;
+  instagramUrl: string;
+};
+export type DiscussionComment = {
+  id: string;
+  content: string;
+  parentId: string | null;
+  createdAt: string;
+  profile: CommenterProfile;
+  replyCount: number;
+  replies: DiscussionComment[];
+};
+export type DiscussionPage = {
+  items: DiscussionComment[];
+  page: number;
+  limit: number;
+  total: number;
+  hasMore: boolean;
+};
+export type ReactionState = {
+  options: string[];
+  counts: Record<string, number>;
+  customReactions: { emoji: string; count: number }[];
+  selected: string[];
+};
+export const getCommenterIdentity = () =>
+  request<CommenterProfile | null>('/confessions/identity', { cache: 'no-store' });
+export const registerCommenter = (payload: { displayName: string; instagramUsername: string }) =>
+  request<{ profile: CommenterProfile }>('/confessions/identity', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+export const getConfessionReactions = (publicId: string) =>
+  request<ReactionState>(`/confessions/${encodeURIComponent(publicId)}/reactions`, {
+    cache: 'no-store',
+  });
+export const reactToConfession = (publicId: string, emoji: string) =>
+  request<ReactionState>(`/confessions/${encodeURIComponent(publicId)}/reactions`, {
+    method: 'POST',
+    body: JSON.stringify({ emoji }),
+  });
+export const getDiscussion = (publicId: string, page = 1) =>
+  request<DiscussionPage>(`/confessions/${encodeURIComponent(publicId)}/comments?page=${page}`, {
+    cache: 'no-store',
+  });
+export const postDiscussionComment = (publicId: string, content: string, parentId?: string) =>
+  request<{ status: string; message: string; comment: DiscussionComment }>(
+    `/confessions/${encodeURIComponent(publicId)}/comments`,
+    { method: 'POST', body: JSON.stringify({ content, ...(parentId ? { parentId } : {}) }) },
+  );
+export const reportDiscussionComment = (publicId: string, commentId: string, reason = 'OTHER') =>
+  request<{ status: string; message: string }>(
+    `/confessions/${encodeURIComponent(publicId)}/comments/${encodeURIComponent(commentId)}/report`,
+    { method: 'POST', body: JSON.stringify({ reason }) },
   );

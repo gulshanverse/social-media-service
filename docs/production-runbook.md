@@ -98,3 +98,25 @@ For a failed release, stop routing traffic to the new instance, preserve logs an
 ## 8. Validation status for this Phase 6 pass
 
 The Phase 5 source, migration SQL, environment model, container definition, CI workflow, and operational code were inspected. Local quality gates and CI remain the authoritative regression checks. Live PostgreSQL migration execution, container runtime execution, hosted frontend/admin browser E2E, CORS from real origins, and backup restore were not claimed as verified because the sandbox had neither a Docker runtime nor a PostgreSQL service/credentials. Execute those checks in disposable staging before launch and attach their evidence to the release record.
+
+## 9. Administrator management release procedure
+
+The dashboard's `/users` workspace is the normal mechanism for `SUPER_ADMIN` account management. It supports safe listing, search, role/status filters, details, profile edits, role changes between `MODERATOR` and `DESIGNER`, password reset, activation, deactivation, ban/unban, session revocation, and soft deletion. Every destructive action requires confirmation in the UI and is revalidated by backend business logic.
+
+For this release, use the exact committed migration and no production reset:
+
+```bash
+# from the exact release commit
+pnpm install --frozen-lockfile
+pnpm db:generate
+pnpm prisma validate
+pnpm format:check
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+# after a verified encrypted PostgreSQL backup, in the dedicated migration job
+pnpm db:migrate:deploy
+```
+
+Verify the migration job, API health/readiness, admin login, and the `SUPER_ADMIN` authorization matrix in staging before routing production traffic. Do not create the first production moderator until the migration and application release have passed those checks. If bootstrap recovery is required, use the interactive `pnpm --filter @ggv/api provision-admin -- --allow-production` command and record the resulting `ADMIN_USER_CREATED` audit event.

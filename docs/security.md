@@ -7,3 +7,9 @@ Nest validation uses whitelist and unknown-field rejection. Admin responses use 
 Login and refresh endpoints have IP-aware process-local throttles with `429` and `Retry-After`. This is production-safe for a single API instance. If the deployment becomes multi-instance, move the limiter state to an organization-approved shared gateway or store; Redis is not required by the current single-instance architecture.
 
 Admin roles remain backend-authoritative: `SUPER_ADMIN` has all intended operations, `MODERATOR` can moderate and process reports, and `DESIGNER` can read and manage themes but cannot moderate, process reports, or inspect audit logs. Audit logs are append-only through the application API; no edit or delete endpoint is exposed. Production database permissions should further restrict direct mutation of `AuditLog`.
+
+## Administrator lifecycle security
+
+Administrator state is backend-authoritative and derived from additive `isActive`, `bannedAt`, and `deletedAt` fields: `ACTIVE`, `INACTIVE`, `BANNED`, and `DELETED`. Login, refresh, and the bearer guard reject every non-active state. Deactivation, banning, deletion, and password reset revoke active `AdminSession` records; password reset also invalidates the old password.
+
+Only `SUPER_ADMIN` can use administrator-management routes. New accounts are limited to `MODERATOR` and `DESIGNER`, and role changes cannot grant or remove `SUPER_ADMIN`. Self-lockout is blocked, as is disabling, banning, or deleting the last active `SUPER_ADMIN`. Lifecycle actions append safe audit metadata and never log passwords, hashes, tokens, cookies, or secrets.

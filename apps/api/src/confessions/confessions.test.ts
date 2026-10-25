@@ -77,6 +77,37 @@ async function run() {
   });
   assert.equal('publishedAt' in submission.created[0], false);
 
+  const customSubmission = createDatabase();
+  const customService = new ConfessionsService(
+    customSubmission.database,
+    new SubmissionRateLimiter(),
+  );
+  await customService.create(
+    plainToInstance(CreateConfessionDto, {
+      content: 'Custom category thought',
+      category: 'CUSTOM',
+      customCategory: '  Late night thoughts  ',
+      themeId: 'midnight',
+    }),
+    'custom-client',
+  );
+  assert.equal(customSubmission.created[0].category, 'CUSTOM');
+  assert.equal(customSubmission.created[0].customCategory, 'Late night thoughts');
+  for (const customCategory of ['', '   ', 'x'.repeat(41), 'College Life', 'bad\u0000label'])
+    await assert.rejects(
+      () =>
+        customService.create(
+          plainToInstance(CreateConfessionDto, {
+            content: 'Invalid custom category',
+            category: 'CUSTOM',
+            customCategory,
+            themeId: 'midnight',
+          }),
+          `invalid-${customCategory.length}`,
+        ),
+      BadRequestException,
+    );
+
   await assert.rejects(
     () => service.create(plainToInstance(CreateConfessionDto, { content: '  \n\t' }), 'empty'),
     BadRequestException,
@@ -170,6 +201,49 @@ async function run() {
     ['published-1'],
   );
   assert.equal(feed.total, 1);
+
+  let receivedDiscoveryWhere: Record<string, unknown> | undefined;
+  let receivedDiscoveryOrder: unknown;
+  const discoveryDatabase = createDatabase({
+    confession: {
+      ...submission.database.confession,
+      findMany: async ({ where, orderBy }) => {
+        receivedDiscoveryWhere = where;
+        receivedDiscoveryOrder = orderBy;
+        return [publishedRecord];
+      },
+      count: async ({ where }) => {
+        receivedDiscoveryWhere = where;
+        return 1;
+      },
+    },
+  }).database;
+  const discoveryService = new ConfessionsService(discoveryDatabase, new SubmissionRateLimiter());
+  await discoveryService.list({
+    page: 2,
+    limit: 12,
+    search: '  Published   Thought ',
+    category: 'CRUSH',
+    dateRange: 'custom',
+    startDate: '2026-09-01',
+    endDate: '2026-09-19',
+    sort: 'relevance',
+  });
+  assert.equal((receivedDiscoveryWhere as any).status, ConfessionStatus.PUBLISHED);
+  assert.equal((receivedDiscoveryWhere as any).category, 'CRUSH');
+  assert.ok((receivedDiscoveryWhere as any).AND?.length === 2);
+  assert.deepEqual(receivedDiscoveryOrder, { publishedAt: 'desc' });
+  await assert.rejects(
+    () =>
+      discoveryService.list({
+        page: 1,
+        limit: 12,
+        dateRange: 'custom',
+        startDate: '2026-02-30',
+        endDate: '2026-03-01',
+      }),
+    BadRequestException,
+  );
 
   const detailDatabase = createDatabase();
   const detailService = new ConfessionsService(

@@ -12,6 +12,7 @@ import {
   createEmailProvider,
   DevelopmentEmailProvider,
   ResendEmailProvider,
+  UnconfiguredEmailProvider,
   type ResendEmailConfiguration,
   type ResendEmailPayload,
 } from './email-provider';
@@ -82,32 +83,26 @@ async function run() {
   assert.ok(productionProvider instanceof ResendEmailProvider);
   assert.equal(productionProvider instanceof DevelopmentEmailProvider, false);
 
-  assert.throws(
-    () =>
-      createEmailProvider({
-        NODE_ENV: 'production',
-        VIBEMATCH_EMAIL_FROM: config.from,
-        VIBEMATCH_APP_URL: config.appUrl,
-      }),
-    /RESEND_API_KEY/,
+  const configuredProvider = { sendMagicLink: async () => undefined };
+  assert.equal(
+    createEmailProvider({ NODE_ENV: 'production' }, configuredProvider),
+    configuredProvider,
   );
-  assert.throws(
+  for (const env of [
+    { NODE_ENV: 'production', VIBEMATCH_EMAIL_FROM: config.from, VIBEMATCH_APP_URL: config.appUrl },
+    { NODE_ENV: 'production', RESEND_API_KEY: config.apiKey, VIBEMATCH_APP_URL: config.appUrl },
+    { NODE_ENV: 'production', RESEND_API_KEY: config.apiKey, VIBEMATCH_EMAIL_FROM: config.from },
+  ]) {
+    assert.ok(createEmailProvider(env) instanceof UnconfiguredEmailProvider);
+  }
+  await assert.rejects(
     () =>
-      createEmailProvider({
-        NODE_ENV: 'production',
-        RESEND_API_KEY: config.apiKey,
-        VIBEMATCH_APP_URL: config.appUrl,
+      createEmailProvider({ NODE_ENV: 'production' }).sendMagicLink({
+        email: 'user@example.test',
+        token: 'test-token',
+        expiresAt: new Date(),
       }),
-    /VIBEMATCH_EMAIL_FROM/,
-  );
-  assert.throws(
-    () =>
-      createEmailProvider({
-        NODE_ENV: 'production',
-        RESEND_API_KEY: config.apiKey,
-        VIBEMATCH_EMAIL_FROM: config.from,
-      }),
-    /VIBEMATCH_APP_URL/,
+    /EmailProvider is not configured/,
   );
   assert.throws(
     () => new ResendEmailProvider({ ...config, webOrigin: 'https://other.example.test/' }),

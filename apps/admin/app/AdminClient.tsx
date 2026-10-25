@@ -7,12 +7,21 @@ import { appConfig } from '@ggv/config';
 import type { PublicConfession, PublicTheme } from '@ggv/types';
 import {
   analyzeThemeContrast,
+  advancedThemeTokenKeys,
+  contrastRatio,
+  exportPortableTheme,
+  garbaThemes,
+  getGarbaTheme,
+  normalizeImportedTheme,
+  parseSupportedColor,
   themePresets,
   themeToCssVariables,
   type ContrastPair,
 } from '@ggv/themes';
-import { ConfessionCard as SharedConfessionCard, Logo } from '@ggv/ui';
+import { ConfessionCard as SharedConfessionCard, GarbaCard, Logo } from '@ggv/ui';
 import ProfilePage from './ProfilePage';
+import RbacManagement from './RbacManagement';
+import BawalBoxStudio from './BawalBoxStudio';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 type Role = 'SUPER_ADMIN' | 'MODERATOR' | 'DESIGNER';
@@ -41,25 +50,40 @@ type Theme = {
   startAt?: string | null;
   endAt?: string | null;
   favorites?: { adminId: string }[];
+  _count?: { confessions: number };
   tokens?: Record<string, string>;
 };
 type PageData<T> = { items: T[]; page: number; limit: number; total: number; hasMore: boolean };
 let runtimeToken = '';
+let lastKnownAdmin: Admin | null = null;
+let refreshPromise: Promise<string> | null = null;
 
-async function refresh() {
-  const response = await fetch(`${API}/admin/auth/refresh`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'content-type': 'application/json' },
-    body: '{}',
-  });
-  if (!response.ok) {
-    runtimeToken = '';
-    throw new Error('Session expired');
+export async function refresh() {
+  if (refreshPromise) return refreshPromise;
+  refreshPromise = (async () => {
+    const response = await fetch(`${API}/admin/auth/refresh`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'content-type': 'application/json' },
+      body: '{}',
+    });
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) runtimeToken = '';
+      const error = new Error(
+        response.status === 429 ? 'Too many refresh attempts.' : 'Session expired',
+      );
+      (error as Error & { status?: number }).status = response.status;
+      throw error;
+    }
+    const result = await response.json();
+    runtimeToken = result.accessToken;
+    return runtimeToken;
+  })();
+  try {
+    return await refreshPromise;
+  } finally {
+    refreshPromise = null;
   }
-  const result = await response.json();
-  runtimeToken = result.accessToken;
-  return runtimeToken;
 }
 export async function api(path: string, init: RequestInit = {}) {
   const headers = new Headers(init.headers);
@@ -158,9 +182,9 @@ function ThemePreview({
   };
   return <SharedConfessionCard confession={previewConfession} className="theme-preview" />;
 }
-function asPublicTheme(theme: Partial<Theme> | null | undefined): PublicTheme | null {
+export function asPublicTheme(theme: Partial<Theme> | null | undefined): PublicTheme | null {
   if (!theme) return null;
-  return {
+  const candidate: PublicTheme = {
     id: theme.id || 'preview',
     name: theme.name || 'Preview',
     background: theme.background || '#151c2b',
@@ -171,15 +195,42 @@ function asPublicTheme(theme: Partial<Theme> | null | undefined): PublicTheme | 
     radius: `${theme.radius ?? 28}px`,
     tokens: theme.tokens,
   };
+  try {
+    themeToCssVariables(candidate);
+    return candidate;
+  } catch {
+    return {
+      ...candidate,
+      background: '#151c2b',
+      gradient: 'linear-gradient(135deg,#151c2b,#243c5a)',
+      textColor: '#fff',
+      accentColor: '#00b8ff',
+      fontFamily: 'Inter',
+      radius: '28px',
+      borderStyle: 'solid',
+      logoVisibility: true,
+      handleVisibility: true,
+      layoutVariant: 'classic',
+      tokens: undefined,
+    };
+  }
 }
 export function Nav({ admin, onNavigate }: { admin: Admin; onNavigate?: () => void }) {
   const links: [string, string][] = [['/', 'Dashboard']];
   if (admin.role !== 'DESIGNER')
-    links.push(['/confessions', 'Queue'], ['/reports', 'Reports'], ['/garba', 'Garba']);
+    links.push(
+      ['/confessions', 'Queue'],
+      ['/comments', 'Comments'],
+      ['/reports', 'Reports'],
+      ['/garba', 'Garba'],
+    );
   if (admin.role === 'SUPER_ADMIN') links.push(['/audit-logs', 'Audit']);
+  if (admin.role === 'SUPER_ADMIN') links.push(['/users', 'Administrators']);
+  if (admin.role === 'SUPER_ADMIN') links.push(['/rbac', 'Dynamic RBAC']);
   links.push(['/themes', 'Themes']);
   if (admin.role === 'SUPER_ADMIN' || admin.role === 'DESIGNER')
     links.push(['/profile-page', 'Profile Page']);
+  links.push(['/bawalbox', 'BawalBox Studio']);
   return (
     <nav className="admin-nav" aria-label="Admin navigation">
       {links.map(([href, label]) => (
@@ -270,6 +321,7 @@ function Login({ onLogin }: { onLogin: (session: Session) => void }) {
         );
       const session = await response.json();
       runtimeToken = session.accessToken;
+      lastKnownAdmin = session.admin;
       onLogin(session);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unable to sign in.');
@@ -749,8 +801,13 @@ function ConfessionDetail({ admin }: { admin: Admin }) {
   const id = usePathname().split('/').pop();
   const [item, setItem] = useState<any>(null);
   const [themes, setThemes] = useState<Theme[]>([]);
-  const [form, setForm] = useState({ content: '', category: '', themeId: '' });
-  const [savedForm, setSavedForm] = useState({ content: '', category: '', themeId: '' });
+  const [form, setForm] = useState({ content: '', category: '', customCategory: '', themeId: '' });
+  const [savedForm, setSavedForm] = useState({
+    content: '',
+    category: '',
+    customCategory: '',
+    themeId: '',
+  });
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
@@ -761,6 +818,7 @@ function ConfessionDetail({ admin }: { admin: Admin }) {
         const nextForm = {
           content: value.content,
           category: value.category || '',
+          customCategory: value.customCategory || '',
           themeId: value.theme?.id || '',
         };
         setForm(nextForm);
@@ -776,6 +834,7 @@ function ConfessionDetail({ admin }: { admin: Admin }) {
   const dirty =
     form.content !== savedForm.content ||
     form.category !== savedForm.category ||
+    form.customCategory !== savedForm.customCategory ||
     form.themeId !== savedForm.themeId;
   const editable =
     !!item && ['PENDING', 'PUBLISHED'].includes(item.status) && admin.role !== 'DESIGNER';
@@ -838,6 +897,7 @@ function ConfessionDetail({ admin }: { admin: Admin }) {
     publicId: item.publicId,
     content: form.content.trim() || 'Preview your confession here.',
     category: form.category ? (form.category as PublicConfession['category']) : null,
+    customCategory: form.customCategory,
     theme: asPublicTheme(draftTheme),
     publishedAt: item.publishedAt || item.createdAt || new Date().toISOString(),
   };
@@ -895,18 +955,32 @@ function ConfessionDetail({ admin }: { admin: Admin }) {
                   <option value="">Uncategorized</option>
                   {[
                     'CRUSH',
+                    'ADMIRATION',
                     'RELATIONSHIP',
                     'FRIENDSHIP',
                     'FUNNY',
                     'COLLEGE_LIFE',
-                    'ADVICE',
                     'APPRECIATION',
+                    'ADVICE',
                     'RANT',
+                    'CUSTOM',
                     'OTHER',
                   ].map((v) => (
                     <option key={v}>{v}</option>
                   ))}
                 </select>
+                {form.category === 'CUSTOM' && (
+                  <input
+                    value={form.customCategory}
+                    onChange={(e) =>
+                      setForm({ ...form, customCategory: e.target.value.slice(0, 40) })
+                    }
+                    placeholder="Your Category"
+                    maxLength={40}
+                    aria-label="Your Category"
+                    required
+                  />
+                )}
               </label>
               <label>
                 Theme
@@ -960,7 +1034,11 @@ function ConfessionDetail({ admin }: { admin: Admin }) {
           )}
           <dl className="facts">
             <dt>Category</dt>
-            <dd>{item.category || 'Uncategorized'}</dd>
+            <dd>
+              {item.category === 'CUSTOM'
+                ? item.customCategory || 'Custom'
+                : item.category || 'Uncategorized'}
+            </dd>
             <dt>Theme</dt>
             <dd>{item.theme?.name || 'No theme'}</dd>
             <dt>Published</dt>
@@ -1591,7 +1669,54 @@ function ThemeWorkspacePreview({
     </section>
   );
 }
-function AccessibilityDashboard({ theme }: { theme: Partial<Theme> }) {
+type ContrastCorrection = { key: string; from: string; to: string; reason: string };
+const CONTRAST_TOKEN_BY_PAIR: Record<string, string> = {
+  'primary-background': 'primaryText',
+  'secondary-background': 'secondaryText',
+  'muted-background': 'mutedText',
+  'heading-background': 'headingText',
+  'link-background': 'linkText',
+  button: 'buttonText',
+  placeholder: 'placeholderText',
+};
+export function proposeContrastCorrections(theme: Partial<Theme>): ContrastCorrection[] {
+  let pairs: ContrastPair[] = [];
+  try {
+    pairs = analyzeThemeContrast(theme as any);
+  } catch {
+    return [];
+  }
+  const tokens = theme.tokens || {};
+  const proposals: ContrastCorrection[] = [];
+  const changed = new Set<string>();
+  for (const pair of pairs.filter((item) => item.status === 'FAIL')) {
+    const key = CONTRAST_TOKEN_BY_PAIR[pair.id];
+    if (!key || changed.has(key)) continue;
+    const current = tokens[key] || pair.foreground;
+    if (!parseSupportedColor(current) || !parseSupportedColor(pair.background)) continue;
+    const candidates = ['#ffffff', '#000000']
+      .map((candidate) => ({ candidate, ratio: contrastRatio(candidate, pair.background) ?? 0 }))
+      .sort((a, b) => b.ratio - a.ratio);
+    const best = candidates[0];
+    if (!best || best.ratio < 4.5 || best.candidate.toLowerCase() === current.toLowerCase())
+      continue;
+    proposals.push({
+      key,
+      from: current,
+      to: best.candidate,
+      reason: `${pair.label} improves to ${best.ratio.toFixed(2)}:1`,
+    });
+    changed.add(key);
+  }
+  return proposals;
+}
+function AccessibilityDashboard({
+  theme,
+  onApplyCorrections,
+}: {
+  theme: Partial<Theme>;
+  onApplyCorrections?: (corrections: ContrastCorrection[]) => void;
+}) {
   const pairs: ContrastPair[] = (() => {
     try {
       return analyzeThemeContrast(theme as any);
@@ -1599,6 +1724,8 @@ function AccessibilityDashboard({ theme }: { theme: Partial<Theme> }) {
       return [];
     }
   })();
+  const [proposals, setProposals] = useState<ContrastCorrection[] | null>(null);
+  const failingPairs = pairs.filter((pair) => pair.status === 'FAIL');
   return (
     <section className="accessibility-dashboard" aria-labelledby="accessibility-heading">
       <div className="form-heading">
@@ -1611,45 +1738,84 @@ function AccessibilityDashboard({ theme }: { theme: Partial<Theme> }) {
           </p>
         </div>
         <span className="status">
-          {pairs.filter((pair) => pair.status === 'PASS').length}/{pairs.length} strong pairs
+          {pairs.filter((pair) => pair.status !== 'FAIL').length}/{pairs.length} contrast pairs pass
         </span>
       </div>
-      <div className="contrast-grid">
-        {pairs.map((pair) => (
-          <article className="contrast-card" key={pair.id}>
-            <div className="contrast-card-heading">
-              <strong>{pair.label}</strong>
-              <span className={`contrast-status contrast-${pair.status.toLowerCase()}`}>
-                {pair.status}
-              </span>
+      {failingPairs.length > 0 && onApplyCorrections && (
+        <div className="actions">
+          <button type="button" onClick={() => setProposals(proposeContrastCorrections(theme))}>
+            Fix Contrast
+          </button>
+          {proposals && proposals.length > 0 && (
+            <div className="notice" role="status">
+              <strong>Proposed corrections</strong>
+              <ul>
+                {proposals.map((proposal) => (
+                  <li key={proposal.key}>
+                    {proposal.key}: {proposal.from} → {proposal.to} ({proposal.reason})
+                  </li>
+                ))}
+              </ul>
+              <button
+                type="button"
+                onClick={() => {
+                  onApplyCorrections(proposals);
+                  setProposals(null);
+                }}
+              >
+                Apply corrections
+              </button>{' '}
+              <button type="button" className="secondary" onClick={() => setProposals(null)}>
+                Cancel
+              </button>
             </div>
-            <div className="contrast-ratio">{pair.ratio.toFixed(2)}:1</div>
-            <div className="wcag-levels">
-              <span className={pair.aaNormal ? 'level-pass' : 'level-fail'}>
-                AA normal {pair.aaNormal ? '✓' : '✕'}
-              </span>
-              <span className={pair.aaLarge ? 'level-pass' : 'level-fail'}>
-                AA large {pair.aaLarge ? '✓' : '✕'}
-              </span>
-              <span className={pair.aaaNormal ? 'level-pass' : 'level-fail'}>
-                AAA normal {pair.aaaNormal ? '✓' : '✕'}
-              </span>
-              <span className={pair.aaaLarge ? 'level-pass' : 'level-fail'}>
-                AAA large {pair.aaaLarge ? '✓' : '✕'}
-              </span>
+          )}
+          {proposals && proposals.length === 0 && (
+            <div className="notice error" role="alert">
+              No safe automatic correction was found for the failing pairs.
             </div>
-            <div className="contrast-swatches">
-              <span style={{ color: pair.foreground, background: pair.background }}>Aa</span>
-              <code>
-                {pair.foreground} / {pair.background}
-              </code>
-            </div>
-          </article>
-        ))}
-      </div>
-      {pairs.length === 0 && (
-        <div className="state">No meaningful color pairs could be evaluated yet.</div>
+          )}
+        </div>
       )}
+      <details className="advanced-token-editor">
+        <summary>View contrast details</summary>
+        <div className="contrast-grid">
+          {pairs.map((pair) => (
+            <article className="contrast-card" key={pair.id}>
+              <div className="contrast-card-heading">
+                <strong>{pair.label}</strong>
+                <span className={`contrast-status contrast-${pair.status.toLowerCase()}`}>
+                  {pair.status}
+                </span>
+              </div>
+              <div className="contrast-ratio">{pair.ratio.toFixed(2)}:1</div>
+              <div className="wcag-levels">
+                <span className={pair.aaNormal ? 'level-pass' : 'level-fail'}>
+                  AA normal {pair.aaNormal ? '✓' : '✕'}
+                </span>
+                <span className={pair.aaLarge ? 'level-pass' : 'level-fail'}>
+                  AA large {pair.aaLarge ? '✓' : '✕'}
+                </span>
+                <span className={pair.aaaNormal ? 'level-pass' : 'level-fail'}>
+                  AAA normal {pair.aaaNormal ? '✓' : '✕'}
+                </span>
+                <span className={pair.aaaLarge ? 'level-pass' : 'level-fail'}>
+                  AAA large {pair.aaaLarge ? '✓' : '✕'}
+                </span>
+              </div>
+              <div className="contrast-swatches">
+                <span style={{ color: pair.foreground, background: pair.background }}>Aa</span>
+                <code>
+                  {pair.foreground} / {pair.background}
+                </code>
+              </div>
+            </article>
+          ))}
+        </div>
+        {pairs.length === 0 && (
+          <div className="state">No meaningful color pairs could be evaluated yet.</div>
+        )}
+      </details>
     </section>
   );
 }
@@ -1710,6 +1876,90 @@ function portableToForm(document: any, proposedSlug?: string) {
     tokens: { ...visualTokenDefaults, ...visualTokens },
   };
 }
+const IMPORT_BASE_KEYS = new Set([
+  'background',
+  'gradient',
+  'textColor',
+  'accentColor',
+  'fontFamily',
+  'radius',
+  'borderStyle',
+  'logoVisibility',
+  'handleVisibility',
+]);
+const IMPORT_TOKEN_KEYS = new Set([
+  ...IMPORT_BASE_KEYS,
+  ...Object.values(TOKEN_GROUPS).flat(),
+  ...advancedThemeTokenKeys,
+]);
+function slugifyThemeName(value: string) {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80);
+}
+export function importThemeJson(value: unknown, current: any, replace = false) {
+  if (!value || typeof value !== 'object' || Array.isArray(value))
+    throw new Error('Theme JSON must be an object.');
+  const source = value as Record<string, any>;
+  const canonical = source.type === 'theme' && source.schemaVersion === 1;
+  const suppliedTokens = canonical ? source.tokens : source;
+  if (!suppliedTokens || typeof suppliedTokens !== 'object' || Array.isArray(suppliedTokens))
+    throw new Error('Theme tokens must be an object.');
+  const unsupported = Object.keys(suppliedTokens).filter((key) => !IMPORT_TOKEN_KEYS.has(key));
+  if (unsupported.length) throw new Error(`Unsupported theme keys: ${unsupported.join(', ')}`);
+  const base = replace ? emptyTheme : current;
+  const mergedTokens = { ...base.tokens };
+  const mergedBase = { ...base };
+  for (const [key, raw] of Object.entries(suppliedTokens)) {
+    if (typeof raw === 'object' || raw === null)
+      throw new Error(`${key} must be a primitive value.`);
+    if (IMPORT_BASE_KEYS.has(key)) mergedBase[key] = raw;
+    else mergedTokens[key] = String(raw);
+  }
+  if (canonical) {
+    for (const key of [
+      'name',
+      'slug',
+      'description',
+      'icon',
+      'category',
+      'tags',
+      'mode',
+      'variant',
+    ]) {
+      if (source[key] !== undefined)
+        mergedBase[key === 'variant' ? 'layoutVariant' : key] = source[key];
+    }
+  }
+  const normalized = normalizeImportedTheme({
+    schemaVersion: 1,
+    type: 'theme',
+    name: mergedBase.name || 'Imported theme',
+    slug: mergedBase.slug || 'imported-theme',
+    description: mergedBase.description || undefined,
+    icon: mergedBase.icon || undefined,
+    category: mergedBase.category || undefined,
+    tags: mergedBase.tags || [],
+    variant: mergedBase.layoutVariant || 'classic',
+    mode: mergedBase.mode || 'dark',
+    tokens: {
+      background: mergedBase.background,
+      gradient: mergedBase.gradient,
+      textColor: mergedBase.textColor,
+      accentColor: mergedBase.accentColor,
+      fontFamily: mergedBase.fontFamily,
+      radius: mergedBase.radius,
+      borderStyle: mergedBase.borderStyle,
+      logoVisibility: mergedBase.logoVisibility,
+      handleVisibility: mergedBase.handleVisibility,
+      ...mergedTokens,
+    },
+  });
+  return { form: portableToForm(normalized), importedKeys: Object.keys(suppliedTokens) };
+}
 export function Themes({ admin }: { admin: Admin }) {
   const [data, setData] = useState<PageData<Theme> | null>(null);
   const [form, setForm] = useState<any>(emptyTheme);
@@ -1717,11 +1967,18 @@ export function Themes({ admin }: { admin: Admin }) {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [deletingThemeId, setDeletingThemeId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [savedForm, setSavedForm] = useState<any>(emptyTheme);
   const [viewport, setViewport] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
   const [advancedJson, setAdvancedJson] = useState(JSON.stringify(emptyTheme.tokens, null, 2));
   const [advancedError, setAdvancedError] = useState('');
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [jsonInput, setJsonInput] = useState('');
+  const [jsonError, setJsonError] = useState('');
+  const [jsonSummary, setJsonSummary] = useState<string[]>([]);
+  const [replaceOnImport, setReplaceOnImport] = useState(false);
   const [importPreview, setImportPreview] = useState<any>(null);
   const [importError, setImportError] = useState('');
   const importFile = useRef<HTMLInputElement>(null);
@@ -1780,6 +2037,42 @@ export function Themes({ admin }: { admin: Admin }) {
     setSavedForm(emptyTheme);
     setAdvancedJson(JSON.stringify(next.tokens, null, 2));
     setAdvancedError('');
+    setAdvancedOpen(false);
+  }
+  function exportDraftJson() {
+    try {
+      const document = exportPortableTheme({ ...form, tokens: form.tokens });
+      setJsonInput(JSON.stringify(document, null, 2));
+      setJsonError('');
+      setJsonSummary(['Exported the current draft configuration.']);
+    } catch (e) {
+      setJsonError(e instanceof Error ? e.message : 'Draft cannot be exported.');
+    }
+  }
+  function validateJson() {
+    try {
+      const parsed = JSON.parse(jsonInput);
+      const result = importThemeJson(parsed, form, replaceOnImport);
+      setJsonError('');
+      setJsonSummary([
+        `Valid JSON. ${result.importedKeys.length} supported fields ready to import.`,
+      ]);
+      return result;
+    } catch (e) {
+      setJsonError(e instanceof Error ? e.message : 'Theme JSON is invalid.');
+      setJsonSummary([]);
+      return null;
+    }
+  }
+  function applyJsonImport() {
+    const result = validateJson();
+    if (!result) return;
+    setForm(result.form);
+    setSavedForm(replaceOnImport ? emptyTheme : savedForm);
+    setAdvancedJson(JSON.stringify(result.form.tokens, null, 2));
+    setAdvancedError('');
+    setAdvancedOpen(true);
+    setJsonSummary([`Imported ${result.importedKeys.length} supported fields into the draft.`]);
   }
   async function themeAction(id: string, action: string, method = 'POST') {
     const labels: Record<string, string> = {
@@ -1795,15 +2088,22 @@ export function Themes({ admin }: { admin: Admin }) {
       !confirm('Delete this theme? Themes used by confessions or currently active are protected.')
     )
       return;
+    if (action === 'delete') {
+      if (deletingThemeId) return;
+      setDeletingThemeId(id);
+    }
     try {
-      await api(
-        `/admin/themes/${id}${action === 'favorite' || action === 'unfavorite' ? '/favorite' : `/${action}`}`,
-        { method },
-      );
+      const path =
+        action === 'delete'
+          ? `/admin/themes/${id}`
+          : `/admin/themes/${id}${action === 'favorite' || action === 'unfavorite' ? '/favorite' : `/${action}`}`;
+      await api(path, { method });
       setMessage(`${labels[action]} completed successfully.`);
       load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Theme action failed.');
+    } finally {
+      if (action === 'delete') setDeletingThemeId(null);
     }
   }
   const load = () => {
@@ -1828,6 +2128,7 @@ export function Themes({ admin }: { admin: Admin }) {
   }, [dirty]);
   async function save(e: FormEvent) {
     e.preventDefault();
+    if (saving) return;
     setError('');
     setMessage('');
     let draft = form;
@@ -1837,10 +2138,18 @@ export function Themes({ admin }: { admin: Admin }) {
       setAdvancedError('Advanced / Raw Tokens must contain valid JSON.');
       return;
     }
+    const { slug, startAt, endAt, ...editableFields } = draft;
+    const payload = {
+      ...editableFields,
+      ...(editing ? {} : { slug }),
+      ...(startAt ? { startAt } : {}),
+      ...(endAt ? { endAt } : {}),
+    };
     try {
+      setSaving(true);
       await api(editing ? `/admin/themes/${editing}` : '/admin/themes', {
         method: editing ? 'PATCH' : 'POST',
-        body: JSON.stringify(draft),
+        body: JSON.stringify(payload),
       });
       setMessage(editing ? 'Draft saved successfully.' : 'Draft created successfully.');
       setForm(draft);
@@ -1850,10 +2159,12 @@ export function Themes({ admin }: { admin: Admin }) {
       setAdvancedJson(JSON.stringify(emptyTheme.tokens, null, 2));
       setAdvancedError('');
       setEditing(null);
-      if (!editing) setPage(1);
+      if (!editing && page !== 1) setPage(1);
       else load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Theme could not be saved.');
+    } finally {
+      setSaving(false);
     }
   }
   return (
@@ -2044,14 +2355,38 @@ export function Themes({ admin }: { admin: Admin }) {
                   <button className="secondary" onClick={() => themeAction(t.id, 'duplicate')}>
                     Duplicate
                   </button>
-                  {t.status !== 'ACTIVE' && (
-                    <button
-                      className="danger"
-                      onClick={() => themeAction(t.id, 'delete', 'DELETE')}
-                    >
-                      Delete
-                    </button>
-                  )}
+                  {(() => {
+                    const usedByConfessions = (t._count?.confessions ?? 0) > 0;
+                    const protectedReason =
+                      t.status === 'ACTIVE'
+                        ? 'Active themes cannot be deleted. Activate another theme first.'
+                        : t.status === 'PUBLISHED'
+                          ? 'Published themes cannot be deleted.'
+                          : usedByConfessions
+                            ? 'Themes used by confessions cannot be deleted.'
+                            : undefined;
+                    const deleteDisabled = Boolean(protectedReason || deletingThemeId);
+                    return (
+                      <>
+                        <button
+                          className="danger"
+                          disabled={deleteDisabled}
+                          title={protectedReason}
+                          aria-describedby={
+                            protectedReason ? `theme-delete-help-${t.id}` : undefined
+                          }
+                          onClick={() => themeAction(t.id, 'delete', 'DELETE')}
+                        >
+                          {deletingThemeId === t.id ? 'Deleting…' : 'Delete'}
+                        </button>
+                        {protectedReason && (
+                          <small className="muted" id={`theme-delete-help-${t.id}`}>
+                            {protectedReason}
+                          </small>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               )}
             </div>
@@ -2076,6 +2411,82 @@ export function Themes({ admin }: { admin: Admin }) {
               </button>
             )}
           </div>
+          <details
+            className="advanced-token-editor"
+            open={Boolean(jsonError || jsonSummary.length)}
+          >
+            <summary>Import / Export JSON</summary>
+            <p className="muted">
+              Paste a canonical exported theme or a flat set of supported design tokens. Imports are
+              validated before they change this draft.
+            </p>
+            <textarea
+              aria-label="Theme JSON import"
+              value={jsonInput}
+              onChange={(event) => {
+                setJsonInput(event.target.value);
+                setJsonError('');
+                setJsonSummary([]);
+              }}
+              rows={10}
+              spellCheck={false}
+              placeholder='{"glassOpacity":"0.72","backdropBlur":"18px"}'
+            />
+            <label className="checkbox-row">
+              <input
+                type="checkbox"
+                checked={replaceOnImport}
+                onChange={(event) => setReplaceOnImport(event.target.checked)}
+              />
+              Replace unspecified values with defaults
+            </label>
+            <div className="actions">
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => {
+                  try {
+                    setJsonInput(JSON.stringify(JSON.parse(jsonInput), null, 2));
+                    setJsonError('');
+                  } catch {
+                    setJsonError('Theme JSON is malformed and cannot be formatted.');
+                  }
+                }}
+              >
+                Format JSON
+              </button>
+              <button type="button" className="secondary" onClick={validateJson}>
+                Validate JSON
+              </button>
+              <button type="button" onClick={applyJsonImport}>
+                Import JSON
+              </button>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => {
+                  setJsonInput('');
+                  setJsonError('');
+                  setJsonSummary([]);
+                }}
+              >
+                Clear
+              </button>
+              <button type="button" className="secondary" onClick={exportDraftJson}>
+                Export current draft
+              </button>
+            </div>
+            {jsonError && (
+              <div className="notice error" role="alert">
+                {jsonError}
+              </div>
+            )}
+            {jsonSummary.map((summary) => (
+              <div className="notice success" role="status" key={summary}>
+                {summary}
+              </div>
+            ))}
+          </details>
           <label>
             Slug
             <input
@@ -2090,7 +2501,17 @@ export function Themes({ admin }: { admin: Admin }) {
             Name
             <input
               value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              onChange={(e) => {
+                const name = e.target.value;
+                const generated = slugifyThemeName(form.name || '');
+                setForm({
+                  ...form,
+                  name,
+                  ...(!editing && (!form.slug || form.slug === generated)
+                    ? { slug: slugifyThemeName(name) }
+                    : {}),
+                });
+              }}
               required
               minLength={1}
             />
@@ -2137,6 +2558,52 @@ export function Themes({ admin }: { admin: Admin }) {
               />
             </label>
           </div>
+          <section className="panel quick-theme-controls" aria-labelledby="quick-visual-heading">
+            <div className="form-heading">
+              <div>
+                <p className="eyebrow">QUICK STYLE</p>
+                <h3 id="quick-visual-heading">Quick visual customization</h3>
+                <p className="muted">
+                  Tune the most common effects without opening advanced tokens.
+                </p>
+              </div>
+            </div>
+            <div className="form-grid">
+              {(['glassOpacity', 'backdropBlur', 'glowIntensity'] as const).map((key) => (
+                <label key={key}>
+                  {tokenLabel(key)}
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={Math.max(0, Math.min(1, Number(form.tokens?.[key] ?? 0)))}
+                    onChange={(event) => {
+                      const tokens = { ...form.tokens, [key]: event.target.value };
+                      setForm({ ...form, tokens });
+                      setAdvancedJson(JSON.stringify(tokens, null, 2));
+                    }}
+                  />
+                  <output>{form.tokens?.[key] ?? '0'}</output>
+                </label>
+              ))}
+              <label>
+                Button appearance
+                <select
+                  value={form.tokens?.buttonVariant || 'solid'}
+                  onChange={(event) => {
+                    const tokens = { ...form.tokens, buttonVariant: event.target.value };
+                    setForm({ ...form, tokens });
+                    setAdvancedJson(JSON.stringify(tokens, null, 2));
+                  }}
+                >
+                  {['solid', 'glass', 'outline', 'neon'].map((value) => (
+                    <option key={value}>{value}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </section>
           <div className="form-grid">
             {(['background', 'gradient', 'textColor', 'accentColor', 'fontFamily'] as const).map(
               (key) => (
@@ -2208,41 +2675,52 @@ export function Themes({ admin }: { admin: Admin }) {
               />
             </label>
           </div>
-          <VisualTokenEditor
-            tokens={form.tokens || visualTokenDefaults}
-            onChange={(tokens) => {
-              setForm({ ...form, tokens });
-              setAdvancedJson(JSON.stringify(tokens, null, 2));
-              setAdvancedError('');
-            }}
-          />
-          <details className="advanced-token-editor">
-            <summary>Advanced / Raw Tokens</summary>
+          <details
+            className="advanced-token-editor"
+            open={advancedOpen}
+            onToggle={(event) => setAdvancedOpen(event.currentTarget.open)}
+          >
+            <summary>Advanced Customization</summary>
             <p className="muted">
-              Optional advanced mode. Uses the same canonical token schema and server validation.
+              All supported typography, surfaces, borders, buttons, status, effects, and shape
+              tokens.
             </p>
-            <textarea
-              aria-label="Advanced raw tokens"
-              value={advancedJson}
-              onChange={(event) => {
-                const value = event.target.value;
-                setAdvancedJson(value);
-                try {
-                  const tokens = JSON.parse(value);
-                  if (!tokens || Array.isArray(tokens) || typeof tokens !== 'object')
-                    throw new Error();
-                  setForm({ ...form, tokens });
-                  setAdvancedError('');
-                } catch {
-                  setAdvancedError(
-                    'JSON is invalid or must be an object; the last valid draft remains active.',
-                  );
-                }
+            <VisualTokenEditor
+              tokens={form.tokens || visualTokenDefaults}
+              onChange={(tokens) => {
+                setForm({ ...form, tokens });
+                setAdvancedJson(JSON.stringify(tokens, null, 2));
+                setAdvancedError('');
               }}
-              rows={12}
-              spellCheck={false}
             />
-            {advancedError && <span className="notice error">{advancedError}</span>}
+            <details className="advanced-token-editor">
+              <summary>Advanced / Raw Tokens</summary>
+              <p className="muted">
+                Optional advanced mode. Uses the same canonical token schema and server validation.
+              </p>
+              <textarea
+                aria-label="Advanced raw tokens"
+                value={advancedJson}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setAdvancedJson(value);
+                  try {
+                    const tokens = JSON.parse(value);
+                    if (!tokens || Array.isArray(tokens) || typeof tokens !== 'object')
+                      throw new Error();
+                    setForm({ ...form, tokens });
+                    setAdvancedError('');
+                  } catch {
+                    setAdvancedError(
+                      'JSON is invalid or must be an object; the last valid draft remains active.',
+                    );
+                  }
+                }}
+                rows={12}
+                spellCheck={false}
+              />
+              {advancedError && <span className="notice error">{advancedError}</span>}
+            </details>
           </details>
           <div className="dirty-bar" role="status">
             <strong>{dirty ? 'Unsaved changes' : 'Saved snapshot'}</strong>
@@ -2261,8 +2739,17 @@ export function Themes({ admin }: { admin: Admin }) {
             )}
           </div>
           <ThemeWorkspacePreview theme={form} viewport={viewport} onViewport={setViewport} />
-          <AccessibilityDashboard theme={form} />
-          <button disabled={!dirty}>Save Draft</button>
+          <AccessibilityDashboard
+            theme={form}
+            onApplyCorrections={(corrections) => {
+              const tokens = { ...form.tokens };
+              for (const correction of corrections) tokens[correction.key] = correction.to;
+              setForm({ ...form, tokens });
+              setAdvancedJson(JSON.stringify(tokens, null, 2));
+              setAdvancedError('');
+            }}
+          />
+          <button disabled={!dirty || saving}>{saving ? 'Saving…' : 'Save Draft'}</button>
         </form>
       )}
     </section>
@@ -2349,6 +2836,20 @@ export function GarbaAdmin({ admin }: { admin: Admin }) {
       setPostDetail(await api(`/admin/garba/posts/${id}`));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Post could not be loaded.');
+    }
+  }
+  async function editPostTheme(themeId: string) {
+    if (!postDetail || !canWrite || !['PENDING', 'PUBLISHED'].includes(postDetail.status)) return;
+    try {
+      await api(`/admin/garba/posts/${postDetail.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ themeId }),
+      });
+      setPostDetail((current: any) => (current ? { ...current, themeId } : current));
+      setMessage('Garba card theme updated.');
+      load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Garba theme could not be updated.');
     }
   }
   async function editComment(comment: any) {
@@ -2563,6 +3064,36 @@ export function GarbaAdmin({ admin }: { admin: Admin }) {
             Reactions: {postDetail._count?.reactions ?? 0} · Comments:{' '}
             {postDetail._count?.comments ?? 0}
           </p>
+          <div className="panel">
+            <label>
+              Garba card theme
+              <select
+                aria-label="Garba card theme"
+                value={postDetail.themeId || garbaThemes[0].id}
+                disabled={!canWrite || !['PENDING', 'PUBLISHED'].includes(postDetail.status)}
+                onChange={(event) => editPostTheme(event.target.value)}
+              >
+                {garbaThemes.map((theme) => (
+                  <option key={theme.id} value={theme.id}>
+                    {theme.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <GarbaCard
+              post={{
+                publicId: postDetail.publicId,
+                category: postDetail.category,
+                content: postDetail.content,
+                eventDate: postDetail.eventDate,
+                location: postDetail.location,
+                instagramHandle: postDetail.instagramHandle,
+                createdAt: postDetail.createdAt,
+                theme: getGarbaTheme(postDetail.themeId),
+                _count: postDetail._count,
+              }}
+            />
+          </div>
           {canWrite && (
             <div className="card-actions">
               {postDetail.status === 'PENDING' && (
@@ -2906,16 +3437,461 @@ export function GarbaAdmin({ admin }: { admin: Admin }) {
     </section>
   );
 }
+type ManagedAdmin = {
+  id: string;
+  email: string;
+  name: string | null;
+  role: Role;
+  status: 'ACTIVE' | 'INACTIVE' | 'BANNED' | 'DELETED';
+  createdAt: string;
+  updatedAt: string;
+  _count?: { sessions: number };
+};
+export function Administrators() {
+  const [data, setData] = useState<PageData<ManagedAdmin> | null>(null);
+  const [selected, setSelected] = useState<ManagedAdmin | null>(null);
+  const [search, setSearch] = useState('');
+  const [role, setRole] = useState('');
+  const [status, setStatus] = useState('');
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const [showCreate, setShowCreate] = useState(false);
+  const load = () =>
+    api(`/admin/users?${qs({ search, role, status, page: 1, limit: 20 })}`)
+      .then(setData)
+      .catch((e) => setError(e.message));
+  useEffect(() => {
+    void load();
+  }, [role, status]);
+  async function action(path: string, init: RequestInit, confirmation: string) {
+    if (!confirm(confirmation)) return;
+    try {
+      await api(path, init);
+      setMessage('Administrator updated.');
+      setSelected(null);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Request failed.');
+    }
+  }
+  async function create(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    try {
+      await api('/admin/users', {
+        method: 'POST',
+        body: JSON.stringify(Object.fromEntries(form.entries())),
+      });
+      setShowCreate(false);
+      setMessage('Administrator created.');
+      event.currentTarget.reset();
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unable to create administrator.');
+    }
+  }
+  return (
+    <section>
+      <div className="form-heading">
+        <div>
+          <p className="eyebrow">ACCESS CONTROL</p>
+          <h1>Administrators</h1>
+          <p className="muted">
+            Manage administrator accounts without exposing credentials or tokens.
+          </p>
+        </div>
+        <button onClick={() => setShowCreate(true)}>+ Add Administrator</button>
+      </div>
+      <Notice error={error} message={message} />
+      <div className="filters">
+        <input
+          aria-label="Search administrators"
+          placeholder="Search administrators…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <select aria-label="Role filter" value={role} onChange={(e) => setRole(e.target.value)}>
+          <option value="">All roles</option>
+          <option>MODERATOR</option>
+          <option>DESIGNER</option>
+          <option>SUPER_ADMIN</option>
+        </select>
+        <select
+          aria-label="Status filter"
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+        >
+          <option value="">All statuses</option>
+          <option>ACTIVE</option>
+          <option>INACTIVE</option>
+          <option>BANNED</option>
+          <option>DELETED</option>
+        </select>
+        <button className="secondary" onClick={() => void load()}>
+          Search
+        </button>
+      </div>
+      {showCreate && (
+        <form className="panel" onSubmit={create}>
+          <div className="form-heading">
+            <h2>Add administrator</h2>
+            <button type="button" className="secondary" onClick={() => setShowCreate(false)}>
+              Cancel
+            </button>
+          </div>
+          <div className="form-grid">
+            <label>
+              Name
+              <input name="name" required />
+            </label>
+            <label>
+              Email
+              <input name="email" type="email" required />
+            </label>
+            <label>
+              Role
+              <select name="role" defaultValue="MODERATOR">
+                <option>MODERATOR</option>
+                <option>DESIGNER</option>
+              </select>
+            </label>
+            <label>
+              Password
+              <input
+                name="password"
+                type="password"
+                minLength={12}
+                required
+                autoComplete="new-password"
+              />
+            </label>
+          </div>
+          <button>Create administrator</button>
+        </form>
+      )}
+      {!data && <div className="state">Loading administrators…</div>}
+      {data && data.items.length === 0 && (
+        <div className="state empty">No administrators match these filters.</div>
+      )}
+      {data && data.items.length > 0 && (
+        <div className="panel table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Sessions</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.items.map((item) => (
+                <tr key={item.id}>
+                  <td>{item.name || '—'}</td>
+                  <td>{item.email}</td>
+                  <td>
+                    <Status value={item.role} />
+                  </td>
+                  <td>
+                    <Status value={item.status} />
+                  </td>
+                  <td>{item._count?.sessions ?? 0}</td>
+                  <td>
+                    <button className="secondary" onClick={() => setSelected(item)}>
+                      View details
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <Pager data={data} onPage={() => undefined} />
+      {selected && (
+        <div className="panel">
+          <div className="form-heading">
+            <div>
+              <p className="eyebrow">ADMINISTRATOR DETAILS</p>
+              <h2>{selected.name || selected.email}</h2>
+            </div>
+            <button className="secondary" onClick={() => setSelected(null)}>
+              Close
+            </button>
+          </div>
+          <p>
+            {selected.email} · <Status value={selected.role} /> · <Status value={selected.status} />
+          </p>
+          <p className="muted">
+            Created {formatDate(selected.createdAt)} · {selected._count?.sessions ?? 0} active
+            sessions
+          </p>
+          <div className="quick-action-links">
+            {selected.status !== 'DELETED' && (
+              <>
+                <button
+                  className="secondary"
+                  onClick={() => {
+                    const name = window.prompt('Administrator name:', selected.name || '');
+                    const email = window.prompt('Administrator email:', selected.email);
+                    if (name === null || email === null) return;
+                    void action(
+                      `/admin/users/${selected.id}`,
+                      { method: 'PATCH', body: JSON.stringify({ name, email }) },
+                      'Save these administrator profile changes?',
+                    );
+                  }}
+                >
+                  Edit
+                </button>
+                {selected.role !== 'SUPER_ADMIN' && (
+                  <button
+                    className="secondary"
+                    onClick={() => {
+                      const role = window.prompt('Role (MODERATOR or DESIGNER):', selected.role);
+                      if (role !== 'MODERATOR' && role !== 'DESIGNER') return;
+                      void action(
+                        `/admin/users/${selected.id}/role`,
+                        { method: 'PATCH', body: JSON.stringify({ role }) },
+                        'Change this administrator role?',
+                      );
+                    }}
+                  >
+                    Change Role
+                  </button>
+                )}
+              </>
+            )}
+            <button
+              className="secondary"
+              onClick={() =>
+                action(
+                  `/admin/users/${selected.id}/revoke-sessions`,
+                  { method: 'POST' },
+                  'Revoke all sessions for this administrator?',
+                )
+              }
+            >
+              Revoke Sessions
+            </button>
+            {selected.status === 'ACTIVE' && (
+              <>
+                <button
+                  className="secondary"
+                  onClick={() =>
+                    action(
+                      `/admin/users/${selected.id}/status`,
+                      { method: 'PATCH', body: JSON.stringify({ status: 'INACTIVE' }) },
+                      'Deactivate this administrator?',
+                    )
+                  }
+                >
+                  Deactivate
+                </button>
+                <button
+                  className="secondary"
+                  onClick={() =>
+                    action(
+                      `/admin/users/${selected.id}/status`,
+                      { method: 'PATCH', body: JSON.stringify({ status: 'BANNED' }) },
+                      'Ban this administrator?',
+                    )
+                  }
+                >
+                  Ban
+                </button>
+              </>
+            )}
+            {selected.status === 'INACTIVE' && (
+              <button
+                onClick={() =>
+                  action(
+                    `/admin/users/${selected.id}/status`,
+                    { method: 'PATCH', body: JSON.stringify({ status: 'ACTIVE' }) },
+                    'Activate this administrator?',
+                  )
+                }
+              >
+                Activate
+              </button>
+            )}
+            {selected.status === 'BANNED' && (
+              <button
+                onClick={() =>
+                  action(
+                    `/admin/users/${selected.id}/status`,
+                    { method: 'PATCH', body: JSON.stringify({ status: 'ACTIVE' }) },
+                    'Unban this administrator?',
+                  )
+                }
+              >
+                Unban
+              </button>
+            )}
+            {selected.status !== 'DELETED' && (
+              <>
+                <button
+                  className="secondary"
+                  onClick={() =>
+                    action(
+                      `/admin/users/${selected.id}/reset-password`,
+                      {
+                        method: 'POST',
+                        body: JSON.stringify({
+                          password: window.prompt('Enter a new password (12+ characters):'),
+                        }),
+                      },
+                      'Reset this administrator password and revoke sessions?',
+                    )
+                  }
+                >
+                  Reset Password
+                </button>
+                <button
+                  className="danger"
+                  onClick={() =>
+                    action(
+                      `/admin/users/${selected.id}`,
+                      { method: 'DELETE' },
+                      'Soft-delete this administrator?',
+                    )
+                  }
+                >
+                  Delete
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+function CommentModeration() {
+  const [data, setData] = useState<PageData<any> | null>(null);
+  const [status, setStatus] = useState('PENDING');
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  async function load() {
+    setLoading(true);
+    setError('');
+    try {
+      setData(await api(`/admin/confession-comments?${qs({ status, page })}`));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Could not load comments.');
+    } finally {
+      setLoading(false);
+    }
+  }
+  useEffect(() => {
+    void load();
+  }, [status, page]);
+  async function moderate(id: string, action: string) {
+    if (!confirm(`Confirm ${action} comment?`)) return;
+    try {
+      await api(`/admin/confession-comments/${id}/${action}`, { method: 'POST' });
+      setMessage(`Comment ${action}d successfully.`);
+      await load();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Moderation action failed.');
+    }
+  }
+  return (
+    <section>
+      <p className="eyebrow">TRUST & SAFETY</p>
+      <h1>Confession comments</h1>
+      <p className="muted">Review replies and their confession context before publication.</p>
+      <div className="filters">
+        <label>
+          Status
+          <select
+            value={status}
+            onChange={(event) => {
+              setStatus(event.target.value);
+              setPage(1);
+            }}
+          >
+            <option>PENDING</option>
+            <option>PUBLISHED</option>
+            <option>REJECTED</option>
+            <option>ARCHIVED</option>
+            <option>LOCKED</option>
+          </select>
+        </label>
+      </div>
+      <Notice error={error} message={message} />
+      {loading && <div className="state">Loading comments…</div>}
+      {!loading && data?.items.length === 0 && (
+        <div className="state empty">No comments match this view.</div>
+      )}
+      <div className="list">
+        {data?.items.map((comment) => (
+          <article className="list-card" key={comment.id}>
+            <div className="row-title">
+              <strong>{comment.profile.displayName}</strong>
+              <Status value={comment.status} />
+            </div>
+            <p>{comment.content}</p>
+            <p className="muted">
+              Confession {comment.confession.publicId} · {formatDate(comment.createdAt)}
+            </p>
+            {comment.parent?.content && (
+              <p className="muted">Reply context: {comment.parent.content}</p>
+            )}
+            <div className="actions">
+              {comment.status === 'PENDING' && (
+                <>
+                  <button onClick={() => void moderate(comment.id, 'approve')}>Approve</button>
+                  <button className="danger" onClick={() => void moderate(comment.id, 'reject')}>
+                    Reject
+                  </button>
+                </>
+              )}
+              {['PUBLISHED', 'LOCKED'].includes(comment.status) && (
+                <button className="danger" onClick={() => void moderate(comment.id, 'archive')}>
+                  Archive
+                </button>
+              )}
+              {comment.status !== 'LOCKED' && comment.status !== 'ARCHIVED' && (
+                <button className="secondary" onClick={() => void moderate(comment.id, 'lock')}>
+                  Lock
+                </button>
+              )}
+            </div>
+          </article>
+        ))}
+      </div>
+      <Pager data={data} onPage={setPage} />
+    </section>
+  );
+}
 export default function AdminClient() {
   const pathname = usePathname();
   const router = useRouter();
   const [admin, setAdmin] = useState<Admin | null>(null);
   const [ready, setReady] = useState(false);
   useEffect(() => {
-    refresh()
+    (runtimeToken ? Promise.resolve() : refresh())
       .then(() => api('/admin/auth/me'))
-      .then(setAdmin)
-      .catch(() => setAdmin(null))
+      .then((currentAdmin) => {
+        lastKnownAdmin = currentAdmin;
+        setAdmin(currentAdmin);
+      })
+      .catch((error: unknown) => {
+        const status = (error as { status?: number })?.status;
+        if (status === 401 || status === 403) {
+          lastKnownAdmin = null;
+          setAdmin(null);
+        } else if (lastKnownAdmin) {
+          setAdmin(lastKnownAdmin);
+        } else {
+          setAdmin(null);
+        }
+      })
       .finally(() => setReady(true));
   }, []);
   async function logout() {
@@ -2923,6 +3899,7 @@ export default function AdminClient() {
       await api('/admin/auth/logout', { method: 'POST' });
     } catch {}
     runtimeToken = '';
+    lastKnownAdmin = null;
     setAdmin(null);
     router.push('/login');
   }
@@ -2932,22 +3909,38 @@ export default function AdminClient() {
         <div className="state">Loading secure workspace…</div>
       </main>
     );
-  if (!admin) return <Login onLogin={(s) => setAdmin(s.admin)} />;
+  if (!admin)
+    return (
+      <Login
+        onLogin={(s) => {
+          lastKnownAdmin = s.admin;
+          setAdmin(s.admin);
+        }}
+      />
+    );
   const content =
     pathname === '/confessions' ? (
       <Confessions />
     ) : pathname.startsWith('/confessions/') ? (
       <ConfessionDetail admin={admin} />
+    ) : pathname === '/comments' ? (
+      <CommentModeration />
     ) : pathname === '/reports' ? (
       <Reports />
     ) : pathname === '/garba' ? (
       <GarbaAdmin admin={admin} />
     ) : pathname === '/audit-logs' || pathname === '/audit' ? (
       <AuditLogs />
+    ) : pathname === '/users' ? (
+      <Administrators />
+    ) : pathname === '/rbac' ? (
+      <RbacManagement admin={admin} />
     ) : pathname === '/themes' ? (
       <Themes admin={admin} />
     ) : pathname === '/profile-page' ? (
       <ProfilePage />
+    ) : pathname === '/bawalbox' ? (
+      <BawalBoxStudio />
     ) : (
       <Dashboard admin={admin} />
     );

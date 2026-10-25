@@ -66,6 +66,7 @@ describe('public Garba post form', () => {
       content:
         "Need a garba partner for the Navratri. I got an extra ticket so anyone who's interested in coming with me on garba text me on jellOyfish01",
       instagramHandle: 'jellOyfish01',
+      themeId: 'garba-marigold-night',
     });
   });
 

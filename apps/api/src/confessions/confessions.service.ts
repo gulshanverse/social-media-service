@@ -10,6 +10,7 @@ import { createHash } from 'node:crypto';
 import { ConfessionStatus } from '@prisma/client';
 import { normalizeTheme, themes } from '@ggv/themes';
 import {
+  allConfessionCategories,
   normalizeReadLiveConfessionButton,
   type PublicConfession,
   type PublicConfessionPage,
@@ -18,6 +19,7 @@ import {
 import { CreateConfessionDto, ListConfessionsQueryDto } from './dto';
 import { reportReasons } from './report.dto';
 import { SubmissionRateLimiter } from './rate-limit';
+import { validateCategoryPair } from './category';
 import { increment } from '../observability';
 import { prisma as sharedPrisma } from '../admin-auth';
 
@@ -44,10 +46,22 @@ type ConfessionRecord = {
   publicId: string;
   content: string;
   category: string | null;
+  customCategory?: string | null;
   publishedAt: Date | null;
   theme: ThemeRecord | null;
 };
-
+type ConfessionWhere = {
+  status: ConfessionStatus;
+  category?: string;
+  customCategory?: { contains: string; mode: 'insensitive' };
+  publishedAt?: { gte?: Date; lt?: Date; lte?: Date };
+  AND?: Array<{ OR: Array<Record<string, unknown>> }>;
+};
+type ConfessionOrder = { publishedAt: 'asc' | 'desc' } | { publicId: 'asc' | 'desc' };
+function score(confession: ConfessionRecord, terms: string[]) {
+  const content = `${confession.content} ${confession.customCategory ?? ''}`.toLowerCase();
+  return terms.reduce((total, term) => total + (content.includes(term) ? 2 : 0), 0);
+}
 export type ConfessionsPrisma = {
   collegeConfessionProfileSettings?: {
     findUnique(args: { where: { id: string }; select?: Record<string, boolean> }): Promise<{
@@ -75,18 +89,19 @@ export type ConfessionsPrisma = {
         content: string;
         originalContent: string;
         category?: string;
+        customCategory?: string;
         status: ConfessionStatus;
         themeId: string;
       };
     }): Promise<unknown>;
     findMany(args: {
-      where: { status: ConfessionStatus };
-      orderBy: { publishedAt: 'desc' };
+      where: ConfessionWhere;
+      orderBy: ConfessionOrder | ConfessionOrder[];
       skip: number;
       take: number;
       select: Record<string, unknown>;
     }): Promise<ConfessionRecord[]>;
-    count(args: { where: { status: ConfessionStatus } }): Promise<number>;
+    count(args: { where: ConfessionWhere }): Promise<number>;
     findFirst(args: {
       where: { publicId: string; status: ConfessionStatus };
       select: Record<string, unknown>;
@@ -144,6 +159,7 @@ function toPublicConfession(confession: ConfessionRecord): PublicConfession {
     publicId: confession.publicId,
     content: confession.content,
     category: confession.category as PublicConfession['category'],
+    customCategory: confession.customCategory,
     theme: confession.theme ? toPublicTheme(confession.theme) : null,
     publishedAt: confession.publishedAt?.toISOString() ?? new Date(0).toISOString(),
   };
@@ -232,6 +248,7 @@ export class ConfessionsService {
     const maxCharacters = profile?.maxCharacters ?? 1000;
     if (content.length > maxCharacters)
       throw new BadRequestException(`Confession must be ${maxCharacters} characters or fewer.`);
+    const customCategory = validateCategoryPair(dto.category, dto.customCategory);
     const rate = this.submissions.check(
       clientKey,
       Number(process.env.SUBMISSION_RATE_LIMIT ?? 5),
@@ -256,6 +273,7 @@ export class ConfessionsService {
         content,
         originalContent: content,
         category: dto.category,
+        ...(customCategory ? { customCategory } : {}),
         status: ConfessionStatus.PENDING,
         themeId: theme.id,
       },
@@ -271,37 +289,106 @@ export class ConfessionsService {
   async list(query: ListConfessionsQueryDto): Promise<PublicConfessionPage> {
     const page = Math.min(100, Math.max(1, query.page ?? 1));
     const limit = Math.min(50, Math.max(1, query.limit ?? 12));
-    const where = { status: ConfessionStatus.PUBLISHED };
-    const [items, total, profile] = await Promise.all([
-      this.database.confession.findMany({
-        where,
-        orderBy: { publishedAt: 'desc' },
-        skip: (page - 1) * limit,
-        take: limit,
+    const search = (query.search ?? '').replace(/\s+/g, ' ').trim().toLowerCase();
+    const terms = search ? search.split(' ').filter(Boolean).slice(0, 12) : [];
+    const where: ConfessionWhere = { status: ConfessionStatus.PUBLISHED };
+    if (query.category) where.category = query.category;
+    if (query.customCategory?.trim())
+      where.customCategory = { contains: query.customCategory.trim(), mode: 'insensitive' };
+    const now = new Date();
+    const startOfToday = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+    );
+    if (query.dateRange === 'today')
+      where.publishedAt = { gte: startOfToday, lt: new Date(startOfToday.getTime() + 86_400_000) };
+    if (query.dateRange === '7d')
+      where.publishedAt = { gte: new Date(now.getTime() - 7 * 86_400_000), lte: now };
+    if (query.dateRange === '30d')
+      where.publishedAt = { gte: new Date(now.getTime() - 30 * 86_400_000), lte: now };
+    if (query.dateRange === 'custom') {
+      const validDate = (value?: string) =>
+        Boolean(
+          value &&
+          /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+          !Number.isNaN(Date.parse(`${value}T00:00:00.000Z`)),
+        );
+      if (!validDate(query.startDate) || !validDate(query.endDate))
+        throw new BadRequestException('Choose a valid custom date range.');
+      const start = new Date(`${query.startDate}T00:00:00.000Z`);
+      const end = new Date(`${query.endDate}T00:00:00.000Z`);
+      if (start > end) throw new BadRequestException('The start date must be before the end date.');
+      where.publishedAt = { gte: start, lt: new Date(end.getTime() + 86_400_000) };
+    }
+    if (terms.length)
+      where.AND = terms.map((term) => ({
+        OR: [
+          { content: { contains: term, mode: 'insensitive' } },
+          { customCategory: { contains: term, mode: 'insensitive' } },
+          ...allConfessionCategories
+            .filter((category) => category.toLowerCase().replace(/[_-]/g, ' ').includes(term))
+            .map((category) => ({ category })),
+        ],
+      }));
+    const sort =
+      terms.length && query.sort === 'relevance'
+        ? 'relevance'
+        : query.sort === 'oldest'
+          ? 'oldest'
+          : 'newest';
+    const orderBy: ConfessionOrder[] =
+      sort === 'oldest'
+        ? [{ publishedAt: 'asc' }, { publicId: 'asc' }]
+        : [{ publishedAt: 'desc' }, { publicId: 'desc' }];
+    const select = {
+      publicId: true,
+      content: true,
+      category: true,
+      customCategory: true,
+      publishedAt: true,
+      theme: {
         select: {
-          publicId: true,
-          content: true,
-          category: true,
-          publishedAt: true,
-          theme: {
-            select: {
-              slug: true,
-              name: true,
-              background: true,
-              gradient: true,
-              textColor: true,
-              accentColor: true,
-              fontFamily: true,
-              radius: true,
-              borderStyle: true,
-              logoVisibility: true,
-              handleVisibility: true,
-              layoutVariant: true,
-              tokens: true,
-            },
-          },
+          slug: true,
+          name: true,
+          background: true,
+          gradient: true,
+          textColor: true,
+          accentColor: true,
+          fontFamily: true,
+          radius: true,
+          borderStyle: true,
+          logoVisibility: true,
+          handleVisibility: true,
+          layoutVariant: true,
+          tokens: true,
         },
-      }),
+      },
+    };
+    const relevanceItems =
+      sort === 'relevance'
+        ? await this.database.confession.findMany({
+            where,
+            orderBy: { publishedAt: 'desc' },
+            skip: 0,
+            take: 5000,
+            select,
+          })
+        : null;
+    const ranked = relevanceItems?.sort(
+      (a, b) =>
+        score(b, terms) - score(a, terms) ||
+        (b.publishedAt?.getTime() ?? 0) - (a.publishedAt?.getTime() ?? 0) ||
+        b.publicId.localeCompare(a.publicId),
+    );
+    const [items, total, profile] = await Promise.all([
+      ranked
+        ? Promise.resolve(ranked.slice((page - 1) * limit, page * limit))
+        : this.database.confession.findMany({
+            where,
+            orderBy,
+            skip: (page - 1) * limit,
+            take: limit,
+            select,
+          }),
       this.database.confession.count({ where }),
       this.database.collegeConfessionProfileSettings?.findUnique({
         where: { id: 'default' },
@@ -328,6 +415,7 @@ export class ConfessionsService {
         publicId: true,
         content: true,
         category: true,
+        customCategory: true,
         publishedAt: true,
         theme: {
           select: {

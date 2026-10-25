@@ -17,3 +17,9 @@ The supported production migration architecture is **Model A: a dedicated migrat
 The API exposes `/health`, `/health/live`, `/health/ready`, `/health/version`, and `/health/metrics`. Readiness must be used for traffic routing and liveness for restart checks. SIGTERM and SIGINT close the Nest application and Prisma client before exit.
 
 For a release, install with `pnpm install --frozen-lockfile`, generate Prisma Client, validate the schema, run format/lint/typecheck/tests/build, build the API container, apply migrations, start the service, and verify liveness, readiness, version metadata, and a request ID on a safe request. Keep an encrypted PostgreSQL backup before migrations and test restore procedures separately. See `docs/production-runbook.md` for the launch checklist, incident response, recovery, and validation limitations.
+
+## Administrator management release
+
+The administrator lifecycle schema change is committed in Prisma migration `20261008180000_admin_lifecycle`. It only adds nullable `bannedAt` and `deletedAt` columns and indexes; it does not rewrite or delete existing administrator records. Apply it in a controlled release job with `pnpm db:migrate:deploy` after a verified backup. Do not use `prisma db push` in production.
+
+For bootstrap or recovery, run `pnpm --filter @ggv/api provision-admin -- --allow-production` only as an explicitly controlled production operation. The CLI requires an interactive terminal, hidden password entry, a unique email, and only creates `MODERATOR` or `DESIGNER` accounts. Normal account management belongs in the dashboard at `/users`.

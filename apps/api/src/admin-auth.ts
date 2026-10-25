@@ -11,6 +11,7 @@ import { Reflector } from '@nestjs/core';
 import { AdminRole, PrismaClient } from '@prisma/client';
 import { createHash, createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 import bcrypt from 'bcryptjs';
+import { assertPermissions } from './permissions';
 
 export type AdminIdentity = {
   id: string;
@@ -20,6 +21,7 @@ export type AdminIdentity = {
   sessionId?: string;
 };
 export const Roles = (...roles: AdminRole[]) => SetMetadata('roles', roles);
+export const Permissions = (...permissions: string[]) => SetMetadata('permissions', permissions);
 export let prisma = new PrismaClient();
 export function setPrismaForTests(client: PrismaClient) {
   prisma = client;
@@ -157,7 +159,8 @@ export class JwtAuthGuard implements CanActivate {
     )
       throw new UnauthorizedException('Authentication required.');
     const admin = await prisma.adminUser.findUnique({ where: { id: payload.sub } });
-    if (!admin || !admin.isActive) throw new UnauthorizedException('Authentication required.');
+    if (!admin || !admin.isActive || admin.bannedAt || admin.deletedAt)
+      throw new UnauthorizedException('Authentication required.');
     request.user = safeAdmin(admin, typeof payload.sid === 'string' ? payload.sid : undefined);
     return true;
   }
@@ -166,12 +169,25 @@ export class JwtAuthGuard implements CanActivate {
 export class RolesGuard implements CanActivate {
   constructor(@Inject(Reflector) private readonly reflector: Reflector) {}
   canActivate(context: ExecutionContext) {
+    const declaredPermissions =
+      this.reflector.get<string[]>('permissions', context.getHandler()) ??
+      this.reflector.get<string[]>('permissions', context.getClass()) ??
+      [];
+    const permissions = declaredPermissions.some((permission) => permission.includes('.'))
+      ? declaredPermissions
+      : [];
+    const request = context.switchToHttp().getRequest<{ user?: AdminIdentity }>();
+    if (permissions.length) {
+      if (!request.user)
+        throw new ForbiddenException('You do not have permission for this operation.');
+      return assertPermissions(prisma, request.user, permissions).then(() => true);
+    }
     const roles =
       this.reflector.get<AdminRole[]>('roles', context.getHandler()) ??
       this.reflector.get<AdminRole[]>('roles', context.getClass()) ??
       [];
     if (!roles.length) return true;
-    const user = context.switchToHttp().getRequest<{ user?: AdminIdentity }>().user;
+    const user = request.user;
     if (!user || !roles.includes(user.role))
       throw new ForbiddenException('You do not have permission for this operation.');
     return true;
@@ -192,14 +208,28 @@ export class LoginRateLimiter {
     private readonly windowEnv = 'ADMIN_LOGIN_RATE_WINDOW_SECONDS',
   ) {}
   private readonly attempts = new Map<string, number[]>();
-  check(key: string) {
+  private current(key: string, now = Date.now()) {
+    const windowMs = Math.max(1, Number(process.env[this.windowEnv] ?? 900)) * 1000;
+    const entries = (this.attempts.get(key) ?? []).filter((stamp) => stamp > now - windowMs);
+    if (entries.length) this.attempts.set(key, entries);
+    else this.attempts.delete(key);
+    return { entries, windowMs };
+  }
+  isAllowed(key: string) {
     const now = Date.now();
-    const windowMs = Number(process.env[this.windowEnv] ?? 900) * 1000;
     const limit = Number(process.env[this.limitEnv] ?? 5);
-    const current = (this.attempts.get(key) ?? []).filter((stamp) => stamp > now - windowMs);
-    if (current.length >= limit) return false;
-    current.push(now);
-    this.attempts.set(key, current);
+    return this.current(key, now).entries.length < limit;
+  }
+  recordFailure(key: string) {
+    const now = Date.now();
+    const { entries } = this.current(key, now);
+    entries.push(now);
+    this.attempts.set(key, entries);
+  }
+  /** Backwards-compatible helper for callers that intentionally count an attempt immediately. */
+  check(key: string) {
+    if (!this.isAllowed(key)) return false;
+    this.recordFailure(key);
     return true;
   }
 }

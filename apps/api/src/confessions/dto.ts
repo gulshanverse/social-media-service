@@ -1,5 +1,6 @@
-import { IsEnum, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
-import { confessionCategories } from '@ggv/types';
+import { Transform, Type } from 'class-transformer';
+import { IsEnum, IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { allConfessionCategories, confessionCategories } from '@ggv/types';
 
 export class CreateConfessionDto {
   @IsString()
@@ -12,20 +13,60 @@ export class CreateConfessionDto {
 
   @IsOptional()
   @IsString()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @MaxLength(40)
+  customCategory?: string;
+
+  @IsOptional()
+  @IsString()
   @MaxLength(80)
   themeId?: string;
 }
 
 export class ListConfessionsQueryDto {
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   @Min(1)
   @Max(100)
   page = 1;
 
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   @Min(1)
   @Max(50)
   limit = 12;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  search?: string;
+
+  @IsOptional()
+  @IsEnum(allConfessionCategories)
+  category?: (typeof allConfessionCategories)[number];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  customCategory?: string;
+
+  @IsOptional()
+  @IsIn(['all', 'today', '7d', '30d', 'custom'])
+  dateRange?: 'all' | 'today' | '7d' | '30d' | 'custom';
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  startDate?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  endDate?: string;
+
+  @IsOptional()
+  @IsIn(['newest', 'oldest', 'relevance'])
+  sort?: 'newest' | 'oldest' | 'relevance';
 }

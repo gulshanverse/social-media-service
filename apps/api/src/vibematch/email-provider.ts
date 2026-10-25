@@ -15,6 +15,13 @@ export class DevelopmentEmailProvider implements EmailProvider {
   }
 }
 
+/** Explicit fallback for production environments without a configured mail provider. */
+export class UnconfiguredEmailProvider implements EmailProvider {
+  async sendMagicLink(_message: MagicLinkMessage) {
+    throw new Error('VibeMatch production EmailProvider is not configured.');
+  }
+}
+
 export type ResendEmailConfiguration = {
   apiKey: string;
   from: string;
@@ -166,9 +173,19 @@ export class ResendEmailProvider implements EmailProvider {
   }
 }
 
-/** Select the non-delivering development adapter only outside production. */
-export function createEmailProvider(env: NodeJS.ProcessEnv = process.env): EmailProvider {
+/** Select a safe development, injected, Resend, or explicit unconfigured provider. */
+export function createEmailProvider(
+  env: NodeJS.ProcessEnv = process.env,
+  configuredProvider?: EmailProvider,
+): EmailProvider {
   if (env.NODE_ENV !== 'production') return new DevelopmentEmailProvider();
+  if (configuredProvider) return configuredProvider;
+  const hasResendConfiguration = [
+    env.RESEND_API_KEY,
+    env.VIBEMATCH_EMAIL_FROM,
+    env.VIBEMATCH_APP_URL,
+  ].every((value) => Boolean(value?.trim()));
+  if (!hasResendConfiguration) return new UnconfiguredEmailProvider();
   return new ResendEmailProvider({
     apiKey: env.RESEND_API_KEY ?? '',
     from: env.VIBEMATCH_EMAIL_FROM ?? '',

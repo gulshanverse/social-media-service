@@ -21,6 +21,7 @@ import {
   validateSync,
 } from 'class-validator';
 import {
+  AdminRole,
   ConfessionCategory,
   ConfessionStatus,
   GarbaCommentStatus,
@@ -41,6 +42,11 @@ export class UpdateConfessionDto {
   @MinLength(1)
   content?: string;
   @IsOptional() @IsEnum(ConfessionCategory) category?: ConfessionCategory;
+  @IsOptional()
+  @IsString()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @MaxLength(40)
+  customCategory?: string;
   @IsOptional() @IsString() @MaxLength(100) themeId?: string;
 }
 export class CreateThemeDto {
@@ -117,6 +123,33 @@ export class ListQueryDto {
   @IsOptional() @Transform(({ value }) => Number(value)) @IsInt() @Min(1) page = 1;
   @IsOptional() @Transform(({ value }) => Number(value)) @IsInt() @Min(1) @Max(100) limit = 20;
 }
+export class AdminUserQueryDto extends ListQueryDto {
+  @IsOptional() @IsString() @MaxLength(120) search?: string;
+  @IsOptional() @IsEnum(AdminRole) role?: AdminRole;
+  @IsOptional()
+  @IsIn(['ACTIVE', 'INACTIVE', 'BANNED', 'DELETED'])
+  status?: 'ACTIVE' | 'INACTIVE' | 'BANNED' | 'DELETED';
+}
+export class CreateAdminUserDto {
+  @IsEmail() email!: string;
+  @IsOptional() @IsString() @MaxLength(120) name?: string;
+  @IsEnum(AdminRole) role!: AdminRole;
+  @IsString() @MinLength(12) @MaxLength(200) password!: string;
+}
+export class UpdateAdminUserDto {
+  @IsOptional() @IsEmail() email?: string;
+  @IsOptional() @IsString() @MaxLength(120) name?: string;
+}
+export class UpdateAdminRoleDto {
+  @IsEnum(AdminRole) role!: AdminRole;
+}
+export class UpdateAdminStatusDto {
+  @IsIn(['ACTIVE', 'INACTIVE', 'BANNED', 'DELETED'])
+  status!: 'ACTIVE' | 'INACTIVE' | 'BANNED' | 'DELETED';
+}
+export class ResetAdminPasswordDto {
+  @IsString() @MinLength(12) @MaxLength(200) password!: string;
+}
 export class AdminQueueQueryDto extends ListQueryDto {
   @IsOptional() @IsEnum(ConfessionStatus) status?: ConfessionStatus;
   @IsOptional() @IsEnum(ConfessionCategory) category?: ConfessionCategory;
@@ -148,6 +181,7 @@ export class AdminGarbaQueryDto extends ListQueryDto {
 export class UpdateGarbaPostDto {
   @IsOptional() @IsString() @MinLength(10) @MaxLength(2000) content?: string;
   @IsOptional() @IsEnum(GarbaPostCategory) category?: GarbaPostCategory;
+  @IsOptional() @IsString() @MaxLength(80) themeId?: string;
   @IsOptional() @IsString() @MaxLength(160) location?: string;
   @IsOptional() @IsString() @MaxLength(30) instagramHandle?: string;
   @IsOptional() @IsISO8601() eventDate?: string;

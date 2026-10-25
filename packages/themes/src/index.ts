@@ -12,6 +12,121 @@ export type CanonicalThemeTokens = {
   visualTokens: Record<string, string>;
 };
 export type VisualThemeTokens = Record<string, string>;
+
+/** Optional JSON-only tokens supported by the card renderer. */
+export const advancedThemeTokenKeys = [
+  'cardStyle',
+  'cardBackground',
+  'cardBorderWidth',
+  'cardBorderStyle',
+  'cardBorderColor',
+  'cardBorderGradient',
+  'cardRadius',
+  'cardPadding',
+  'cardShadow',
+  'cardInnerShadow',
+  'cardGlowEnabled',
+  'cardGlowColor',
+  'cardGlowIntensity',
+  'cardGlowBlur',
+  'cardGlowSpread',
+  'cardGlowPosition',
+  'cardHoverGlowColor',
+  'cardHoverScale',
+  'cardHoverLift',
+  'cardHoverTransition',
+  'cardBackdropBlur',
+  'cardGlassOpacity',
+  'cardHighlightOpacity',
+  'cardNoiseOpacity',
+  'cardPattern',
+  'cardPatternColor',
+  'cardPatternOpacity',
+  'cardCornerDecoration',
+  'cardOverflow',
+  'cardLayout',
+  'cardHeaderLayout',
+  'cardContentAlignment',
+  'cardFooterLayout',
+  'cardGap',
+  'cardHeaderGap',
+  'cardBodyGap',
+  'cardFooterGap',
+  'cardMetadataLayout',
+  'cardAvatarShape',
+  'cardAvatarSize',
+  'cardQuoteStyle',
+  'cardBadgeStyle',
+  'cardDividerStyle',
+  'cardMediaPosition',
+  'cardMinHeight',
+  'cardMaxWidth',
+  'cardAspectRatio',
+  'cardContentOrder',
+  'headingFont',
+  'bodyFont',
+  'cardTitleFont',
+  'cardBodyFont',
+  'cardMetadataFont',
+  'cardAuthorFont',
+  'cardQuoteFont',
+  'buttonFont',
+  'badgeFont',
+  'decorativeFont',
+  'cardTitleFontSize',
+  'cardTitleWeight',
+  'cardTitleFontStyle',
+  'cardTitleLineHeight',
+  'cardTitleLetterSpacing',
+  'cardTitleTextAlign',
+  'cardTitleTextTransform',
+  'cardTitleTextDecoration',
+  'cardTitleTextShadow',
+  'cardTitleColor',
+  'cardTitleMaxLines',
+  'cardTitleOverflow',
+  'cardBodyFontSize',
+  'cardBodyWeight',
+  'cardBodyFontStyle',
+  'cardBodyLineHeight',
+  'cardBodyLetterSpacing',
+  'cardBodyTextAlign',
+  'cardBodyTextTransform',
+  'cardBodyTextDecoration',
+  'cardBodyTextShadow',
+  'cardBodyColor',
+  'cardBodyMaxLines',
+  'cardBodyOverflow',
+  'cardMetadataFontSize',
+  'cardMetadataWeight',
+  'cardMetadataLineHeight',
+  'cardMetadataLetterSpacing',
+  'cardMetadataTextAlign',
+  'cardMetadataTextTransform',
+  'cardMetadataColor',
+  'cardAuthorColor',
+  'cardQuoteColor',
+  'cardQuoteTextShadow',
+  'buttonShape',
+  'buttonBorder',
+  'buttonShadow',
+  'buttonGlow',
+  'buttonHoverBackground',
+  'buttonHoverText',
+  'buttonActiveBackground',
+  'buttonActiveText',
+  'buttonTransition',
+  'badgeShape',
+  'badgeBackground',
+  'badgeText',
+  'likeActionStyle',
+  'replyActionStyle',
+  'focusColor',
+  'reducedMotion',
+  'decorativeColor',
+  'cardTitle',
+  'cardBody',
+] as const;
 export type Theme = {
   id: string;
   name: string;
@@ -136,7 +251,79 @@ const TOKEN_KEYS = new Set([
   'gradientType',
   'gradientAngle',
   'gradientOpacity',
+  ...advancedThemeTokenKeys,
 ]);
+const ENUM_TOKENS: Record<string, readonly string[]> = {
+  cardStyle: [
+    'standard',
+    'glass',
+    'outlined',
+    'gradient',
+    'neumorphic',
+    'editorial',
+    'brutalist',
+    'holographic',
+  ],
+  cardBorderStyle: ['solid', 'dashed', 'dotted', 'double', 'gradient'],
+  cardGlowPosition: ['outer', 'inner', 'both'],
+  cardPattern: ['none', 'dots', 'grid', 'lines', 'stars', 'grain'],
+  cardCornerDecoration: ['none', 'brackets', 'stars', 'circles', 'ornaments'],
+  cardOverflow: ['hidden', 'visible'],
+  cardLayout: [
+    'classic',
+    'horizontal',
+    'vertical',
+    'magazine',
+    'compact',
+    'featured',
+    'quote',
+    'profile',
+    'minimal',
+  ],
+  cardHeaderLayout: ['inline', 'stacked', 'split', 'centered'],
+  cardContentAlignment: ['left', 'center', 'right'],
+  cardFooterLayout: ['inline', 'split', 'stacked', 'centered'],
+  cardMetadataLayout: ['inline', 'stacked', 'badges'],
+  cardAvatarShape: ['circle', 'rounded', 'square', 'hidden'],
+  cardQuoteStyle: ['none', 'quotation-marks', 'quotation-border', 'oversized', 'handwritten'],
+  cardBadgeStyle: ['pill', 'outlined', 'solid', 'minimal'],
+  cardDividerStyle: ['none', 'solid', 'dashed', 'gradient'],
+  cardMediaPosition: ['top', 'bottom', 'left', 'right', 'background', 'none'],
+  cardTitleFontStyle: ['normal', 'italic', 'oblique'],
+  cardBodyFontStyle: ['normal', 'italic', 'oblique'],
+  cardTitleTextAlign: ['left', 'center', 'right', 'justify'],
+  cardBodyTextAlign: ['left', 'center', 'right', 'justify'],
+  cardTitleTextTransform: ['none', 'uppercase', 'lowercase', 'capitalize'],
+  cardBodyTextTransform: ['none', 'uppercase', 'lowercase', 'capitalize'],
+  cardTitleOverflow: ['visible', 'hidden', 'ellipsis'],
+  cardBodyOverflow: ['visible', 'hidden', 'ellipsis'],
+  buttonShape: ['pill', 'rounded', 'square'],
+  badgeShape: ['pill', 'rounded', 'square'],
+  likeActionStyle: ['text', 'icon', 'button', 'minimal'],
+  replyActionStyle: ['text', 'icon', 'button', 'minimal'],
+  reducedMotion: ['respect', 'always', 'never'],
+};
+const COLOR_TOKENS = new Set([
+  'cardBorderColor',
+  'cardGlowColor',
+  'cardHoverGlowColor',
+  'cardPatternColor',
+  'cardTitleColor',
+  'cardBodyColor',
+  'cardMetadataColor',
+  'cardAuthorColor',
+  'cardQuoteColor',
+  'buttonHoverBackground',
+  'buttonHoverText',
+  'buttonActiveBackground',
+  'buttonActiveText',
+  'badgeBackground',
+  'badgeText',
+  'focusColor',
+  'decorativeColor',
+]);
+const GRADIENT_TOKENS = new Set(['cardBackground', 'cardBorderGradient']);
+const BOOLEAN_TOKENS = new Set(['cardGlowEnabled']);
 const DEFAULTS = {
   borderStyle: 'solid' as const,
   logoVisibility: true,
@@ -176,7 +363,19 @@ function normalizeVisualTokens(input: unknown): VisualThemeTokens {
       throw new Error(`Unsupported visual token: ${key}.`);
     if (typeof value !== 'string' || value.length > 300 || !SAFE_CSS_TEXT.test(value.trim()))
       throw new Error(`${key} contains an unsafe or invalid value.`);
-    output[key] = value.trim();
+    const normalized = value.trim();
+    const allowed = ENUM_TOKENS[key];
+    if (allowed && !allowed.includes(normalized))
+      throw new Error(`${key} must be one of: ${allowed.join(', ')}.`);
+    if (BOOLEAN_TOKENS.has(key) && !['true', 'false'].includes(normalized))
+      throw new Error(`${key} must be true or false.`);
+    if (COLOR_TOKENS.has(key)) safeColor(normalized, key);
+    if (GRADIENT_TOKENS.has(key) && normalized !== 'transparent') {
+      const isColor = SAFE_COLOR.test(normalized);
+      const isGradient = SAFE_GRADIENT.test(normalized);
+      if (!isColor && !isGradient) throw new Error(`${key} must be a safe CSS color or gradient.`);
+    }
+    output[key] = normalized;
   }
   return output;
 }
@@ -325,3 +524,4 @@ export const themes: Theme[] = [
 
 export * from './portable';
 export * from './wcag';
+export * from './garba';

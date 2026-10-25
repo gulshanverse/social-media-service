@@ -1,6 +1,8 @@
 'use client';
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { garbaThemes } from '@ggv/themes';
+import { GarbaCard } from '@ggv/ui';
 import { createGarbaPost, GarbaFeed, GarbaPost, getGarba } from '../../lib/garba-api';
 
 const categories = [
@@ -12,14 +14,6 @@ const categories = [
   ['PRACTICE', 'Practice'],
   ['GENERAL', 'General'],
 ];
-const labels: Record<string, string> = {
-  PARTNER: 'Looking for partner',
-  GROUP: 'Looking for a group',
-  FRIENDS: 'Looking for friends',
-  EVENT: 'Going to an event',
-  PRACTICE: 'Practice partner',
-  GENERAL: 'Garba community',
-};
 function date(value: string | null) {
   return value
     ? new Date(value).toLocaleDateString(undefined, {
@@ -31,33 +25,23 @@ function date(value: string | null) {
 }
 function PostCard({ post }: { post: GarbaPost }) {
   return (
-    <article className="garba-card">
-      <div className="garba-card__top">
-        <span>{labels[post.category] ?? 'Garba community'}</span>
-        <time dateTime={post.createdAt}>{new Date(post.createdAt).toLocaleDateString()}</time>
-      </div>
-      <p>{post.content}</p>
-      <div className="garba-meta">
-        {date(post.eventDate) && <span>◷ {date(post.eventDate)}</span>}
-        {post.location && <span>⌖ {post.location}</span>}
-      </div>
-      {post.instagramUrl && (
-        <a className="garba-instagram" href={post.instagramUrl} target="_blank" rel="noreferrer">
-          @{post.instagramHandle} ↗
-        </a>
-      )}
-      <div className="garba-card__bottom">
-        <span>♥ {post._count?.reactions ?? 0}</span>
-        <span>💬 {post._count?.comments ?? 0}</span>
-        <Link href={`/garba/${post.publicId}`}>Open post →</Link>
-      </div>
-    </article>
+    <GarbaCard
+      post={post}
+      footer={
+        <div className="garba-card__bottom">
+          <span>♥ {post._count?.reactions ?? 0}</span>
+          <span>💬 {post._count?.comments ?? 0}</span>
+          <Link href={`/garba/${post.publicId}`}>Open post →</Link>
+        </div>
+      }
+    />
   );
 }
 function SubmitForm({ onDone }: { onDone: () => void }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [themeId, setThemeId] = useState(garbaThemes[0].id);
   const submitting = useRef(false);
 
   async function submit(e: FormEvent<HTMLFormElement>) {
@@ -125,6 +109,24 @@ function SubmitForm({ onDone }: { onDone: () => void }) {
         Instagram handle<span>Optional · publicly visible</span>
         <input name="instagramHandle" maxLength={30} placeholder="@username" />
       </label>
+      <label>
+        Card theme
+        <span>Choose how your published card will look.</span>
+        <select name="themeId" value={themeId} onChange={(event) => setThemeId(event.target.value)}>
+          {garbaThemes.map((theme) => (
+            <option key={theme.id} value={theme.id}>
+              {theme.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <GarbaCard
+        post={{
+          category: 'GENERAL',
+          content: 'Your Garba card preview will appear here.',
+          theme: garbaThemes.find((theme) => theme.id === themeId),
+        }}
+      />
       {error && (
         <p className="form-error" role="alert">
           {error}
@@ -156,17 +158,19 @@ export default function GarbaClient() {
     <main className="garba-page">
       <section className="garba-hero">
         <div>
-          <p className="eyebrow garba-eyebrow">GARBA COMMUNITY</p>
+          <p className="eyebrow garba-eyebrow">
+            <span aria-hidden="true">✦</span> GARBA SEASON
+          </p>
           <h1>
-            Find Your <span>Garba Circle.</span>
+            Find Your <span>Garba Circle</span>
           </h1>
           <p className="hero-lede">
-            Meet people from your community, find a Garba partner or group, and discover who&apos;s
-            heading out this Navratri.
+            Meet people from your campus, find a Garba partner or group, and make your festive
+            season memorable.
           </p>
           <div className="button-row">
             <a className="ggv-button" href="#post">
-              Post on Garba
+              Create a Garba post <span aria-hidden="true">↗</span>
             </a>
             <a className="ghost-button" href="#explore">
               Explore posts
@@ -202,6 +206,7 @@ export default function GarbaClient() {
             <button
               key={value}
               className={category === value ? 'active' : ''}
+              aria-pressed={category === value}
               onClick={() => setCategory(value)}
             >
               {label}

@@ -15,6 +15,7 @@ enum AdminRole {
 
 enum ConfessionCategory {
   CRUSH
+  ADMIRATION
   RELATIONSHIP
   FRIENDSHIP
   FUNNY
@@ -22,6 +23,7 @@ enum ConfessionCategory {
   ADVICE
   APPRECIATION
   RANT
+  CUSTOM
   OTHER
 }
 
@@ -62,11 +64,36 @@ enum GarbaCommentStatus {
   ARCHIVED
 }
 
+enum ConfessionCommentStatus {
+  PENDING
+  PUBLISHED
+  REJECTED
+  ARCHIVED
+  LOCKED
+}
+
 enum ReportStatus {
   OPEN
   RESOLVED
   DISMISSED
   ARCHIVED
+}
+enum BawalBoxQuestionStatus {
+  DRAFT
+  PUBLISHED
+  PAUSED
+  ARCHIVED
+}
+enum BawalBoxResponseStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  ARCHIVED
+}
+
+enum PermissionEffect {
+  GRANT
+  DENY
 }
 
 model AdminUser {
@@ -75,6 +102,8 @@ model AdminUser {
   passwordHash   String
   name           String?
   isActive       Boolean         @default(true)
+  bannedAt       DateTime?
+  deletedAt      DateTime?
   role           AdminRole       @default(SUPER_ADMIN)
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
@@ -83,6 +112,9 @@ model AdminUser {
   reports        Report[]        @relation("ReportReviewer")
   sessions       AdminSession[]
   themeFavorites ThemeFavorite[]
+  roleAssignments AdminRoleAssignment[]
+  permissionOverrides AdminPermissionOverride[]
+  bawalBoxResponsesModerated BawalBoxResponse[] @relation("BawalBoxResponseModerator")
 }
 
 model AdminSession {
@@ -151,6 +183,7 @@ model Confession {
   content         String
   originalContent String
   category        ConfessionCategory?
+  customCategory  String?
   status          ConfessionStatus    @default(PENDING)
   themeId         String?
   theme           Theme?              @relation(fields: [themeId], references: [id])
@@ -159,19 +192,25 @@ model Confession {
   viewCount       Int                 @default(0)
   shareCount      Int                 @default(0)
   reportCount     Int                 @default(0)
+  commentsLocked  Boolean             @default(false)
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
   publishedAt     DateTime?
   reports         Report[]
+  comments        ConfessionComment[]
+  reactions       ConfessionReaction[]
 
   @@index([status, createdAt])
   @@index([themeId, createdAt])
+  @@index([category])
 }
 
 model Report {
   id           String       @id @default(cuid())
   confessionId String
   confession   Confession   @relation(fields: [confessionId], references: [id])
+  commentId    String?
+  comment      ConfessionComment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
   reason       String
   details      String?
   status       ReportStatus @default(OPEN)
@@ -183,7 +222,69 @@ model Report {
 
   @@index([status, createdAt])
   @@index([confessionId])
+  @@index([commentId])
   @@index([reviewerId])
+}
+
+model CommenterProfile {
+  id                String               @id @default(cuid())
+  displayName       String
+  instagramUsername String
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  sessions          CommenterSession[]
+  comments          ConfessionComment[]
+  reactions         ConfessionReaction[]
+
+  @@index([instagramUsername])
+}
+
+model CommenterSession {
+  id         String           @id @default(cuid())
+  tokenHash  String           @unique
+  profileId  String
+  profile    CommenterProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime         @default(now())
+  lastUsedAt DateTime?
+
+  @@index([profileId])
+  @@index([expiresAt, revokedAt])
+}
+
+model ConfessionComment {
+  id           String                  @id @default(cuid())
+  confessionId String
+  confession   Confession              @relation(fields: [confessionId], references: [id], onDelete: Cascade)
+  profileId    String
+  profile      CommenterProfile        @relation(fields: [profileId], references: [id], onDelete: Restrict)
+  parentId     String?
+  parent       ConfessionComment?      @relation("ConfessionCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies      ConfessionComment[]     @relation("ConfessionCommentReplies")
+  content      String
+  status       ConfessionCommentStatus @default(PENDING)
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+  reports      Report[]
+
+  @@index([confessionId, status, parentId, createdAt])
+  @@index([parentId, status, createdAt])
+  @@index([profileId, createdAt])
+}
+
+model ConfessionReaction {
+  id           String            @id @default(cuid())
+  confessionId String
+  confession   Confession        @relation(fields: [confessionId], references: [id], onDelete: Cascade)
+  profileId    String?
+  profile      CommenterProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  actorHash    String
+  emoji        String
+  createdAt    DateTime          @default(now())
+
+  @@unique([confessionId, actorHash, emoji])
+  @@index([confessionId, emoji])
 }
 
 model AuditLog {
@@ -201,6 +302,64 @@ model AuditLog {
   @@index([action, createdAt])
   @@index([entity, createdAt])
   @@index([entityId])
+}
+
+model Permission {
+  key         String   @id
+  description String
+  reserved    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  rolePermissions AdminRolePermission[]
+  overrides       AdminPermissionOverride[]
+}
+
+model AdminRoleDefinition {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  name        String
+  description String?
+  system      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  permissions AdminRolePermission[]
+  assignments AdminRoleAssignment[]
+
+  @@index([system, key])
+}
+
+model AdminRolePermission {
+  roleId        String
+  permissionKey String
+  role          AdminRoleDefinition @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission    Permission          @relation(fields: [permissionKey], references: [key], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+
+  @@id([roleId, permissionKey])
+  @@index([permissionKey])
+}
+
+model AdminRoleAssignment {
+  adminId   String
+  roleId    String
+  admin     AdminUser           @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  role      AdminRoleDefinition @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([adminId, roleId])
+  @@index([roleId])
+}
+
+model AdminPermissionOverride {
+  adminId       String
+  permissionKey String
+  effect        PermissionEffect
+  admin         AdminUser  @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  permission    Permission @relation(fields: [permissionKey], references: [key], onDelete: Cascade)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@id([adminId, permissionKey])
+  @@index([permissionKey, effect])
 }
 
 model CollegeConfessionProfileSettings {
@@ -224,6 +383,78 @@ model CollegeConfessionProfileSettings {
   @@index([updatedAt])
 }
 
+model BawalBoxSettings {
+  id                        String   @id @default("default")
+  brandName                 String   @default("BawalBox")
+  tagline                   String   @default("Sawaal ek, bawal anek!")
+  shortDescription          String   @default("Anonymous campus questions, honest answers, and a little good-natured bawal.")
+  longDescription           String   @default("Ask the question everyone is thinking and let your campus answer anonymously. Responses are reviewed before they appear.")
+  logoUrl                   String?
+  accentColor               String   @default("#ff2d75")
+  seoTitle                  String   @default("BawalBox — Anonymous campus questions")
+  seoDescription            String   @default("Ask, answer, and discover the questions shaping campus life.")
+  socialTitle               String   @default("BawalBox — Sawaal ek, bawal anek!")
+  socialDescription         String   @default("Anonymous campus questions and community answers.")
+  socialImageUrl            String?
+  homepageTeaserTitle       String   @default("Ask the question everyone is thinking.")
+  homepageTeaserDescription String   @default("BawalBox is now open for anonymous campus questions.")
+  homepageTeaserCta         String   @default("Open BawalBox")
+  navLabel                  String   @default("BawalBox")
+  navVisible                Boolean  @default(true)
+  teaserVisible             Boolean  @default(true)
+  introTitle                String   @default("The question is anonymous. The bawal is communal.")
+  introDescription          String   @default("Share a question, read what your campus thinks, and keep it kind. No public profile required.")
+  introCta                  String   @default("Ask anonymously")
+  archivedVisible           Boolean  @default(true)
+  emptyStateText            String   @default("No question is live right now. Check back soon for the next one.")
+  heroEnabled               Boolean  @default(true)
+  heroHeading               String   @default("BawalBox is open")
+  heroSubtitle              String   @default("One question. Many campus answers.")
+  heroTagline               String   @default("Sawaal ek, bawal anek!")
+  heroCtaLabel              String   @default("Try the question")
+  heroCtaUrl                String   @default("/bawalbox")
+  heroDesktopImageUrl       String?
+  heroMobileImageUrl        String?
+  heroAltText               String   @default("BawalBox anonymous campus questions")
+  updatedAt                 DateTime @updatedAt
+  updatedBy                 String?
+}
+
+model BawalBoxQuestion {
+  id           String                @id @default(cuid())
+  title        String
+  description  String?
+  instructions String?
+  category     String?
+  startAt      DateTime?
+  endAt        DateTime?
+  status       BawalBoxQuestionStatus @default(DRAFT)
+  featured     Boolean               @default(false)
+  answerLimit  Int?
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+  publishedAt  DateTime?
+  responses    BawalBoxResponse[]
+  @@index([status, startAt, endAt])
+  @@index([featured, status])
+}
+
+model BawalBoxResponse {
+  id          String               @id @default(cuid())
+  questionId  String
+  question    BawalBoxQuestion     @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  content     String
+  status      BawalBoxResponseStatus @default(PENDING)
+  pinned      Boolean              @default(false)
+  moderatorId String?
+  moderator   AdminUser?           @relation("BawalBoxResponseModerator", fields: [moderatorId], references: [id])
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  moderatedAt DateTime?
+  @@index([questionId, status, pinned, createdAt])
+  @@index([status, createdAt])
+}
+
 model GarbaSeason {
   id        String      @id @default(cuid())
   name      String
@@ -245,6 +476,7 @@ model GarbaPost {
   season          GarbaSeason?      @relation(fields: [seasonId], references: [id])
   category        GarbaPostCategory
   content         String
+  themeId         String?
   eventDate       DateTime?
   location        String?
   instagramHandle String?
@@ -260,6 +492,7 @@ model GarbaPost {
 
   @@index([status, createdAt])
   @@index([seasonId, createdAt])
+  @@index([themeId])
 }
 
 model GarbaComment {

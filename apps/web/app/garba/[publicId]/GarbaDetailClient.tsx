@@ -1,6 +1,8 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
+import type { Theme } from '@ggv/themes';
+import { GarbaCard } from '@ggv/ui';
 import { commentGarba, reactGarba, reportGarbaComment } from '../../../lib/garba-api';
 
 type Comment = { id: string; content: string; createdAt: string; replies?: Comment[] };
@@ -13,6 +15,8 @@ type Post = {
   instagramHandle: string | null;
   instagramUrl: string | null;
   createdAt: string;
+  themeId: string;
+  theme: Theme;
   comments: Comment[];
   _count?: { reactions: number };
 };
@@ -126,33 +130,23 @@ export default function GarbaDetailClient({ post }: { post: Post }) {
       <Link className="back-link" href="/garba">
         ← Back to Garba
       </Link>
-      <article className="garba-card detail-card">
-        <div className="garba-card__top">
-          <span>{post.category}</span>
-          <time>{new Date(post.createdAt).toLocaleDateString()}</time>
-        </div>
-        <p>{post.content}</p>
-        <div className="garba-meta">
-          {post.eventDate && <span>◷ {new Date(post.eventDate).toLocaleDateString()}</span>}
-          {post.location && <span>⌖ {post.location}</span>}
-        </div>
-        {post.instagramUrl && (
-          <a className="garba-instagram" href={post.instagramUrl} rel="noreferrer">
-            @{post.instagramHandle} ↗
-          </a>
-        )}
-        <div className="garba-card__bottom">
-          <button
-            type="button"
-            onClick={toggleReaction}
-            disabled={reactionBusy}
-            aria-pressed={reacted}
-          >
-            {reacted ? '♥ Reacted' : '♡ React'} · {reactionCount}
-          </button>
-          <span>💬 {comments.length}</span>
-        </div>
-      </article>
+      <GarbaCard
+        post={post}
+        detailed
+        footer={
+          <div className="garba-card__bottom">
+            <button
+              type="button"
+              onClick={toggleReaction}
+              disabled={reactionBusy}
+              aria-pressed={reacted}
+            >
+              {reacted ? '♥ Reacted' : '♡ React'} · {reactionCount}
+            </button>
+            <span>💬 {comments.length}</span>
+          </div>
+        }
+      />
       <section className="garba-comments panel">
         <p className="eyebrow">COMMUNITY CONVERSATION</p>
         <h2>Comments</h2>

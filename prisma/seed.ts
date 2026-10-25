@@ -1,9 +1,67 @@
 import { PrismaClient, AdminRole } from '@prisma/client';
 import { normalizeTheme, themes } from '../packages/themes/src/index';
 import bcrypt from 'bcryptjs';
+import { PERMISSION_CATALOG, PERMISSIONS } from '../apps/api/src/permissions';
 
 const prisma = new PrismaClient();
 async function main() {
+  await prisma.permission.createMany({ data: PERMISSION_CATALOG, skipDuplicates: true });
+  const moderator = await prisma.adminRoleDefinition.upsert({
+    where: { key: 'MODERATOR' },
+    update: {},
+    create: {
+      id: 'rbac-role-moderator',
+      key: 'MODERATOR',
+      name: 'Moderator',
+      description: 'Legacy moderator capability set',
+      system: true,
+    },
+  });
+  const designer = await prisma.adminRoleDefinition.upsert({
+    where: { key: 'DESIGNER' },
+    update: {},
+    create: {
+      id: 'rbac-role-designer',
+      key: 'DESIGNER',
+      name: 'Designer',
+      description: 'Legacy designer capability set',
+      system: true,
+    },
+  });
+  await prisma.adminRolePermission.createMany({
+    data: [
+      ...[
+        PERMISSIONS.DASHBOARD_READ,
+        PERMISSIONS.CONFESSIONS_READ,
+        PERMISSIONS.CONFESSIONS_EDIT,
+        PERMISSIONS.CONFESSIONS_MODERATE,
+        PERMISSIONS.REPORTS_READ,
+        PERMISSIONS.REPORTS_MANAGE,
+        PERMISSIONS.THEMES_READ,
+        PERMISSIONS.GARBA_READ,
+        PERMISSIONS.GARBA_EDIT,
+        PERMISSIONS.GARBA_MODERATE,
+      ].map((permissionKey) => ({ roleId: moderator.id, permissionKey })),
+      ...[
+        PERMISSIONS.DASHBOARD_READ,
+        PERMISSIONS.THEMES_READ,
+        PERMISSIONS.THEMES_MANAGE,
+        PERMISSIONS.PROFILE_MANAGE,
+      ].map((permissionKey) => ({ roleId: designer.id, permissionKey })),
+    ],
+    skipDuplicates: true,
+  });
+  const legacyAdmins = await prisma.adminUser.findMany({
+    where: { role: { in: [AdminRole.MODERATOR, AdminRole.DESIGNER] } },
+    select: { id: true, role: true },
+  });
+  await prisma.adminRoleAssignment.createMany({
+    data: legacyAdmins.map((admin) => ({
+      adminId: admin.id,
+      roleId: admin.role === AdminRole.MODERATOR ? moderator.id : designer.id,
+    })),
+    skipDuplicates: true,
+  });
   await prisma.theme.createMany({
     data: themes.map((theme) => {
       const normalized = normalizeTheme({ ...theme, slug: theme.id });

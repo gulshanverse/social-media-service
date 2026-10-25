@@ -8,7 +8,7 @@
     "build": "tsc -p tsconfig.json",
     "lint": "ESLINT_USE_FLAT_CONFIG=false eslint src --ext .ts",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "node -e \"console.log('themes: no runtime tests')\""
+    "test": "node src/advanced.test.mjs"
   },
   "devDependencies": {
     "eslint": "^9.17.0",

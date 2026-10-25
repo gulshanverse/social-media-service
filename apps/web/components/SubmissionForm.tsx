@@ -8,6 +8,7 @@ import { themes } from '@ggv/themes';
 import { createConfession } from '../lib/api';
 
 const categoryNames: Record<string, string> = {
+  ADMIRATION: 'Admiration',
   COLLEGE_LIFE: 'College Life',
   CRUSH: 'Crush',
   RELATIONSHIP: 'Relationship',
@@ -16,12 +17,13 @@ const categoryNames: Record<string, string> = {
   ADVICE: 'Advice',
   APPRECIATION: 'Appreciation',
   RANT: 'Rant',
-  OTHER: 'Other',
+  CUSTOM: 'Custom',
 };
 
 export function SubmissionForm() {
   const [content, setContent] = useState('');
   const [category, setCategory] = useState('');
+  const [customCategory, setCustomCategory] = useState('');
   const [themeId, setThemeId] = useState('midnight');
   const [state, setState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [error, setError] = useState('');
@@ -32,10 +34,19 @@ export function SubmissionForm() {
     if (!trimmed) return setError('Write something before sending your confession.');
     if (trimmed.length > appConfig.maxConfessionLength)
       return setError(`Keep your confession under ${appConfig.maxConfessionLength} characters.`);
+    const custom = customCategory.trim();
+    if (category === 'CUSTOM' && !custom) return setError('Enter your custom category.');
+    if (category === 'CUSTOM' && custom.length > 40)
+      return setError('Your category must be 40 characters or fewer.');
     setState('loading');
     setError('');
     try {
-      await createConfession({ content: trimmed, category: category || undefined, themeId });
+      await createConfession({
+        content: trimmed,
+        category: category || undefined,
+        customCategory: category === 'CUSTOM' ? custom : undefined,
+        themeId,
+      });
       setState('success');
     } catch (caught) {
       setState('error');
@@ -59,6 +70,7 @@ export function SubmissionForm() {
             onClick={() => {
               setContent('');
               setCategory('');
+              setCustomCategory('');
               setState('idle');
             }}
           >
@@ -116,6 +128,17 @@ export function SubmissionForm() {
               </option>
             ))}
           </select>
+          {category === 'CUSTOM' && (
+            <input
+              id="custom-category"
+              value={customCategory}
+              onChange={(event) => setCustomCategory(event.target.value.slice(0, 40))}
+              placeholder="Your Category"
+              maxLength={40}
+              aria-label="Your Category"
+              required
+            />
+          )}
         </label>
         <label htmlFor="theme">
           Card theme <span>optional</span>

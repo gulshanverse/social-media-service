@@ -14,7 +14,17 @@
   color: #fff;
   background: linear-gradient(135deg, var(--ggv-pink), var(--ggv-orange));
   font-weight: 700;
+  font-family: var(--theme-button-font, inherit);
+  transition: all var(--theme-button-transition, 180ms) ease;
   cursor: pointer;
+}
+.ggv-button:hover {
+  background: var(--theme-button-hover-background, var(--ggv-pink));
+  color: var(--theme-button-hover-text, #fff);
+}
+.ggv-button:active {
+  background: var(--theme-button-active-background, var(--ggv-orange));
+  color: var(--theme-button-active-text, #fff);
 }
 .ggv-button:focus-visible {
   outline: 3px solid #c8ff00;
@@ -27,4 +37,185 @@
   color: #ffd54a;
   font-weight: 900;
   letter-spacing: 0.08em;
+}
+
+/* Schema-driven card styling. Route styles can refine these variables without hardcoding themes. */
+.confession-card {
+  background: var(--theme-card-background, var(--theme-gradient, var(--theme-background, #151c2b)));
+  border: var(--theme-card-border-width, 0px) var(--theme-card-border-style, solid)
+    var(--theme-card-border-color, transparent);
+  border-radius: var(--theme-card-radius, var(--theme-radius, 28px));
+  padding: var(--theme-card-padding, 25px);
+  box-shadow:
+    var(--theme-card-shadow, 0 15px 50px rgba(0, 0, 0, 0.2)),
+    var(--theme-card-inner-shadow, inset 0 1px 0 rgba(255, 255, 255, 0.12));
+  overflow: var(--theme-card-overflow, hidden);
+  gap: var(--theme-card-gap, 20px);
+  text-align: var(--theme-card-content-alignment, left);
+  min-height: var(--theme-card-min-height, 0);
+  max-width: var(--theme-card-max-width, none);
+  backdrop-filter: blur(var(--theme-card-backdrop-blur, 0px));
+  transition:
+    transform var(--theme-card-hover-transition, 180ms) ease,
+    box-shadow var(--theme-card-hover-transition, 180ms) ease;
+}
+.confession-card[data-card-style='glass'] {
+  background: var(
+    --theme-card-background,
+    rgba(255, 255, 255, var(--theme-card-glass-opacity, 0.12))
+  );
+  border-color: var(--theme-card-border-color, rgba(255, 255, 255, 0.35));
+}
+.confession-card[data-card-style='gradient'] {
+  background: var(--theme-card-background, var(--theme-gradient));
+}
+.confession-card[data-card-style='outlined'] {
+  background: transparent;
+  box-shadow: none;
+}
+.confession-card[data-card-style='editorial'] {
+  border-radius: var(--theme-card-radius, 4px);
+  box-shadow: var(--theme-card-shadow, 0 8px 24px #0002);
+}
+.confession-card[data-card-style='holographic'] {
+  background: var(--theme-card-background, linear-gradient(135deg, #ffffff22, #ffffff05));
+  background-blend-mode: screen;
+}
+.confession-card[data-card-style='brutalist'] {
+  border-width: var(--theme-card-border-width, 3px);
+  box-shadow: var(--theme-card-shadow, 6px 6px 0 var(--theme-card-border-color, #000));
+}
+.confession-card[data-card-style='neumorphic'] {
+  box-shadow: var(--theme-card-shadow, 10px 10px 24px #0006, -10px -10px 24px #fff1);
+}
+.confession-card[data-card-glow='true'] {
+  box-shadow:
+    var(--theme-card-shadow, 0 15px 50px rgba(0, 0, 0, 0.2)),
+    0 0 var(--theme-card-glow-blur, 24px) var(--theme-card-glow-spread, 2px)
+      var(--theme-card-glow-color, transparent);
+}
+.confession-card[data-card-border-style='gradient'] {
+  border-style: solid;
+  border-image: var(--theme-card-border-gradient, var(--theme-gradient)) 1;
+}
+.confession-card:hover {
+  transform: translateY(calc(var(--theme-card-hover-lift, 0px) * -1))
+    scale(var(--theme-card-hover-scale, 1));
+  box-shadow:
+    var(--theme-card-shadow, 0 15px 50px rgba(0, 0, 0, 0.2)),
+    0 0 var(--theme-card-glow-blur, 0px) var(--theme-card-glow-spread, 0px)
+      var(--theme-card-hover-glow-color, var(--theme-card-glow-color, transparent));
+}
+.confession-card[data-card-layout='horizontal'] {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+}
+.confession-card[data-card-layout='horizontal'] .confession-card__content {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+.confession-card[data-card-layout='compact'] {
+  min-height: 0;
+  padding: var(--theme-card-padding, 16px);
+}
+.confession-card[data-card-layout='quote'] .confession-card__content,
+.confession-card[data-card-quote-style='oversized'] .confession-card__content {
+  font-size: clamp(2rem, 5vw, 4rem);
+}
+.confession-card[data-card-quote-style='quotation-border'] .confession-card__content {
+  border-left: 4px solid var(--theme-card-quote-color, var(--theme-accent));
+  padding-left: 1rem;
+}
+.confession-card[data-card-pattern='dots'] {
+  background-image: radial-gradient(
+    var(--theme-card-pattern-color, currentColor) 1px,
+    transparent 1px
+  );
+  background-size: 14px 14px;
+  background-blend-mode: overlay;
+}
+.confession-card[data-card-pattern='grid'] {
+  background-image:
+    linear-gradient(var(--theme-card-pattern-color, currentColor) 1px, transparent 1px),
+    linear-gradient(90deg, var(--theme-card-pattern-color, currentColor) 1px, transparent 1px);
+  background-size: 22px 22px;
+  background-blend-mode: overlay;
+}
+.confession-card[data-card-pattern='lines'] {
+  background-image: repeating-linear-gradient(
+    135deg,
+    transparent 0 12px,
+    var(--theme-card-pattern-color, currentColor) 13px 14px
+  );
+  background-blend-mode: overlay;
+}
+.confession-card[data-card-pattern='stars'] {
+  background-image: radial-gradient(
+    var(--theme-card-pattern-color, currentColor) 1px,
+    transparent 2px
+  );
+  background-size: 31px 31px;
+  background-position: 4px 7px;
+  background-blend-mode: screen;
+}
+.confession-card[data-card-pattern='grain'] {
+  background-image: repeating-radial-gradient(
+    var(--theme-card-pattern-color, currentColor) 0 1px,
+    transparent 1px 3px
+  );
+  background-size: 8px 8px;
+  background-blend-mode: soft-light;
+}
+.confession-card__content {
+  margin: 0;
+  max-width: 34ch;
+  color: var(--theme-card-body-color, var(--theme-primary-text, var(--theme-text, inherit)));
+  font-family:
+    var(
+      --theme-card-body-font,
+      var(--theme-body-font, var(--theme-font-family, var(--font-space-grotesk, Arial)))
+    ),
+    var(--font-space-grotesk, Arial), sans-serif;
+  font-size: var(--theme-card-body-font-size, var(--card-text-size, 16px));
+  font-weight: var(--theme-card-body-weight, 560);
+  font-style: var(--theme-card-body-font-style, normal);
+  line-height: var(--theme-card-body-line-height, 1.58);
+  letter-spacing: var(--theme-card-body-letter-spacing, -0.01em);
+  text-shadow: var(--theme-card-body-text-shadow, none);
+  text-align: var(--theme-card-body-text-align, inherit);
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: var(--preview-lines, 5);
+  overflow: hidden;
+}
+.confession-card__top {
+  gap: var(--theme-card-header-gap, 14px);
+}
+.confession-card__bottom {
+  gap: var(--theme-card-footer-gap, 14px);
+  border-top-style: var(--theme-card-divider-style, solid);
+}
+.confession-card__brand,
+.confession-card__category {
+  color: var(
+    --theme-card-metadata-color,
+    var(--theme-card-author-color, var(--theme-accent, currentColor))
+  );
+  font-family:
+    var(
+      --theme-card-metadata-font,
+      var(--theme-body-font, var(--theme-font-family, var(--font-space-grotesk, Arial)))
+    ),
+    var(--font-space-grotesk, Arial), sans-serif;
+  text-transform: var(--theme-card-metadata-text-transform, none);
+  letter-spacing: var(--theme-card-metadata-letter-spacing, 0.1em);
+}
+@media (prefers-reduced-motion: reduce) {
+  .confession-card {
+    transition: none;
+  }
+  .confession-card:hover {
+    transform: none;
+  }
 }
