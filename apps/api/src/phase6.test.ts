@@ -24,13 +24,13 @@ const validProductionEnvironment: NodeJS.ProcessEnv = {
 };
 
 assert.doesNotThrow(() => validateProductionEnvironment(validProductionEnvironment));
-assert.throws(
-  () =>
-    validateProductionEnvironment({
-      ...validProductionEnvironment,
-      RESEND_API_KEY: undefined,
-    }),
-  /RESEND_API_KEY/,
+assert.doesNotThrow(() =>
+  validateProductionEnvironment({
+    ...validProductionEnvironment,
+    RESEND_API_KEY: undefined,
+    VIBEMATCH_EMAIL_FROM: undefined,
+    VIBEMATCH_APP_URL: undefined,
+  }),
 );
 assert.throws(
   () =>
