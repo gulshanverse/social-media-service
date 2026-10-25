@@ -493,11 +493,17 @@
 @media (max-width: 600px) {
   .feed-heading {
     display: block;
-    padding-top: 30px;
-    padding-bottom: 18px;
+    padding-top: 20px;
+    padding-bottom: 8px;
+  }
+  .feed-heading .eyebrow {
+    margin-bottom: 10px;
+  }
+  .feed-heading h1 {
+    line-height: 0.9;
   }
   .feed-heading > p {
-    margin-top: 14px;
+    margin-top: 12px;
   }
   .featured-services {
     padding-inline: 16px;
