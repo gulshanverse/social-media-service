@@ -1,1 +1,76 @@
-.admin-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:26px 0}.admin-tabs button{background:#101827;border:1px solid #26334d;color:#dbe7f5;border-radius:9px;padding:10px 14px}.admin-tabs button.is-active{border-color:#ff9a3c;color:#fff;background:#1b2435}.bawalbox-studio-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.bawalbox-studio-grid .panel{display:grid;gap:14px}.bawalbox-studio-grid h2{margin-bottom:4px}.checkbox-row{display:flex;align-items:center;grid-template-columns:auto 1fr;gap:9px}.checkbox-row input{width:auto}.bawalbox-admin-row,.bawalbox-admin-response{border-top:1px solid #26334d;padding:15px 0;display:flex;justify-content:space-between;gap:16px;align-items:center}.bawalbox-admin-row p{margin:6px 0 0}.bawalbox-admin-response{display:block}.bawalbox-admin-response p{line-height:1.6;white-space:pre-wrap}.bawalbox-studio .profile-settings-heading{margin-bottom:0}.bawalbox-studio .notice{margin:12px 0}@media(max-width:760px){.bawalbox-studio-grid{grid-template-columns:1fr}.bawalbox-admin-row{align-items:flex-start;flex-direction:column}.bawalbox-admin-row button{width:100%}}
+.admin-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 26px 0;
+}
+.admin-tabs button {
+  background: #101827;
+  border: 1px solid #26334d;
+  color: #dbe7f5;
+  border-radius: 9px;
+  padding: 10px 14px;
+}
+.admin-tabs button.is-active {
+  border-color: #ff9a3c;
+  color: #fff;
+  background: #1b2435;
+}
+.bawalbox-studio-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+.bawalbox-studio-grid .panel {
+  display: grid;
+  gap: 14px;
+}
+.bawalbox-studio-grid h2 {
+  margin-bottom: 4px;
+}
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  grid-template-columns: auto 1fr;
+  gap: 9px;
+}
+.checkbox-row input {
+  width: auto;
+}
+.bawalbox-admin-row,
+.bawalbox-admin-response {
+  border-top: 1px solid #26334d;
+  padding: 15px 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+}
+.bawalbox-admin-row p {
+  margin: 6px 0 0;
+}
+.bawalbox-admin-response {
+  display: block;
+}
+.bawalbox-admin-response p {
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+.bawalbox-studio .profile-settings-heading {
+  margin-bottom: 0;
+}
+.bawalbox-studio .notice {
+  margin: 12px 0;
+}
+@media (max-width: 760px) {
+  .bawalbox-studio-grid {
+    grid-template-columns: 1fr;
+  }
+  .bawalbox-admin-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .bawalbox-admin-row button {
+    width: 100%;
+  }
+}
