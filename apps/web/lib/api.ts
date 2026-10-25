@@ -38,8 +38,24 @@ export const createConfession = (payload: {
   customCategory?: string;
   themeId: string;
 }) => request<SubmissionResult>('/confessions', { method: 'POST', body: JSON.stringify(payload) });
-export const getConfessions = (page = 1) =>
-  request<PublicConfessionPage>(`/confessions?page=${page}&limit=12`, { cache: 'no-store' });
+export type ConfessionFeedQuery = {
+  page?: number;
+  search?: string;
+  category?: string;
+  customCategory?: string;
+  dateRange?: 'all' | 'today' | '7d' | '30d' | 'custom';
+  startDate?: string;
+  endDate?: string;
+  sort?: 'newest' | 'oldest' | 'relevance';
+};
+export const getConfessions = (input: ConfessionFeedQuery | number = {}) => {
+  const query = typeof input === 'number' ? { page: input } : input;
+  const params = new URLSearchParams({ page: String(query.page ?? 1), limit: '12' });
+  for (const [key, value] of Object.entries(query)) {
+    if (key !== 'page' && value) params.set(key, String(value));
+  }
+  return request<PublicConfessionPage>(`/confessions?${params.toString()}`, { cache: 'no-store' });
+};
 export const getConfession = (publicId: string) =>
   request<PublicConfession>(`/confessions/${encodeURIComponent(publicId)}`, { cache: 'no-store' });
 export type PublicProfileSettings = {

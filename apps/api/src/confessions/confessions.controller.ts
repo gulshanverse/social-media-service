@@ -6,14 +6,13 @@ import {
   HttpStatus,
   Inject,
   Param,
-  ParseIntPipe,
   Post,
   Req,
   Query,
   Res,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import { CreateConfessionDto } from './dto';
+import { CreateConfessionDto, ListConfessionsQueryDto } from './dto';
 import { ConfessionsService } from './confessions.service';
 import { CreateReportDto } from './report.dto';
 import { SubmissionRateLimiter } from './rate-limit';
@@ -35,11 +34,8 @@ export class ConfessionsController {
   }
 
   @Get()
-  list(
-    @Query('page', new ParseIntPipe({ optional: true })) page?: number,
-    @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
-  ) {
-    return this.confessions.list({ page: page ?? 1, limit: limit ?? 12 });
+  list(@Query() query: ListConfessionsQueryDto) {
+    return this.confessions.list(query);
   }
 
   @Get('profile-settings')
