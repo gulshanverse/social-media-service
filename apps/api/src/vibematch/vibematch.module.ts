@@ -7,7 +7,11 @@ import {
   HttpException,
   HttpStatus,
   Inject,
+  Injectable,
+  Logger,
   Module,
+  OnModuleDestroy,
+  OnModuleInit,
   Param,
   Patch,
   Post,
@@ -390,6 +394,31 @@ export class VibeAuthController {
   }
 }
 
+const VIBE_GUEST_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
+
+@Injectable()
+export class VibeGuestCleanupService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(VibeGuestCleanupService.name);
+  private cleanupTimer?: NodeJS.Timeout;
+
+  onModuleInit() {
+    this.cleanupTimer = setInterval(() => {
+      void this.cleanupExpired().catch(() => {
+        this.logger.warn('Expired guest-session cleanup failed; it will retry on the next sweep.');
+      });
+    }, VIBE_GUEST_CLEANUP_INTERVAL_MS);
+    this.cleanupTimer.unref();
+  }
+
+  onModuleDestroy() {
+    if (this.cleanupTimer) clearInterval(this.cleanupTimer);
+  }
+
+  async cleanupExpired() {
+    return prisma.vibeGuestSession.deleteMany({ where: { expiresAt: { lte: new Date() } } });
+  }
+}
+
 @Controller('vibematch')
 @UseGuards(VibeAuthGuard, VibeCsrfGuard)
 export class VibeMatchController {
@@ -679,10 +708,7 @@ export class VibeMatchController {
           'That idempotency key was already used for a different answer.',
           HttpStatus.CONFLICT,
         );
-      return {
-        session: await this.sessionPayload(id, this.sessionOwner(session)),
-        duplicate: true,
-      };
+      return { ...(await this.sessionPayload(id, this.sessionOwner(session))), duplicate: true };
     }
     const questionId = (session.questionIds as string[])[session.currentRound];
     const question = findQuestion(questionId);
@@ -721,11 +747,11 @@ export class VibeMatchController {
             completedAt: count >= session.totalRounds ? new Date() : null,
           },
         });
-        return { duplicate: false, completed: count >= session.totalRounds };
+        if (count >= session.totalRounds) await this.completeDna(id, session.scoringVersion, tx);
+        return { duplicate: false };
       });
-      if (outcome.completed) await this.completeDna(id, session.scoringVersion);
       return {
-        session: await this.sessionPayload(id, this.sessionOwner(session)),
+        ...(await this.sessionPayload(id, this.sessionOwner(session))),
         duplicate: outcome.duplicate,
       };
     } catch (error) {
@@ -740,10 +766,7 @@ export class VibeMatchController {
             'That idempotency key was already used for a different answer.',
             HttpStatus.CONFLICT,
           );
-        return {
-          session: await this.sessionPayload(id, this.sessionOwner(session)),
-          duplicate: true,
-        };
+        return { ...(await this.sessionPayload(id, this.sessionOwner(session))), duplicate: true };
       }
       const racedByQuestion = await prisma.vibeSessionAnswer.findUnique({
         where: { sessionId_questionId: { sessionId: id, questionId } },
@@ -751,10 +774,7 @@ export class VibeMatchController {
       if (racedByQuestion) {
         if (racedByQuestion.optionId !== option.id)
           throw new HttpException('This round has already been answered.', HttpStatus.CONFLICT);
-        return {
-          session: await this.sessionPayload(id, this.sessionOwner(session)),
-          duplicate: true,
-        };
+        return { ...(await this.sessionPayload(id, this.sessionOwner(session))), duplicate: true };
       }
       throw error;
     }
@@ -774,6 +794,7 @@ export class VibeMatchController {
     @Req() request: VibeRequest,
   ) {
     const session = await this.ownedSession(id, request);
+    if (session.status === 'COMPLETED') await this.completeDna(id, session.scoringVersion);
     return this.result(id, this.sessionOwner(session));
   }
   private async ownedSession(id: string, request: VibeRequest) {
@@ -817,8 +838,12 @@ export class VibeMatchController {
       ...(question ? { question: publicQuestion(question) } : {}),
     };
   }
-  private async completeDna(id: string, scoringVersion: string) {
-    const answers = await prisma.vibeSessionAnswer.findMany({
+  private async completeDna(
+    id: string,
+    scoringVersion: string,
+    db: Pick<Prisma.TransactionClient, 'vibeSessionAnswer' | 'vibeDnaSnapshot'> = prisma,
+  ) {
+    const answers = await db.vibeSessionAnswer.findMany({
       where: { sessionId: id },
       orderBy: { round: 'asc' },
     });
@@ -826,12 +851,12 @@ export class VibeMatchController {
     for (const answer of answers)
       dna = addContribution(dna, answer.contribution as Record<string, number>);
     const normalized = normalizeDna(dna);
-    const existing = await prisma.vibeDnaSnapshot.findFirst({
+    const existing = await db.vibeDnaSnapshot.findFirst({
       where: { sessionId: id },
       orderBy: { calculatedAt: 'desc' },
     });
     if (!existing)
-      await prisma.vibeDnaSnapshot.create({
+      await db.vibeDnaSnapshot.create({
         data: {
           sessionId: id,
           scoringVersion,
@@ -880,6 +905,7 @@ export class VibeMatchController {
   providers: [
     VibeAuthGuard,
     VibeCsrfGuard,
+    VibeGuestCleanupService,
     { provide: 'VIBE_EMAIL_PROVIDER', useFactory: createEmailProvider },
   ],
 })

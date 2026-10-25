@@ -91,6 +91,10 @@ describe('VibeMatch gameplay interaction', () => {
   it('renders accessible answer buttons and advances after a tap', async () => {
     render(<GameplayClient />);
     expect(await screen.findByRole('heading', { level: 1 })).toBeTruthy();
+    const progress = screen.getByRole('progressbar', { name: 'Round 1 of 7' });
+    expect(progress.getAttribute('aria-valuemin')).toBe('0');
+    expect(progress.getAttribute('aria-valuemax')).toBe('100');
+    expect(progress.getAttribute('aria-valuenow')).toBe('0');
     const answer = screen.getAllByRole('button', { name: /.+/ })[0];
     expect(answer.getAttribute('aria-pressed')).toBe('false');
     fireEvent.click(answer);

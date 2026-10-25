@@ -16,7 +16,7 @@ import {
   VIBE_GUEST_SESSION_TTL_MS,
 } from './auth';
 import { GuestStartDto } from './dto';
-import { VibeMatchController } from './vibematch.module';
+import { VibeGuestCleanupService, VibeMatchController } from './vibematch.module';
 import {
   createEmailProvider,
   DevelopmentEmailProvider,
@@ -181,6 +181,158 @@ import {
     () => controller.getProfile(secondGuestRequest),
     /VibeMatch sign-in required/,
   );
+
+  const finalQuestions = selectQuestions(52);
+  const finalSessionId = 'guest-game-final';
+  const storedAnswers: Array<Record<string, any>> = finalQuestions
+    .slice(0, 6)
+    .map((question, round) => ({
+      sessionId: finalSessionId,
+      round,
+      questionId: question.id,
+      optionId: question.answerOptions[0].id,
+      contribution: question.answerOptions[0].dnaContribution,
+      idempotencyKey: `prior-answer-${round}`,
+    }));
+  const finalSession: Record<string, any> = {
+    id: finalSessionId,
+    profileId: null,
+    guestSessionId: 'guest-one',
+    questionIds: finalQuestions.map((question) => question.id),
+    currentRound: 6,
+    totalRounds: 7,
+    status: 'PLAYING',
+    scoringVersion: 'v1',
+    startedAt: new Date(),
+    completedAt: null,
+  };
+  const snapshots: Array<Record<string, any>> = [];
+  let failNextSnapshot = true;
+  const answerDelegate = {
+    findUnique: async ({ where }: { where: Record<string, any> }) => {
+      if (where.sessionId_idempotencyKey)
+        return (
+          storedAnswers.find(
+            (answer) =>
+              answer.sessionId === where.sessionId_idempotencyKey.sessionId &&
+              answer.idempotencyKey === where.sessionId_idempotencyKey.idempotencyKey,
+          ) ?? null
+        );
+      if (where.sessionId_questionId)
+        return (
+          storedAnswers.find(
+            (answer) =>
+              answer.sessionId === where.sessionId_questionId.sessionId &&
+              answer.questionId === where.sessionId_questionId.questionId,
+          ) ?? null
+        );
+      return null;
+    },
+    create: async ({ data }: { data: Record<string, any> }) => {
+      storedAnswers.push(data);
+      return data;
+    },
+    count: async () => storedAnswers.length,
+    findMany: async () => [...storedAnswers],
+  };
+  const snapshotDelegate = {
+    findFirst: async () => snapshots[0] ?? null,
+    create: async ({ data }: { data: Record<string, any> }) => {
+      if (failNextSnapshot) {
+        failNextSnapshot = false;
+        throw new Error('simulated snapshot write failure');
+      }
+      snapshots.push(data);
+      return data;
+    },
+  };
+  const transactionClient = {
+    vibeSessionAnswer: answerDelegate,
+    vibeDnaSnapshot: snapshotDelegate,
+    vibeSession: {
+      update: async ({ data }: { data: Record<string, any> }) => {
+        Object.assign(finalSession, data);
+        return finalSession;
+      },
+    },
+  };
+  const answerPrisma = {
+    vibeGuestSession: {
+      findUnique: async () => ({
+        id: 'guest-one',
+        expiresAt: new Date(Date.now() + VIBE_GUEST_SESSION_TTL_MS),
+        revokedAt: null,
+      }),
+      findUniqueOrThrow: async () => ({
+        expiresAt: new Date(Date.now() + VIBE_GUEST_SESSION_TTL_MS),
+      }),
+      update: async () => ({}),
+    },
+    vibeSession: {
+      findFirst: async ({ where }: { where: Record<string, any> }) =>
+        where.id === finalSessionId && where.guestSessionId === 'guest-one'
+          ? { ...finalSession, answers: [...storedAnswers] }
+          : null,
+    },
+    vibeSessionAnswer: answerDelegate,
+    vibeDnaSnapshot: snapshotDelegate,
+    $transaction: async (run: (tx: typeof transactionClient) => Promise<unknown>) => {
+      const oldSession = { ...finalSession };
+      const oldAnswers = [...storedAnswers];
+      const oldSnapshots = [...snapshots];
+      try {
+        return await run(transactionClient);
+      } catch (error) {
+        Object.assign(finalSession, oldSession);
+        storedAnswers.splice(0, storedAnswers.length, ...oldAnswers);
+        snapshots.splice(0, snapshots.length, ...oldSnapshots);
+        throw error;
+      }
+    },
+  };
+  setPrismaForTests(answerPrisma as never);
+  const finalQuestion = finalQuestions[6];
+  const finalOption = finalQuestion.answerOptions[0];
+  const finalAnswer = { optionId: finalOption.id, idempotencyKey: 'final-answer-key' };
+  await assert.rejects(
+    () => controller.answer(finalSessionId, finalAnswer, firstGuestRequest),
+    /simulated snapshot write failure/,
+  );
+  assert.equal(storedAnswers.length, 6);
+  assert.equal(finalSession.status, 'PLAYING');
+  assert.equal(snapshots.length, 0);
+  const completedAnswer = await controller.answer(finalSessionId, finalAnswer, firstGuestRequest);
+  assert.equal(completedAnswer.session.status, 'COMPLETED');
+  assert.equal(storedAnswers.length, 7);
+  assert.equal(snapshots.length, 1);
+  const duplicateFinalAnswer = await controller.answer(
+    finalSessionId,
+    finalAnswer,
+    firstGuestRequest,
+  );
+  assert.equal(duplicateFinalAnswer.duplicate, true);
+  assert.equal(duplicateFinalAnswer.session.status, 'COMPLETED');
+  assert.equal(storedAnswers.length, 7);
+  snapshots.splice(0);
+  const repairedResult = await controller.resultEndpoint(finalSessionId, firstGuestRequest);
+  assert.equal(repairedResult.guest, true);
+  assert.equal(repairedResult.result.answerCount, 7);
+  assert.equal(repairedResult.result.coverage, 100);
+  assert.equal(snapshots.length, 1);
+  setPrismaForTests(realPrisma);
+
+  let cleanupWhere: Record<string, any> | undefined;
+  setPrismaForTests({
+    vibeGuestSession: {
+      deleteMany: async ({ where }: { where: Record<string, any> }) => {
+        cleanupWhere = where;
+        return { count: 2 };
+      },
+    },
+  } as never);
+  const cleanupResult = await new VibeGuestCleanupService().cleanupExpired();
+  assert.equal(cleanupResult.count, 2);
+  assert.ok(cleanupWhere?.expiresAt?.lte instanceof Date);
   setPrismaForTests(realPrisma);
 
   assert.equal(normalizeEmail('  Person@Example.COM '), 'person@example.com');
