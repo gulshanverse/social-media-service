@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { BawalBoxQuestionStatus, BawalBoxResponseStatus } from '@prisma/client';
+import { BawalBoxQuestionStatus, BawalBoxResponseStatus, Prisma } from '@prisma/client';
 import { prisma, recordAudit, type AdminIdentity } from '../admin-auth';
 import {
   CreateBawalBoxQuestionDto,
@@ -125,32 +125,42 @@ export class BawalBoxService {
   }
 
   async createResponse(questionId: string, content: string) {
-    const question = await prisma.bawalBoxQuestion.findUnique({
-      where: { id: questionId },
-      select: {
-        id: true,
-        status: true,
-        startAt: true,
-        endAt: true,
-        answerLimit: true,
-        _count: { select: { responses: true } },
-      },
+    return prisma.$transaction(async (tx) => {
+      // Serialize submissions for this question so concurrent requests cannot exceed the cap.
+      await tx.$queryRaw`SELECT "id" FROM "BawalBoxQuestion" WHERE "id" = ${questionId} FOR UPDATE`;
+      const question = await tx.bawalBoxQuestion.findUnique({
+        where: { id: questionId },
+        select: {
+          id: true,
+          status: true,
+          startAt: true,
+          endAt: true,
+          answerLimit: true,
+          // Every accepted submission consumes a positive limit, regardless of moderation status.
+          _count: { select: { responses: true } },
+        },
+      });
+      if (!question || question.status !== BawalBoxQuestionStatus.PUBLISHED)
+        throw new NotFoundException('This question is no longer accepting answers.');
+      const now = new Date();
+      if ((question.startAt && question.startAt > now) || (question.endAt && question.endAt < now))
+        throw new BadRequestException('This question is not currently open.');
+      // Null (and legacy zero values, which the old truthy check treated as unlimited) mean no cap.
+      if (
+        question.answerLimit !== null &&
+        question.answerLimit > 0 &&
+        question._count.responses >= question.answerLimit
+      )
+        throw new BadRequestException('This question has reached its response limit.');
+      const response = await tx.bawalBoxResponse.create({
+        data: { questionId, content: content.trim() },
+      });
+      return {
+        id: response.id,
+        status: 'PENDING',
+        message: 'Your anonymous response is queued for review.',
+      };
     });
-    if (!question || question.status !== BawalBoxQuestionStatus.PUBLISHED)
-      throw new NotFoundException('This question is no longer accepting answers.');
-    const now = new Date();
-    if ((question.startAt && question.startAt > now) || (question.endAt && question.endAt < now))
-      throw new BadRequestException('This question is not currently open.');
-    if (question.answerLimit && question._count.responses >= question.answerLimit)
-      throw new BadRequestException('This question has reached its response limit.');
-    const response = await prisma.bawalBoxResponse.create({
-      data: { questionId, content: content.trim() },
-    });
-    return {
-      id: response.id,
-      status: 'PENDING',
-      message: 'Your anonymous response is queued for review.',
-    };
   }
 
   async listQuestions(status: BawalBoxQuestionStatus | undefined, page = 1, limit = 20) {
@@ -169,45 +179,63 @@ export class BawalBoxService {
   }
 
   async createQuestion(body: CreateBawalBoxQuestionDto, actor: AdminIdentity) {
-    const data = this.questionData(body);
-    if (body.featured)
-      await prisma.bawalBoxQuestion.updateMany({
-        where: { featured: true },
-        data: { featured: false },
+    this.assertQuestionWindow(
+      body.startAt ? new Date(body.startAt) : null,
+      body.endAt ? new Date(body.endAt) : null,
+    );
+    const data = this.questionCreateData(body);
+    const create = (database: Pick<Prisma.TransactionClient, 'bawalBoxQuestion'>) =>
+      database.bawalBoxQuestion.create({
+        data: {
+          ...data,
+          publishedAt: body.status === BawalBoxQuestionStatus.PUBLISHED ? new Date() : undefined,
+        },
       });
-    const item = await prisma.bawalBoxQuestion.create({
-      data: {
-        ...data,
-        publishedAt: body.status === BawalBoxQuestionStatus.PUBLISHED ? new Date() : undefined,
-      },
-    });
+    const item = body.featured
+      ? await prisma.$transaction(async (tx) => {
+          await this.lockFeaturedQuestionSwitch(tx);
+          await tx.bawalBoxQuestion.updateMany({
+            where: { featured: true },
+            data: { featured: false },
+          });
+          return create(tx);
+        })
+      : await create(prisma);
     await recordAudit(actor.id, 'BAWALBOX_QUESTION_CREATED', 'BAWALBOX_QUESTION', item.id);
     return item;
   }
 
   async updateQuestion(id: string, body: UpdateBawalBoxQuestionDto, actor: AdminIdentity) {
-    const current = await prisma.bawalBoxQuestion.findUnique({ where: { id } });
-    if (!current) throw new NotFoundException('BawalBox question not found.');
-    const data = this.questionData(body);
-    if (body.featured)
-      await prisma.bawalBoxQuestion.updateMany({
-        where: { featured: true, id: { not: id } },
-        data: { featured: false },
-      });
-    const item = await prisma.bawalBoxQuestion.update({
-      where: { id },
-      data: {
+    const result = await prisma.$transaction(async (tx) => {
+      // Keep lock ordering stable: feature advisory lock first, then the target question row.
+      if (body.featured === true) await this.lockFeaturedQuestionSwitch(tx);
+      await tx.$queryRaw`SELECT "id" FROM "BawalBoxQuestion" WHERE "id" = ${id} FOR UPDATE`;
+      const current = await tx.bawalBoxQuestion.findUnique({ where: { id } });
+      if (!current) throw new NotFoundException('BawalBox question not found.');
+      const startAt =
+        body.startAt === undefined ? current.startAt : body.startAt ? new Date(body.startAt) : null;
+      const endAt =
+        body.endAt === undefined ? current.endAt : body.endAt ? new Date(body.endAt) : null;
+      this.assertQuestionWindow(startAt, endAt);
+      const data = this.questionUpdateData(body);
+      const updateData: Prisma.BawalBoxQuestionUpdateInput = {
         ...data,
-        publishedAt:
-          body.status === BawalBoxQuestionStatus.PUBLISHED && !current.publishedAt
-            ? new Date()
-            : current.publishedAt,
-      },
+        ...(body.status === BawalBoxQuestionStatus.PUBLISHED && !current.publishedAt
+          ? { publishedAt: new Date() }
+          : {}),
+      };
+      if (body.featured === true)
+        await tx.bawalBoxQuestion.updateMany({
+          where: { featured: true, id: { not: id } },
+          data: { featured: false },
+        });
+      const item = await tx.bawalBoxQuestion.update({ where: { id }, data: updateData });
+      return { item, changedFields: Object.keys(data) };
     });
     await recordAudit(actor.id, 'BAWALBOX_QUESTION_UPDATED', 'BAWALBOX_QUESTION', id, {
-      changedFields: Object.keys(data),
+      changedFields: result.changedFields,
     });
-    return item;
+    return result.item;
   }
 
   async responses(questionId: string, status?: BawalBoxResponseStatus) {
@@ -235,9 +263,9 @@ export class BawalBoxService {
     return item;
   }
 
-  private questionData(body: CreateBawalBoxQuestionDto | UpdateBawalBoxQuestionDto) {
+  private questionCreateData(body: CreateBawalBoxQuestionDto) {
     return {
-      title: body.title?.trim(),
+      title: body.title.trim(),
       description: body.description?.trim() || null,
       instructions: body.instructions?.trim() || null,
       category: body.category?.trim() || null,
@@ -247,5 +275,29 @@ export class BawalBoxService {
       featured: body.featured ?? false,
       answerLimit: body.answerLimit ?? null,
     };
+  }
+
+  private questionUpdateData(body: UpdateBawalBoxQuestionDto): Prisma.BawalBoxQuestionUpdateInput {
+    const data: Prisma.BawalBoxQuestionUpdateInput = {};
+    if (typeof body.title === 'string') data.title = body.title.trim();
+    if (body.description !== undefined) data.description = body.description?.trim() || null;
+    if (body.instructions !== undefined) data.instructions = body.instructions?.trim() || null;
+    if (body.category !== undefined) data.category = body.category?.trim() || null;
+    if (body.startAt !== undefined) data.startAt = body.startAt ? new Date(body.startAt) : null;
+    if (body.endAt !== undefined) data.endAt = body.endAt ? new Date(body.endAt) : null;
+    if (body.status !== undefined && body.status !== null) data.status = body.status;
+    if (body.featured !== undefined && body.featured !== null) data.featured = body.featured;
+    if (body.answerLimit !== undefined) data.answerLimit = body.answerLimit;
+    return data;
+  }
+
+  private assertQuestionWindow(startAt: Date | null, endAt: Date | null) {
+    if (startAt && endAt && endAt.getTime() <= startAt.getTime())
+      throw new BadRequestException('Question endAt must be after startAt.');
+  }
+
+  private async lockFeaturedQuestionSwitch(tx: Prisma.TransactionClient) {
+    // Application-scoped transaction lock serializes feature switches without schema changes.
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(914175203, 1)`;
   }
 }
