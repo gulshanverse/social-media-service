@@ -139,6 +139,8 @@ export default function ConfessionsFeed({ initialQuery }: Props) {
   const [serviceIndex, setServiceIndex] = useState(0);
   const requestId = useRef(0);
   const serviceTrack = useRef<HTMLDivElement>(null);
+  const feedToolbar = useRef<HTMLDivElement>(null);
+  const paginationScrollPending = useRef(false);
   const pointerStart = useRef<number | null>(null);
   const serviceDragged = useRef(false);
 
@@ -210,6 +212,13 @@ export default function ConfessionsFeed({ initialQuery }: Props) {
           setError(caught instanceof Error ? caught.message : 'Could not load confessions.');
       });
   }, [query]);
+  useEffect(() => {
+    if (!data || !paginationScrollPending.current) return;
+    paginationScrollPending.current = false;
+    window.requestAnimationFrame(() => {
+      feedToolbar.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }, [data]);
 
   useEffect(() => {
     if (sheetOpen) setDraft(query);
@@ -251,6 +260,11 @@ export default function ConfessionsFeed({ initialQuery }: Props) {
     });
 
   const retry = () => setQuery((current) => ({ ...current }));
+  const goToPage = (page: number) => {
+    if (page === data?.page) return;
+    paginationScrollPending.current = true;
+    navigate({ ...query, page });
+  };
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
   const firstResult = data && data.total > 0 ? (data.page - 1) * data.limit + 1 : 0;
   const lastResult = data ? Math.min(data.page * data.limit, data.total) : 0;
@@ -438,7 +452,7 @@ export default function ConfessionsFeed({ initialQuery }: Props) {
         )}
       </section>
 
-      <div className="feed-toolbar">
+      <div className="feed-toolbar" ref={feedToolbar}>
         <div>
           <h2>Recent confessions</h2>
           {data && (
@@ -534,7 +548,7 @@ export default function ConfessionsFeed({ initialQuery }: Props) {
               type="button"
               className="pagination-button"
               disabled={data.page <= 1}
-              onClick={() => navigate({ ...query, page: data.page - 1 })}
+              onClick={() => goToPage(data.page - 1)}
             >
               Previous
             </button>
@@ -550,7 +564,7 @@ export default function ConfessionsFeed({ initialQuery }: Props) {
                     className={`pagination-button pagination-number ${item === data.page ? 'is-current' : ''}`}
                     aria-current={item === data.page ? 'page' : undefined}
                     key={item}
-                    onClick={() => navigate({ ...query, page: item })}
+                    onClick={() => goToPage(item)}
                   >
                     {item}
                   </button>
@@ -561,7 +575,7 @@ export default function ConfessionsFeed({ initialQuery }: Props) {
               type="button"
               className="pagination-button"
               disabled={!data.hasMore}
-              onClick={() => navigate({ ...query, page: data.page + 1 })}
+              onClick={() => goToPage(data.page + 1)}
             >
               Next
             </button>
