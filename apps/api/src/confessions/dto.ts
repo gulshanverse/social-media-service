@@ -1,5 +1,4 @@
-import { Transform } from 'class-transformer';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { IsEnum, IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import { allConfessionCategories, confessionCategories } from '@ggv/types';
 
@@ -33,6 +32,7 @@ export class ListConfessionsQueryDto {
   page = 1;
 
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   @Min(1)
   @Max(50)
