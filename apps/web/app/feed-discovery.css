@@ -6,20 +6,44 @@
 .search-row {
   display: flex;
   gap: 10px;
+  min-width: 0;
 }
 .search-field {
   display: flex;
   align-items: center;
   gap: 10px;
   flex: 1;
+  min-width: 0;
   background: #101522;
   border: 1px solid #26334d;
-  border-radius: 14px;
-  padding: 0 14px;
+  border-radius: 999px;
+  padding: 4px 12px 4px 6px;
   color: #9ca3af;
+}
+.search-icon {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #ff2d75;
+  color: #fff;
+}
+.search-icon svg,
+.filter-icon,
+.sort-icon {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.9;
 }
 .search-field input {
   width: 100%;
+  min-width: 0;
   border: 0;
   outline: 0;
   background: transparent;
@@ -42,10 +66,17 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  padding: 0 16px;
-  border: 1px solid #26334d;
-  border-radius: 14px;
+  flex: 0 0 auto;
+  padding: 0 13px;
+  border: 1px solid #33415d;
+  border-radius: 999px;
   background: #101522;
+  color: #ff7aa7;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+.filter-button span {
+  color: #dce3ef;
 }
 .category-scroller,
 .active-filters {
@@ -54,6 +85,18 @@
   overflow-x: auto;
   padding: 13px 2px 3px;
   scrollbar-width: thin;
+}
+.category-scroller-wrap {
+  position: relative;
+  min-width: 0;
+}
+.category-scroller-wrap::after {
+  position: absolute;
+  content: '';
+  pointer-events: none;
+  inset: 13px 0 3px auto;
+  width: 28px;
+  background: linear-gradient(90deg, rgba(7, 10, 18, 0), #070a12 92%);
 }
 .category-tile {
   flex: 0 0 86px;
@@ -114,8 +157,27 @@
   position: relative;
 }
 .sort-button {
-  font-size: 0.85rem;
-  color: #cbd5e1;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 5px 9px;
+  border: 1px solid #33415d;
+  border-radius: 10px;
+  background: #101522;
+  color: #dce3ef;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.sort-icon {
+  width: 15px;
+  height: 15px;
+  color: #ff6f9e;
+}
+.sort-chevron {
+  color: #8793aa;
+  font-size: 0.95rem;
+  line-height: 1;
 }
 .sort-popup {
   position: absolute;
@@ -242,9 +304,6 @@
   .discovery-controls {
     padding-inline: 16px;
   }
-  .filter-button span {
-    display: none;
-  }
   .feed-toolbar {
     padding-inline: 16px;
   }
@@ -252,7 +311,8 @@
     font-size: 1.2rem;
   }
   .sort-button {
-    font-size: 0.75rem;
+    min-height: 32px;
+    font-size: 0.74rem;
   }
   .category-tile {
     flex-basis: 76px;
@@ -493,20 +553,21 @@
 @media (max-width: 600px) {
   .feed-heading {
     display: block;
-    padding-top: 20px;
-    padding-bottom: 8px;
+    padding-top: 12px;
+    padding-bottom: 4px;
   }
   .feed-heading .eyebrow {
-    margin-bottom: 10px;
+    margin-bottom: 6px;
   }
   .feed-heading h1 {
     line-height: 0.9;
   }
   .feed-heading > p {
-    margin-top: 12px;
+    margin-top: 8px;
   }
   .featured-services {
     padding-inline: 16px;
+    padding-top: 0;
   }
   .featured-service {
     min-height: 120px;
@@ -525,6 +586,13 @@
     align-items: flex-start;
     gap: 10px;
   }
+  .feed-toolbar > div:first-child {
+    min-width: 0;
+  }
+  .feed-toolbar h2 {
+    font-size: 1.08rem;
+    white-space: nowrap;
+  }
   .feed-pagination {
     padding-inline: 16px;
   }
@@ -533,6 +601,47 @@
     min-height: 36px;
     padding-inline: 7px;
   }
+}
+@media (max-width: 340px) {
+  .feed-toolbar {
+    display: block;
+  }
+  .feed-toolbar h2 {
+    white-space: normal;
+    font-size: 1.12rem;
+  }
+  .sort-wrap {
+    margin-top: 8px;
+  }
+}
+@media (max-width: 360px) {
+  .search-row {
+    gap: 7px;
+  }
+  .search-field {
+    gap: 7px;
+    padding-right: 8px;
+  }
+  .search-icon {
+    width: 30px;
+    height: 30px;
+    flex-basis: 30px;
+  }
+  .filter-button {
+    padding-inline: 10px;
+  }
+}
+.feed-error-state {
+  padding-block: 42px;
+  margin-top: 24px;
+  margin-bottom: 80px;
+}
+.feed-error-state h2 {
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+.feed-error-state p {
+  margin: 0 0 18px;
 }
 @media (prefers-reduced-motion: reduce) {
   .category-tile,

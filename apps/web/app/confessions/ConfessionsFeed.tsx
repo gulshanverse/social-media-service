@@ -354,11 +354,16 @@ export default function ConfessionsFeed({ initialQuery }: Props) {
       <section className="discovery-controls" aria-label="Find confessions">
         <div className="search-row">
           <div className="search-field">
-            <span aria-hidden="true">⌕</span>
+            <span className="search-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false">
+                <circle cx="10.8" cy="10.8" r="6.2" />
+                <path d="m16 16 4.3 4.3" />
+              </svg>
+            </span>
             <input
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="Search confessions, topics, or keywords..."
+              placeholder="Search confessions…"
               aria-label="Search confessions"
             />
             {searchInput && (
@@ -378,33 +383,41 @@ export default function ConfessionsFeed({ initialQuery }: Props) {
             onClick={() => setSheetOpen(true)}
             aria-label="Open filters"
           >
-            ☷<span>Filters</span>
+            <svg className="filter-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M4 6h16M7 12h10M10 18h4" />
+              <circle cx="8" cy="6" r="1.5" />
+              <circle cx="15" cy="12" r="1.5" />
+              <circle cx="12" cy="18" r="1.5" />
+            </svg>
+            <span>Filter</span>
           </button>
         </div>
-        <div className="category-scroller" aria-label="Categories">
-          {['ALL', ...allConfessionCategories].map((category) => {
-            const selected = category === 'ALL' ? !query.category : query.category === category;
-            return (
-              <button
-                type="button"
-                key={category}
-                aria-pressed={selected}
-                className={`category-tile category-tile--${categoryAccents[category]} ${selected ? 'category-tile--active' : ''}`}
-                onClick={() =>
-                  navigate({
-                    ...query,
-                    category: category === 'ALL' ? undefined : category,
-                    page: 1,
-                  })
-                }
-              >
-                <span className="category-tile__icon" aria-hidden="true">
-                  {categoryIcons[category]}
-                </span>
-                <small>{category === 'ALL' ? 'All' : label(category)}</small>
-              </button>
-            );
-          })}
+        <div className="category-scroller-wrap">
+          <div className="category-scroller" aria-label="Categories">
+            {['ALL', ...allConfessionCategories].map((category) => {
+              const selected = category === 'ALL' ? !query.category : query.category === category;
+              return (
+                <button
+                  type="button"
+                  key={category}
+                  aria-pressed={selected}
+                  className={`category-tile category-tile--${categoryAccents[category]} ${selected ? 'category-tile--active' : ''}`}
+                  onClick={() =>
+                    navigate({
+                      ...query,
+                      category: category === 'ALL' ? undefined : category,
+                      page: 1,
+                    })
+                  }
+                >
+                  <span className="category-tile__icon" aria-hidden="true">
+                    {categoryIcons[category]}
+                  </span>
+                  <small>{category === 'ALL' ? 'All' : label(category)}</small>
+                </button>
+              );
+            })}
+          </div>
         </div>
         {!!activeFilters.length && (
           <div className="active-filters" aria-label="Active filters">
@@ -440,14 +453,21 @@ export default function ConfessionsFeed({ initialQuery }: Props) {
             className="sort-button"
             onClick={() => setSortOpen((open) => !open)}
             aria-expanded={sortOpen}
+            aria-label={`Sort confessions: ${query.sort === 'oldest' ? 'Oldest' : query.sort === 'relevance' ? 'Relevance' : 'Newest'}`}
           >
-            Sort:{' '}
-            {query.sort === 'oldest'
-              ? 'Oldest first'
-              : query.sort === 'relevance'
-                ? 'Relevance'
-                : 'Newest first'}{' '}
-            ⌄
+            <svg className="sort-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M7 5v14M7 5 4.5 7.5M7 5l2.5 2.5M17 19V5m0 14 2.5-2.5M17 19l-2.5-2.5" />
+            </svg>
+            <span>
+              {query.sort === 'oldest'
+                ? 'Oldest'
+                : query.sort === 'relevance'
+                  ? 'Relevance'
+                  : 'Newest'}
+            </span>
+            <span className="sort-chevron" aria-hidden="true">
+              ⌄
+            </span>
           </button>
           {sortOpen && (
             <div className="sort-popup" role="menu">
@@ -480,7 +500,7 @@ export default function ConfessionsFeed({ initialQuery }: Props) {
       </div>
 
       {error ? (
-        <section className="state-panel">
+        <section className="state-panel feed-error-state">
           <h2>Couldn’t load the wall.</h2>
           <p>{error}</p>
           <button className="ggv-button" onClick={retry}>
