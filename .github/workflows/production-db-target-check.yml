@@ -1,0 +1,46 @@
+name: Production database target check
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: production-database-target-check
+  cancel-in-progress: false
+
+jobs:
+  verify-target:
+    name: Verify Production database target
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment:
+      name: Production
+    steps:
+      - name: Validate target without printing credentials
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          node --input-type=module <<'NODE'
+          const raw = process.env.DATABASE_URL;
+          const expectedHost = 'ep-withered-water-ao977rqa.c-2.ap-southeast-1.aws.neon.tech';
+          const expectedDatabase = 'neondb';
+          let valid = false;
+          try {
+            if (raw) {
+              const url = new URL(raw);
+              const database = decodeURIComponent(url.pathname.replace(/^\//, ''));
+              valid = (url.protocol === 'postgres:' || url.protocol === 'postgresql:')
+                && url.hostname === expectedHost
+                && database === expectedDatabase;
+            }
+          } catch {
+            valid = false;
+          }
+          if (!valid) {
+            console.log('FAIL: Production database target validation failed.');
+            process.exit(1);
+          }
+          console.log('PASS: Production database target validation passed.');
+          NODE
