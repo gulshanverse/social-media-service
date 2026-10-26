@@ -22,7 +22,7 @@ jobs:
       - name: Check out the exact release commit
         uses: actions/checkout@v4
         with:
-          ref: 143a627e2bec0a358cf829b48de932b89f132924
+          ref: ${{ github.sha }}
           persist-credentials: false
 
       - name: Set up pnpm

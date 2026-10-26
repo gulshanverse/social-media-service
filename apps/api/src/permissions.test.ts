@@ -1,10 +1,11 @@
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
 import { AdminRole, PermissionEffect } from '@prisma/client';
+import { Reflector } from '@nestjs/core';
 import { AdminController } from './admin.module';
 import { RbacController, RbacService } from './rbac.module';
 import { effectivePermissionKeys, hasPermission } from './permissions';
-import { prisma, setPrismaForTests } from './admin-auth';
+import { prisma, RolesGuard, setPrismaForTests } from './admin-auth';
 
 function databaseFor(options: {
   role: AdminRole;
@@ -123,6 +124,50 @@ async function main() {
     ),
     true,
   );
+  const moderatorBawalBoxOverrides = {
+    'bawalbox.read': PermissionEffect.DENY,
+    'bawalbox.manage': PermissionEffect.GRANT,
+    'bawalbox.moderate': PermissionEffect.DENY,
+  };
+  const moderatorAccess = databaseFor({
+    role: AdminRole.MODERATOR,
+    overrides: moderatorBawalBoxOverrides,
+  });
+  const moderatorBasePermissions = effectivePermissionKeys(AdminRole.MODERATOR, [], []);
+  const moderatorOverriddenPermissions = effectivePermissionKeys(
+    AdminRole.MODERATOR,
+    [],
+    Object.entries(moderatorBawalBoxOverrides).map(([permissionKey, effect]) => ({
+      permissionKey,
+      effect,
+    })),
+  );
+  assert.deepEqual(
+    await Promise.all(
+      ['bawalbox.read', 'bawalbox.manage', 'bawalbox.moderate'].map((permission) =>
+        hasPermission(moderatorAccess, { id: 'mod', role: AdminRole.MODERATOR }, permission),
+      ),
+    ),
+    [false, true, false],
+  );
+  for (const permission of [
+    'users.manage',
+    'sessions.manage',
+    'roles.manage',
+    'permissions.manage',
+  ])
+    assert.equal(
+      await hasPermission(moderatorAccess, { id: 'mod', role: AdminRole.MODERATOR }, permission),
+      false,
+    );
+  assert.deepEqual(
+    moderatorOverriddenPermissions.filter((permission) => permission.startsWith('bawalbox.')),
+    ['bawalbox.manage'],
+  );
+  assert.deepEqual(
+    moderatorOverriddenPermissions.filter((permission) => !permission.startsWith('bawalbox.')),
+    moderatorBasePermissions.filter((permission) => !permission.startsWith('bawalbox.')),
+  );
   assert.deepEqual(
     effectivePermissionKeys(
       AdminRole.DESIGNER,
@@ -176,6 +221,22 @@ async function main() {
   assert.deepEqual(Reflect.getMetadata('permissions', RbacController.prototype.userAccess), [
     'permissions.manage',
   ]);
+  const guard = new RolesGuard(new Reflector());
+  for (const method of ['override', 'clearOverride'] as const) {
+    const handler = RbacController.prototype[method];
+    const context = {
+      getHandler: () => handler,
+      getClass: () => RbacController,
+      switchToHttp: () => ({
+        getRequest: () => ({
+          user: { id: 'mod', email: 'mod@example.com', name: null, role: AdminRole.MODERATOR },
+        }),
+      }),
+    } as any;
+    await assert.rejects(async () => {
+      await guard.canActivate(context);
+    }, /You do not have permission for this operation/);
+  }
   setPrismaForTests({
     adminUser: {
       findUnique: async () => ({

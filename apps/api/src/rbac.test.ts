@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
-import { AdminRole } from '@prisma/client';
+import { AdminRole, PermissionEffect } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { RbacService, RoleDto, UpdateRoleDto } from './rbac.module';
@@ -30,6 +30,16 @@ const systemRole = {
 async function main() {
   const realPrisma = prisma;
   const permissions = new Set(['dashboard.read']);
+  const permissionRegistry = new Map(
+    ['bawalbox.read', 'bawalbox.manage', 'bawalbox.moderate'].map((key) => [
+      key,
+      { key, description: key, reserved: false },
+    ]),
+  );
+  const overrides = new Map<
+    string,
+    { adminId: string; permissionKey: string; effect: PermissionEffect }
+  >();
   const audits: unknown[] = [];
   const roles = new Map([
     ['REVIEWER', { ...role }],
@@ -76,6 +86,22 @@ async function main() {
       deleteMany: async () => undefined,
     },
     adminUser: { findUnique: async () => ({ id: 'target' }) },
+    permission: {
+      findUnique: async ({ where }: any) => permissionRegistry.get(where.key) ?? null,
+    },
+    adminPermissionOverride: {
+      upsert: async ({ where, create, update }: any) => {
+        const { adminId, permissionKey } = where.adminId_permissionKey;
+        const index = `${adminId}:${permissionKey}`;
+        const saved = { ...(overrides.get(index) ?? create), ...update };
+        overrides.set(index, saved);
+        return saved;
+      },
+      deleteMany: async ({ where }: any) => {
+        overrides.delete(`${where.adminId}:${where.permissionKey}`);
+        return { count: 1 };
+      },
+    },
     auditLog: {
       create: async ({ data }: any) => {
         audits.push(data);
@@ -142,6 +168,37 @@ async function main() {
     assert.ok(assignments.has('target:role-moderator'));
     await service.removeRole('target', 'moderator', actor);
     assert.equal((audits.at(-1) as any).metadata.roleKey, 'MODERATOR');
+
+    for (const permissionKey of ['bawalbox.read', 'bawalbox.manage', 'bawalbox.moderate']) {
+      for (const effect of [PermissionEffect.GRANT, PermissionEffect.DENY]) {
+        const saved = await service.override('target', { permissionKey, effect }, actor);
+        assert.equal(saved.effect, effect);
+        assert.equal(overrides.get(`target:${permissionKey}`)?.effect, effect);
+        const cleared = await service.clearOverride('target', permissionKey, actor);
+        assert.equal(cleared.cleared, true);
+        assert.equal(overrides.has(`target:${permissionKey}`), false);
+      }
+    }
+    for (const permissionKey of ['bawalbox.read', 'bawalbox.manage', 'bawalbox.moderate']) {
+      await assert.rejects(
+        () =>
+          service.override(
+            'target',
+            { permissionKey, effect: PermissionEffect.GRANT },
+            { ...actor, id: 'moderator', role: AdminRole.MODERATOR },
+          ),
+        /SUPER_ADMIN authorization required/,
+      );
+      await assert.rejects(
+        () =>
+          service.clearOverride('target', permissionKey, {
+            ...actor,
+            id: 'moderator',
+            role: AdminRole.MODERATOR,
+          }),
+        /SUPER_ADMIN authorization required/,
+      );
+    }
 
     const invalid = plainToInstance(UpdateRoleDto, {
       name: '',
