@@ -96,8 +96,10 @@ export function PrivacyPage() {
           For a privacy or removal concern about a published confession, submit a{' '}
           <Link href="/report">report</Link> with the public link and closest reason. For privacy,
           moderation, content-removal, or general service questions, contact the College Confession
-          Team at <a href="mailto:heyconnect2471@gmail.com">heyconnect2471@gmail.com</a>. Requests
-          are reviewed in context; this page does not promise a particular outcome or response time.
+          Team at{' '}
+          <a href="mailto:communitysupport.live@gmail.com">communitysupport.live@gmail.com</a>.
+          Requests are reviewed in context; this page does not promise a particular outcome or
+          response time.
         </LegalParagraph>
       </LegalSection>
     </LegalPage>
@@ -270,9 +272,10 @@ export function SafetyPage() {
         <LegalParagraph>
           The <Link href="/contact">Contact page</Link> explains the supported routes. For privacy,
           moderation, content-removal, or general service questions, contact the College Confession
-          Team at <a href="mailto:heyconnect2471@gmail.com">heyconnect2471@gmail.com</a>. College
-          Confession is not an emergency response service; if someone is in immediate danger,
-          contact local emergency services first.
+          Team at{' '}
+          <a href="mailto:communitysupport.live@gmail.com">communitysupport.live@gmail.com</a>.
+          College Confession is not an emergency response service; if someone is in immediate
+          danger, contact local emergency services first.
         </LegalParagraph>
       </LegalSection>
     </LegalPage>
@@ -298,14 +301,14 @@ export function ContactPage() {
           Read the <Link href="/faq">FAQ</Link> or the{' '}
           <Link href="/community-guidelines">Community Guidelines</Link>. For privacy, moderation,
           content-removal, or general service questions, contact the College Confession Team at{' '}
-          <a href="mailto:heyconnect2471@gmail.com">heyconnect2471@gmail.com</a>.
+          <a href="mailto:communitysupport.live@gmail.com">communitysupport.live@gmail.com</a>.
         </LegalParagraph>
       </LegalSection>
       <LegalSection title="Who operates College Confession">
         <LegalParagraph>
           College Confession is operated by the College Confession Team. The team can be reached at{' '}
-          <a href="mailto:heyconnect2471@gmail.com">heyconnect2471@gmail.com</a> for privacy,
-          moderation, content-removal, accessibility, or general service questions.
+          <a href="mailto:communitysupport.live@gmail.com">communitysupport.live@gmail.com</a> for
+          privacy, moderation, content-removal, accessibility, or general service questions.
         </LegalParagraph>
       </LegalSection>
       <LegalSection title="More help">
@@ -486,7 +489,7 @@ export function FaqPage() {
           For a concern about a published confession, use the{' '}
           <Link href="/report">report form</Link>. For privacy, moderation, content-removal, or
           general service questions, contact the College Confession Team at{' '}
-          <a href="mailto:heyconnect2471@gmail.com">heyconnect2471@gmail.com</a>.
+          <a href="mailto:communitysupport.live@gmail.com">communitysupport.live@gmail.com</a>.
         </LegalParagraph>
       </LegalSection>
     </LegalPage>
