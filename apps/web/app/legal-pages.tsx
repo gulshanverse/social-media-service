@@ -79,18 +79,25 @@ export function PrivacyPage() {
         <LegalParagraph>
           The public site uses Vercel Analytics and Speed Insights for aggregate usage and
           performance measurement. Their providers may process browser and request signals under
-          their own privacy terms. The Google AdSense account-verification meta tag is present, but
-          the AdSense serving script is disabled by default. If explicitly enabled later, the code
-          is restricted to designated informational pages and is not loaded on confession, feed,
-          report, or submission pages. This policy must be reviewed before advertising is enabled.
+          their own privacy terms. The site also has a Google AdSense account-verification tag and
+          an ads.txt file, but the AdSense serving script is not currently loaded, so AdSense
+          advertising cookies are not currently being set by this site. If AdSense is enabled in the
+          future, the current code is intended to load it only on designated informational pages,
+          not on confession, feed, report, or submission pages. Google may use cookies or similar
+          identifiers to measure advertising performance and, where enabled and permitted,
+          personalize ads. Where consent is required by applicable law, the site will need to obtain
+          that consent before using non-essential advertising cookies or personalized advertising.
+          Users can manage advertising personalization through Google&apos;s Ads Settings, their
+          browser controls, and other choices made available by Google and applicable law.
         </LegalParagraph>
       </LegalSection>
       <LegalSection title="Your choices and contact">
         <LegalParagraph>
           For a privacy or removal concern about a published confession, submit a{' '}
-          <Link href="/report">report</Link> with the public link and closest reason. A separate,
-          verified general support inbox or contact form is not currently configured. Requests are
-          reviewed in context; this page does not promise a particular outcome or response time.
+          <Link href="/report">report</Link> with the public link and closest reason. For privacy,
+          moderation, content-removal, or general service questions, contact the College Confession
+          Team at <a href="mailto:heyconnect2471@gmail.com">heyconnect2471@gmail.com</a>. Requests
+          are reviewed in context; this page does not promise a particular outcome or response time.
         </LegalParagraph>
       </LegalSection>
     </LegalPage>
@@ -261,11 +268,11 @@ export function SafetyPage() {
       </LegalSection>
       <LegalSection title="General support and urgent situations">
         <LegalParagraph>
-          The <Link href="/contact">Contact page</Link> explains the currently supported routes.
-          There is no verified general support inbox or contact form configured at this time, so use
-          the report form for concerns about a published post. College Confession is not an
-          emergency response service; if someone is in immediate danger, contact local emergency
-          services first.
+          The <Link href="/contact">Contact page</Link> explains the supported routes. For privacy,
+          moderation, content-removal, or general service questions, contact the College Confession
+          Team at <a href="mailto:heyconnect2471@gmail.com">heyconnect2471@gmail.com</a>. College
+          Confession is not an emergency response service; if someone is in immediate danger,
+          contact local emergency services first.
         </LegalParagraph>
       </LegalSection>
     </LegalPage>
@@ -289,9 +296,16 @@ export function ContactPage() {
       <LegalSection title="General questions">
         <LegalParagraph>
           Read the <Link href="/faq">FAQ</Link> or the{' '}
-          <Link href="/community-guidelines">Community Guidelines</Link>. A separate, verified
-          general support inbox or contact form is not currently configured, so do not rely on an
-          email address for support.
+          <Link href="/community-guidelines">Community Guidelines</Link>. For privacy, moderation,
+          content-removal, or general service questions, contact the College Confession Team at{' '}
+          <a href="mailto:heyconnect2471@gmail.com">heyconnect2471@gmail.com</a>.
+        </LegalParagraph>
+      </LegalSection>
+      <LegalSection title="Who operates College Confession">
+        <LegalParagraph>
+          College Confession is operated by the College Confession Team. The team can be reached at{' '}
+          <a href="mailto:heyconnect2471@gmail.com">heyconnect2471@gmail.com</a> for privacy,
+          moderation, content-removal, accessibility, or general service questions.
         </LegalParagraph>
       </LegalSection>
       <LegalSection title="More help">
@@ -453,9 +467,11 @@ export function FaqPage() {
       </LegalSection>
       <LegalSection title="Are ads shown on confessions?">
         <LegalParagraph>
-          The AdSense serving script is disabled by default. If explicitly enabled later, the
-          current code allows it only on selected informational pages, not on the feed or individual
-          confession, report, or submission pages.
+          AdSense is not currently serving through the site. If it is enabled later, the current
+          code is intended to load it only on selected informational pages, not on the feed or
+          individual confession, report, or submission pages. See the{' '}
+          <Link href="/privacy">Privacy Policy</Link> for information about advertising cookies,
+          personalization, measurement, consent, and user choices.
         </LegalParagraph>
       </LegalSection>
       <LegalSection title="Is this an official university service?">
@@ -468,8 +484,9 @@ export function FaqPage() {
       <LegalSection title="How can I contact the team?">
         <LegalParagraph>
           For a concern about a published confession, use the{' '}
-          <Link href="/report">report form</Link>. A separate, verified general support inbox or
-          contact form is not currently configured.
+          <Link href="/report">report form</Link>. For privacy, moderation, content-removal, or
+          general service questions, contact the College Confession Team at{' '}
+          <a href="mailto:heyconnect2471@gmail.com">heyconnect2471@gmail.com</a>.
         </LegalParagraph>
       </LegalSection>
     </LegalPage>
