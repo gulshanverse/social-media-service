@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
-
-const SITE_URL = 'https://www.confessions.live';
+import { SITE_ORIGIN } from './seo-routes';
 
 type PublicPageMetadata = {
   title: string;
@@ -15,7 +14,7 @@ export function publicPageMetadata({
   path,
   indexable = true,
 }: PublicPageMetadata): Metadata {
-  const canonical = new URL(path, SITE_URL).toString();
+  const canonical = path === '/' ? SITE_ORIGIN : new URL(path, SITE_ORIGIN).toString();
 
   return {
     title,
@@ -34,5 +33,25 @@ export function publicPageMetadata({
       description,
     },
     ...(indexable ? {} : { robots: { index: false, follow: true } }),
+  };
+}
+
+export function privatePageMetadata({
+  title,
+  description,
+  path,
+}: Omit<PublicPageMetadata, 'indexable'>): Metadata {
+  return publicPageMetadata({ title, description, path, indexable: false });
+}
+
+export function unavailablePageMetadata({
+  title,
+  description,
+}: Pick<PublicPageMetadata, 'title' | 'description'>): Metadata {
+  return {
+    title,
+    description,
+    alternates: { canonical: null },
+    robots: { index: false, follow: true },
   };
 }

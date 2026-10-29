@@ -12,7 +12,7 @@ export const metadata: Metadata = publicPageMetadata({
 export default function GuidelinesRoute() {
   return (
     <>
-      <AdSenseScript eligible />
+      <AdSenseScript route="/community-guidelines" />
       <GuidelinesPage />
     </>
   );

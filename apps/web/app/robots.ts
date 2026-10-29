@@ -1,4 +1,5 @@
 import type { MetadataRoute } from 'next';
+import { SITE_ORIGIN } from '../lib/seo-routes';
 
 export default function robots(): MetadataRoute.Robots {
   return {
@@ -21,6 +22,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ['/admin', '/private', '/pending', '/api'],
       },
     ],
-    sitemap: 'https://www.confessions.live/sitemap.xml',
+    sitemap: new URL('/sitemap.xml', SITE_ORIGIN).toString(),
   };
 }

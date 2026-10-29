@@ -36,17 +36,49 @@ function publicHandle(value?: string | null) {
 function instagramUrl(handle: string | null) {
   return handle ? `https://www.instagram.com/${encodeURIComponent(handle)}/` : null;
 }
+function safeComment(comment: any) {
+  return {
+    id: comment.id,
+    parentId: comment.parentId ?? null,
+    content: comment.content,
+    createdAt: comment.createdAt.toISOString(),
+    ...(comment.replies
+      ? {
+          replies: comment.replies.map((reply: any) => ({
+            id: reply.id,
+            parentId: reply.parentId ?? null,
+            content: reply.content,
+            createdAt: reply.createdAt.toISOString(),
+          })),
+        }
+      : {}),
+  };
+}
 function safePost(post: any) {
   const handle = publicHandle(post.instagramHandle);
   const themeId = isGarbaThemeId(post.themeId) ? post.themeId : GARBA_DEFAULT_THEME_ID;
   return {
-    ...post,
-    themeId,
-    theme: getGarbaTheme(themeId),
+    publicId: post.publicId,
+    category: post.category,
+    content: post.content,
+    location: post.location ?? null,
     instagramHandle: handle,
     instagramUrl: instagramUrl(handle),
     createdAt: post.createdAt.toISOString(),
     eventDate: post.eventDate?.toISOString() ?? null,
+    themeId,
+    theme: getGarbaTheme(themeId),
+    ...(post.comments ? { comments: post.comments.map(safeComment) } : {}),
+    ...(post._count ? { _count: post._count } : {}),
+  };
+}
+
+function safeSeason(season: any) {
+  return {
+    name: season.name,
+    year: season.year,
+    startDate: season.startDate?.toISOString() ?? null,
+    endDate: season.endDate?.toISOString() ?? null,
   };
 }
 
@@ -62,8 +94,13 @@ export class GarbaService {
       where: { status: 'ACTIVE' },
       orderBy: { year: 'desc' },
     });
-    return (
-      season ?? { name: 'Navratri', year: new Date().getFullYear(), startDate: null, endDate: null }
+    return safeSeason(
+      season ?? {
+        name: 'Navratri',
+        year: new Date().getFullYear(),
+        startDate: null,
+        endDate: null,
+      },
     );
   }
 
@@ -172,7 +209,7 @@ export class GarbaService {
       });
       if (!parent) throw new BadRequestException('Reply target is unavailable.');
     }
-    return prisma.garbaComment.create({
+    const createdComment = await prisma.garbaComment.create({
       data: {
         postId: post.id,
         parentId: dto.parentId,
@@ -181,6 +218,12 @@ export class GarbaService {
         status: 'PUBLISHED',
       },
     });
+    return {
+      id: createdComment.id,
+      parentId: createdComment.parentId ?? null,
+      content: createdComment.content,
+      createdAt: createdComment.createdAt.toISOString(),
+    };
   }
 
   async report(publicId: string, dto: CreateGarbaReportDto, ip: string) {

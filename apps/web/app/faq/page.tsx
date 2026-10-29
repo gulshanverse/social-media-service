@@ -13,7 +13,7 @@ export const metadata: Metadata = publicPageMetadata({
 export default function FaqRoute() {
   return (
     <>
-      <AdSenseScript eligible />
+      <AdSenseScript route="/faq" />
       <FaqPage />
     </>
   );
