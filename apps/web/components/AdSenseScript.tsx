@@ -1,13 +1,28 @@
 import Script from 'next/script';
 
-const INFORMATIONAL_ADS_ENABLED = process.env.NEXT_PUBLIC_ADSENSE_INFO_PAGES_ENABLED === 'true';
+export const ADSENSE_ELIGIBLE_ROUTES = [
+  '/about',
+  '/how-it-works',
+  '/faq',
+  '/community-guidelines',
+] as const;
+
+export function isAdSenseEligible(
+  route: string,
+  enabled = process.env.NEXT_PUBLIC_ADSENSE_INFO_PAGES_ENABLED === 'true',
+) {
+  return (
+    enabled && ADSENSE_ELIGIBLE_ROUTES.includes(route as (typeof ADSENSE_ELIGIBLE_ROUTES)[number])
+  );
+}
 
 /**
  * AdSense is intentionally off unless an owner explicitly enables the informational-page flag.
- * Call this only from eligible informational routes; never from UGC, report, submission, or admin routes.
+ * Route allowlisting and an explicit build-time opt-in are both required. Never use on UGC,
+ * report, submission, utility, session, or admin routes.
  */
-export function AdSenseScript({ eligible = false }: { eligible?: boolean }) {
-  if (!eligible || !INFORMATIONAL_ADS_ENABLED) return null;
+export function AdSenseScript({ route }: { route: string }) {
+  if (!isAdSenseEligible(route)) return null;
 
   return (
     <Script

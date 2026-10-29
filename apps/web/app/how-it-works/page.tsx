@@ -13,7 +13,7 @@ export const metadata: Metadata = publicPageMetadata({
 export default function HowItWorksRoute() {
   return (
     <>
-      <AdSenseScript eligible />
+      <AdSenseScript route="/how-it-works" />
       <HowItWorksPage />
     </>
   );

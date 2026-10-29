@@ -1,16 +1,12 @@
 import type { Metadata } from 'next';
 import { BawalBoxClient, type BawalBoxPage } from './BawalBoxClient';
+import { publicPageMetadata } from '../../lib/metadata';
 
-export const metadata: Metadata = {
-  title: 'BawalBox — Anonymous campus questions',
-  description: 'Ask, answer, and discover the questions shaping campus life.',
-  alternates: { canonical: 'https://www.confessions.live/bawalbox' },
-  openGraph: {
-    title: 'BawalBox — Sawaal ek, bawal anek!',
-    description: 'Anonymous campus questions and community answers.',
-    url: 'https://www.confessions.live/bawalbox',
-  },
-};
+export const metadata: Metadata = publicPageMetadata({
+  title: 'BawalBox',
+  description: 'Ask anonymous campus questions, read approved answers, and participate safely.',
+  path: '/bawalbox',
+});
 
 export const dynamic = 'force-dynamic';
 

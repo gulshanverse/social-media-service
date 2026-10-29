@@ -1,4 +1,11 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
+import { unavailablePageMetadata } from '../../../lib/metadata';
+
+export const metadata: Metadata = unavailablePageMetadata({
+  title: 'Confession Unavailable',
+  description: 'This confession is not available for public viewing.',
+});
 
 export default function ConfessionNotFound() {
   return (
