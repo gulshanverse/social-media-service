@@ -680,7 +680,7 @@ pnpm test
 pnpm build
 ```
 
-The test suite covers the API domain modules and HTTP behavior, administrative authorization, rate limiting, proxy handling, and other production-readiness constraints. The web package currently reports that it has no runtime tests; the admin package runs Vitest.
+The test suite covers the API domain modules and HTTP behavior, administrative authorization, rate limiting, proxy handling, web route/metadata/AdSense policy, and other production-readiness constraints. The web and admin applications run Vitest.
 
 ## Screenshots
 
@@ -693,6 +693,7 @@ No screenshots are currently stored in the repository. The [Product preview](#pr
 - [Moderation rules](docs/moderation.md)
 - [Deployment](docs/deployment.md)
 - [Security](docs/security.md)
+- [SEO and route policy](docs/seo-route-policy.md)
 - [Operations](docs/operations.md)
 - [Production runbook](docs/production-runbook.md)
 - [Design system](docs/design-system.md)
@@ -732,7 +733,7 @@ The repository is maintained under the [gulshanverse GitHub account](https://git
 
 ## AdSense and user-generated content safety
 
-The Google account-verification metadata remains in the public app, and the real seller declaration is served from `apps/web/public/ads.txt`. The AdSense serving script is **off by default**. To deliberately enable it after reviewing content, privacy notices, and applicable consent requirements, set `NEXT_PUBLIC_ADSENSE_INFO_PAGES_ENABLED=true` for the public web build. The script component is mounted only on the homepage, About, How It Works, FAQ, and Community Guidelines. It is not mounted on the confession feed or detail pages, report and submission flows, admin app, or privacy/terms pages. Keep it disabled until the site owner decides monetization is appropriate.
+The Google account-verification metadata remains in the public app, and the real seller declaration is served from `apps/web/public/ads.txt`. The AdSense serving script is **off by default**. To deliberately enable it after reviewing content, privacy notices, and applicable consent requirements, set `NEXT_PUBLIC_ADSENSE_INFO_PAGES_ENABLED=true` for the public web build; because this is a `NEXT_PUBLIC_` variable, a changed value requires rebuilding and redeploying the public web app. The exact route allowlist is `/about`, `/how-it-works`, `/faq`, and `/community-guidelines`. The homepage is deliberately excluded because its client-rendered community preview includes live UGC. The script is not mounted on confession feeds/details, BawalBox, Garba, VibeMatch, report/submission flows, the admin app, or privacy/terms pages. Keep it disabled until the site owner decides monetization is appropriate.
 
 The confession feed and individual user-submitted confession pages are public but `noindex` and excluded from the sitemap while the team reviews privacy and safety. The report and submission routes are also `noindex`; important informational and policy pages remain in the sitemap. The admin app is `noindex` and disallows crawlers. All new confessions remain pending for human approval. Moderator screens display a checklist for identifying details, requests to locate/contact people, harassment, and other safety issues.
 

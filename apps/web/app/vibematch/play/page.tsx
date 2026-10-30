@@ -1,7 +1,11 @@
-import type { Metadata } from 'next';
 import { GameplayClient } from '../../../components/vibematch/GameplayClient';
+import { privatePageMetadata } from '../../../lib/metadata';
 
-export const metadata: Metadata = { title: 'Play VibeMatch' };
+export const metadata = privatePageMetadata({
+  title: 'Play VibeMatch',
+  description: 'Play through your private VibeMatch session.',
+  path: '/vibematch/play',
+});
 export default function VibeMatchPlayPage() {
   return <GameplayClient />;
 }

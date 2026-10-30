@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { AdSenseScript } from '../components/AdSenseScript';
 import { CommunityPreview } from '../components/CommunityPreview';
 
 type Service = {
@@ -74,7 +73,6 @@ const steps = [
 export default function Home() {
   return (
     <>
-      <AdSenseScript eligible />
       <main className="home-shell">
         <section className="home-hero" aria-labelledby="home-title">
           <div className="home-hero__copy">
