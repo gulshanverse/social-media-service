@@ -29,7 +29,7 @@ No `CommenterSession` rows, token hashes, or unrelated user records may be copie
 - Default branch: `main`
 - Main at verification: `1e08ad0f94b0876ac9117e6eebc0117edeb2fcb9`
 - At initial inspection, no college-confession recovery handover branch or dedicated recovery document was found.
-- The handover now exists on branch `docs/college-confession-recovery-handover-20261107` at commit `129f59396984108e13164495ceb62ca3cfb3bd4e`, with review in PR [#30](https://github.com/gulshanverse/social-media-service/pull/30).
+- The handover exists on branch `docs/college-confession-recovery-handover-20261107` with review in PR [#30](https://github.com/gulshanverse/social-media-service/pull/30). The initial documentation commit was `129f59396984108e13164495ceb62ca3cfb3bd4e`; the latest corrected branch commit before this final documentation correction was `dee14db7b3ddf9c3d9c3993f3e2b9156b7053474e`.
 
 This document is a recovery handover, not an authorization to merge, deploy, change environment variables, or execute SQL.
 
@@ -166,7 +166,7 @@ As of the last verified investigation and this handover review:
 - no reconciliation SQL writes were executed;
 - no rows were copied;
 - production, staging, and the recovery anchor remain unchanged;
-- the documentation branch `docs/college-confession-recovery-handover-20261107` exists at commit `129f59396984108e13164495ceb62ca3cfb3bd4e`;
+- the initial documentation commit was `129f59396984108e13164495ceb62ca3cfb3bd4e`, and the latest corrected branch commit before this final documentation correction was `dee14db7b3ddf9c3d9c3993f3e2b9156b7053474e`;
 - PR [#30](https://github.com/gulshanverse/social-media-service/pull/30) is open for review and has not been merged;
 - the manual snapshot inventory was verified separately and contains `pre-reaction-migration-20261022` with provider snapshot ID `snap-broad-wind-aoyjocno`;
 - the 16 personal-data profiles remain excluded and unapproved.
