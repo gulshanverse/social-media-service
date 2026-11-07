@@ -40,7 +40,7 @@ The source staging branch contains 458 published confessions. The immutable reco
 - The same 93 IDs were checked against current production: **0 present**.
 - Shared source/anchor confession content fingerprints were checked; no mismatch was returned.
 
-The SQL fingerprint is computed from `md5(content || '|' || originalContent)`. The transfer script computes a stronger SHA-256 fingerprint internally. Confession `content` and `originalContent` are necessarily transferred for the approved rows, but neither is logged or exposed.
+The SQL fingerprint is computed from `md5(content || '|' || originalContent)`, and the transfer script uses that same algorithm and ordered serialization for its pinned cohort digests. The script uses a separate SHA-256 full-record fingerprint for preservation checks. Confession `content` and `originalContent` are necessarily transferred for the approved rows, but neither is logged or exposed.
 
 ## Dependency reconciliation
 
@@ -95,13 +95,13 @@ The corrected transfer script is dry-run by default and now includes:
 - theme, editor, audit-actor, reaction-profile, and comment dependency checks;
 - preserved-record full-field fingerprint checks;
 - explicit transaction postflight checks;
-- write gates requiring exact target branch, snapshot, approval reference, snapshot-manual confirmation, and script checksum.
+- write gates requiring exact target branch, snapshot, approval reference, script checksum, and a fresh provider-side Neon snapshot manifest. The manifest must identify the project, exact manual snapshot, production source branch, and a verification time no older than 15 minutes.
 
 Tests cover wrong branch identity, wrong entity casing, unexpected fingerprints, missing dependencies, duplicate IDs, invalid audit metadata, and transaction error propagation for rollback.
 
-Test result: **7 passed, 0 failed**.
+Test result: **12 passed, 0 failed**.
 
-- Script SHA-256: `349d37ec5229d0faf50b6681b0bf2762f800cbe837ff88a3553e705c891afe7e`
-- Test SHA-256: `d209189e673f53df0d2d25e86aafdeaa2c73417350ce1b7f1f5eb573714526ac`
+- Script SHA-256: `0f2c70cea9252fdc131fe3a159045e59ab26867789a6db1a64c045d1959732ef`
+- Test SHA-256: `86c3c289f50ccc9e6d9a27e734f849c215fa428e5bba091275fe0eba9e1205ae`
 
 No production transfer was executed. Independent review is required before any production execution.

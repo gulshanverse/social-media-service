@@ -28,6 +28,9 @@ const TARGET_BRANCH_ID = 'br-tiny-bread-ao1quu8u';
 const PRESERVED_SNAPSHOT_ID = 'snap-broad-wind-aoyjocno';
 const STAGING_FORK_AT = new Date('2026-10-25T14:08:34.000Z');
 const PRESERVED_CONFESSION_ID = 'cmw684l1r0001id01uhgpyj25';
+const EXPECTED_RECOVERY_ID_SET_DIGEST = '318793c9a787a94541f2595fe801096e';
+const EXPECTED_RECOVERY_CONTENT_FINGERPRINT_SET_DIGEST = '5ad19af3fafa50fc4f1cf213306ff410';
+const SNAPSHOT_MANIFEST_MAX_AGE_MS = 15 * 60 * 1000;
 const EXPECTED = {
   confessions: 93,
   commentsExcluded: 26,
@@ -92,7 +95,7 @@ function requiredEnv(name: string): string {
 export function confessionFingerprint(
   row: Pick<ConfessionRow, 'content' | 'originalContent'>,
 ): string {
-  return createHash('sha256').update(`${row.content}\u001f${row.originalContent}`).digest('hex');
+  return createHash('md5').update(`${row.content}|${row.originalContent}`).digest('hex');
 }
 
 export function fullRecordFingerprint(row: ConfessionRow): string {
@@ -121,7 +124,70 @@ export function fullRecordFingerprint(row: ConfessionRow): string {
 }
 
 export function setDigest(values: string[]): string {
-  return createHash('sha256').update(values.slice().sort().join(',')).digest('hex');
+  return createHash('md5').update(values.slice().sort().join(',')).digest('hex');
+}
+
+export function assertDigest(actual: string, expected: string, label: string): void {
+  if (actual !== expected)
+    throw new Error(`${label} mismatch: expected ${expected}, got ${actual}`);
+}
+
+export function assertPreservedFingerprintMatch(
+  anchorFingerprint: string,
+  targetFingerprint: string,
+): void {
+  if (anchorFingerprint !== targetFingerprint) {
+    throw new Error(
+      `Preserved confession fingerprint mismatch: anchor=${anchorFingerprint}, target=${targetFingerprint}`,
+    );
+  }
+}
+
+export function assertNoGlobalCollisions(
+  candidateIds: string[],
+  existingIds: string[],
+  label: string,
+): void {
+  const existing = new Set(existingIds);
+  const collisions = candidateIds.filter((id) => existing.has(id));
+  if (collisions.length > 0)
+    throw new Error(`${label} global primary-key collision: ${collisions.length}`);
+}
+
+export function assertExactIdSet(actualIds: string[], expectedIds: string[], label: string): void {
+  assertUniqueIds(actualIds, `${label} actual IDs`);
+  assertUniqueIds(expectedIds, `${label} expected IDs`);
+  assertDigest(setDigest(actualIds), setDigest(expectedIds), `${label} ID set`);
+}
+
+export type SnapshotManifest = {
+  provider: string;
+  projectId: string;
+  snapshotId: string;
+  sourceBranchId: string;
+  manual: boolean;
+  verifiedAt: string;
+};
+
+export function validateSnapshotManifest(manifest: SnapshotManifest, now = Date.now()): void {
+  if (manifest.provider !== 'neon-control-plane')
+    throw new Error('Snapshot manifest provider is not Neon control plane');
+  if (
+    manifest.projectId !== PROJECT_ID ||
+    manifest.snapshotId !== PRESERVED_SNAPSHOT_ID ||
+    manifest.sourceBranchId !== TARGET_BRANCH_ID ||
+    manifest.manual !== true
+  ) {
+    throw new Error('Snapshot manifest does not match the verified preserved manual snapshot');
+  }
+  const verifiedAt = Date.parse(manifest.verifiedAt);
+  if (
+    !Number.isFinite(verifiedAt) ||
+    now - verifiedAt < 0 ||
+    now - verifiedAt > SNAPSHOT_MANIFEST_MAX_AGE_MS
+  ) {
+    throw new Error('Snapshot manifest is missing, invalid, or stale');
+  }
 }
 
 export function assertUniqueIds(ids: string[], label: string): void {
@@ -199,11 +265,12 @@ export function assertExecutionApproval(actualScriptSha256: string): void {
     throw new Error('Refusing writes: target branch gate mismatch');
   if (requiredEnv('RECOVERY_SNAPSHOT_ID') !== PRESERVED_SNAPSHOT_ID)
     throw new Error('Refusing writes: snapshot gate mismatch');
-  if (process.env.RECOVERY_SNAPSHOT_MANUAL !== 'true')
-    throw new Error('Refusing writes: provider snapshot manual=true confirmation is required');
   requiredEnv('RECOVERY_APPROVAL_REFERENCE');
   if (requiredEnv('RECOVERY_SCRIPT_SHA256') !== actualScriptSha256)
     throw new Error(`Refusing writes: checksum mismatch; actual=${actualScriptSha256}`);
+  const manifestPath = requiredEnv('RECOVERY_SNAPSHOT_MANIFEST_PATH');
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as SnapshotManifest;
+  validateSnapshotManifest(manifest);
 }
 
 export async function readBranchIdentity(client: PrismaClient): Promise<BranchIdentity> {
@@ -312,6 +379,16 @@ async function main(): Promise<void> {
     }
     const recoveryIds = recoveryConfessions.map((row) => row.id);
     assertUniqueIds(recoveryIds, 'recovery confession IDs');
+    assertDigest(
+      setDigest(recoveryIds),
+      EXPECTED_RECOVERY_ID_SET_DIGEST,
+      'recovery confession ID set',
+    );
+    assertDigest(
+      setDigest(recoveryConfessions.map((row) => `${row.id}:${confessionFingerprint(row)}`)),
+      EXPECTED_RECOVERY_CONTENT_FINGERPRINT_SET_DIGEST,
+      'recovery confession content-fingerprint set',
+    );
 
     const targetExisting = await target.confession.findMany({
       where: {
@@ -329,9 +406,16 @@ async function main(): Promise<void> {
       where: { id: PRESERVED_CONFESSION_ID },
       select: confessionSelect,
     });
+    const preservedAnchor = await anchor.confession.findUnique({
+      where: { id: PRESERVED_CONFESSION_ID },
+      select: confessionSelect,
+    });
     if (!preservedBefore)
       throw new Error('Preserved production-only confession is absent from target');
+    if (!preservedAnchor)
+      throw new Error('Preserved production-only confession is absent from recovery anchor');
     const preservedFingerprint = fullRecordFingerprint(preservedBefore);
+    assertPreservedFingerprintMatch(fullRecordFingerprint(preservedAnchor), preservedFingerprint);
 
     const sourceComments = await source.confessionComment.findMany({
       where: { confessionId: { in: recoveryIds } },
@@ -388,6 +472,8 @@ async function main(): Promise<void> {
       'reactions linked to existing profiles',
     );
     assertCount(excludedReactions.length, EXPECTED.reactionsExcluded, 'excluded reactions');
+    const eligibleReactionIds = eligibleReactions.map((row) => row.id);
+    assertUniqueIds(eligibleReactionIds, 'eligible reaction IDs');
 
     const sourceAuditLogs = await source.auditLog.findMany({
       where: {
@@ -412,6 +498,8 @@ async function main(): Promise<void> {
     for (const [action, expected] of Object.entries(EXPECTED.auditActions))
       assertCount(counts[action] ?? 0, expected, `audit action ${action}`);
     assertExpectedAuditMetadata(sourceAuditLogs);
+    const auditIds = sourceAuditLogs.map((row) => row.id);
+    assertUniqueIds(auditIds, 'audit IDs');
 
     const targetThemes = await target.theme.findMany({
       where: {
@@ -439,21 +527,29 @@ async function main(): Promise<void> {
     assertNoMissingDependencies(actorIds, [...targetAdminIds], 'target editors and audit actors');
 
     const targetReactionKeys = await target.confessionReaction.findMany({
-      where: { confessionId: { in: recoveryIds } },
+      where: { id: { in: eligibleReactionIds } },
       select: { id: true, confessionId: true, actorHash: true, emoji: true },
     });
-    const targetReactionIds = new Set(targetReactionKeys.map((row) => row.id));
+    assertNoGlobalCollisions(
+      eligibleReactionIds,
+      targetReactionKeys.map((row) => row.id),
+      'reaction',
+    );
     const targetUniqueKeys = new Set(
       targetReactionKeys.map(
         (row) => `${row.confessionId}\u001f${row.actorHash}\u001f${row.emoji}`,
       ),
     );
     for (const row of eligibleReactions) {
-      if (targetReactionIds.has(row.id))
-        throw new Error('A recovery reaction ID already exists in target');
       if (targetUniqueKeys.has(`${row.confessionId}\u001f${row.actorHash}\u001f${row.emoji}`))
         throw new Error('A recovery reaction uniqueness key already exists in target');
     }
+    const targetAuditIds = await target.auditLog.findMany({ select: { id: true } });
+    assertNoGlobalCollisions(
+      auditIds,
+      targetAuditIds.map((row) => row.id),
+      'audit-log',
+    );
 
     console.log(
       JSON.stringify({
@@ -490,23 +586,55 @@ async function main(): Promise<void> {
       await tx.confession.createMany({ data: confessionData });
       await tx.confessionReaction.createMany({ data: reactionData });
       await tx.auditLog.createMany({ data: auditData });
+      const postflightConfessions = await tx.confession.findMany({
+        where: { id: { in: recoveryIds } },
+        select: confessionSelect,
+      });
+      assertExactIdSet(
+        postflightConfessions.map((row: ConfessionRow) => row.id),
+        recoveryIds,
+        'postflight confession',
+      );
       assertCount(
-        await tx.confession.count({ where: { id: { in: recoveryIds }, status: 'PUBLISHED' } }),
+        postflightConfessions.filter((row: ConfessionRow) => row.status === 'PUBLISHED').length,
         EXPECTED.confessions,
-        'postflight confessions',
+        'postflight published confessions',
       );
-      assertCount(
-        await tx.confessionReaction.count({
-          where: { id: { in: eligibleReactions.map((row) => row.id) } },
-        }),
-        EXPECTED.reactionsEligible,
-        'postflight reactions',
+      assertDigest(
+        setDigest(
+          postflightConfessions.map(
+            (row: ConfessionRow) => `${row.id}:${confessionFingerprint(row)}`,
+          ),
+        ),
+        EXPECTED_RECOVERY_CONTENT_FINGERPRINT_SET_DIGEST,
+        'postflight confession content-fingerprint set',
       );
-      assertCount(
-        await tx.auditLog.count({ where: { id: { in: sourceAuditLogs.map((row) => row.id) } } }),
-        EXPECTED.auditLogs,
-        'postflight audit logs',
+      const postflightReactions = await tx.confessionReaction.findMany({
+        where: { id: { in: eligibleReactionIds } },
+        select: { id: true },
+      });
+      assertExactIdSet(
+        postflightReactions.map((row: { id: string }) => row.id),
+        eligibleReactionIds,
+        'postflight reaction',
       );
+      const postflightAudit = await tx.auditLog.findMany({
+        where: { id: { in: auditIds } },
+        select: { id: true, action: true },
+      });
+      assertExactIdSet(
+        postflightAudit.map((row: { id: string }) => row.id),
+        auditIds,
+        'postflight audit',
+      );
+      const postflightActionCounts = actionCounts(postflightAudit);
+      for (const [action, expected] of Object.entries(EXPECTED.auditActions)) {
+        assertCount(
+          postflightActionCounts[action] ?? 0,
+          expected,
+          `postflight audit action ${action}`,
+        );
+      }
       const preservedAfter = await tx.confession.findUnique({
         where: { id: PRESERVED_CONFESSION_ID },
         select: confessionSelect,
