@@ -28,8 +28,8 @@ No `CommenterSession` rows, token hashes, or unrelated user records may be copie
 - GitHub URL: <https://github.com/gulshanverse/social-media-service>
 - Default branch: `main`
 - Main at verification: `1e08ad0f94b0876ac9117e6eebc0117edeb2fcb9`
-- No existing college-confession recovery handover branch or dedicated recovery document was found.
-- The existing manual snapshot `pre-reaction-migration-20261022` must not be deleted.
+- At initial inspection, no college-confession recovery handover branch or dedicated recovery document was found.
+- The handover now exists on branch `docs/college-confession-recovery-handover-20261107` at commit `129f59396984108e13164495ceb62ca3cfb3bd4e`, with review in PR [#30](https://github.com/gulshanverse/social-media-service/pull/30).
 
 This document is a recovery handover, not an authorization to merge, deploy, change environment variables, or execute SQL.
 
@@ -44,14 +44,24 @@ Neon project:
 
 Relevant branches, verified read-only:
 
-| Role | Branch name | Branch ID | Parent / notes |
+| Role | Branch name | Branch ID | Parent branch / notes |
 |---|---|---|---|
-| Production | `production` | `br-tiny-bread-ao1quu8u` | Primary and default branch |
-| Staging | `quick-play-staging-20261025` | `br-shy-lab-aovf1xbg` | Child of production |
-| Recovery anchor | `confession-recovery-anchor-20261107` | `br-green-math-aoh5tklp` | Child of production; anchor timestamp `2026-11-07 10:16:38 UTC` |
-| Existing manual snapshot branch | `pre-bawalbox-migration-20261025` | `br-round-term-aosi571r` | Separate existing branch; do not delete |
+| Production | `production` | `br-tiny-bread-ao1quu8u` | Primary and default; no parent |
+| Staging | `quick-play-staging-20261025` | `br-shy-lab-aovf1xbg` | Parent `production` (`br-tiny-bread-ao1quu8u`) |
+| Recovery anchor | `confession-recovery-anchor-20261107` | `br-green-math-aoh5tklp` | Parent `production` (`br-tiny-bread-ao1quu8u`); anchor timestamp `2026-11-07 10:16:38 UTC` |
+| Ordinary branch | `pre-bawalbox-migration-20261025` | `br-round-term-aosi571r` | Parent `production` (`br-tiny-bread-ao1quu8u`); **not a manual snapshot** |
 
 The recovery anchor was observed as ready and its parent was confirmed as production. Production, staging, and the recovery anchor were not modified during this verification.
+
+### Manual snapshot inventory
+
+The provider's manual-snapshot inventory was checked separately from the ordinary branch inventory. It contains exactly one manual snapshot:
+
+| Snapshot name | Snapshot ID | Source branch | Created | Provider flag |
+|---|---|---|---|---|
+| `pre-reaction-migration-20261022` | `snap-broad-wind-aoyjocno` | `production` (`br-tiny-bread-ao1quu8u`) | `2026-10-21 23:34:12 UTC` | `manual: true` |
+
+There is no ordinary Neon branch named `pre-reaction-migration-20261022` in the current branch inventory. The branch `pre-bawalbox-migration-20261025` is a separate ordinary branch and must not be described as, or substituted for, the manual snapshot. Neither the manual snapshot nor any branch may be deleted.
 
 ## Investigation findings supplied for recovery
 
@@ -156,7 +166,9 @@ As of the last verified investigation and this handover review:
 - no reconciliation SQL writes were executed;
 - no rows were copied;
 - production, staging, and the recovery anchor remain unchanged;
-- no documentation commit or push had previously been confirmed;
+- the documentation branch `docs/college-confession-recovery-handover-20261107` exists at commit `129f59396984108e13164495ceb62ca3cfb3bd4e`;
+- PR [#30](https://github.com/gulshanverse/social-media-service/pull/30) is open for review and has not been merged;
+- the manual snapshot inventory was verified separately and contains `pre-reaction-migration-20261022` with provider snapshot ID `snap-broad-wind-aoyjocno`;
 - the 16 personal-data profiles remain excluded and unapproved.
 
 The next safe action is review of this documentation PR. The next database action, if ever approved, is an isolated read-only reconciliation—not a production write.
