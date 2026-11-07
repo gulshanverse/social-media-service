@@ -22,6 +22,7 @@ import { ConfessionCard as SharedConfessionCard, GarbaCard, Logo } from '@ggv/ui
 import ProfilePage from './ProfilePage';
 import RbacManagement from './RbacManagement';
 import BawalBoxStudio from './BawalBoxStudio';
+import HomepagePromotions from './HomepagePromotions';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 type Role = 'SUPER_ADMIN' | 'MODERATOR' | 'DESIGNER';
@@ -104,6 +105,57 @@ export async function api(path: string, init: RequestInit = {}) {
     throw new Error(message);
   }
   return response.json();
+}
+export async function uploadFile(path: string, file: File, onProgress: (percent: number) => void) {
+  const send = () =>
+    new Promise<{ url: string; key: string; width: number; height: number; size: number }>(
+      (resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        const body = new FormData();
+        body.append('file', file);
+        xhr.open('POST', `${API}${path}`);
+        xhr.withCredentials = true;
+        if (runtimeToken) xhr.setRequestHeader('authorization', `Bearer ${runtimeToken}`);
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable)
+            onProgress(Math.min(100, Math.round((event.loaded / event.total) * 100)));
+        };
+        xhr.onerror = () => reject(new Error('The image upload could not reach the server.'));
+        xhr.onload = () => {
+          let result: {
+            url?: string;
+            key?: string;
+            width?: number;
+            height?: number;
+            size?: number;
+            message?: string;
+          } = {};
+          try {
+            result = JSON.parse(xhr.responseText);
+          } catch {}
+          if (xhr.status < 200 || xhr.status >= 300) {
+            const error = new Error(result.message ?? 'Image upload failed.') as Error & {
+              status?: number;
+            };
+            error.status = xhr.status;
+            reject(error);
+            return;
+          }
+          onProgress(100);
+          resolve(
+            result as { url: string; key: string; width: number; height: number; size: number },
+          );
+        };
+        xhr.send(body);
+      },
+    );
+  try {
+    return await send();
+  } catch (error) {
+    if ((error as { status?: number })?.status !== 401) throw error;
+    await refresh();
+    return send();
+  }
 }
 function qs(values: Record<string, string | number | boolean | undefined>) {
   return Object.entries(values)
@@ -228,6 +280,8 @@ export function Nav({ admin, onNavigate }: { admin: Admin; onNavigate?: () => vo
   if (admin.role === 'SUPER_ADMIN') links.push(['/users', 'Administrators']);
   if (admin.role === 'SUPER_ADMIN') links.push(['/rbac', 'Dynamic RBAC']);
   links.push(['/themes', 'Themes']);
+  if (admin.role === 'SUPER_ADMIN' || admin.role === 'DESIGNER')
+    links.push(['/homepage-promotions', 'Homepage Promotions']);
   if (admin.role === 'SUPER_ADMIN' || admin.role === 'DESIGNER')
     links.push(['/profile-page', 'Profile Page']);
   links.push(['/bawalbox', 'BawalBox Studio']);
@@ -3941,6 +3995,9 @@ export default function AdminClient() {
       <ProfilePage />
     ) : pathname === '/bawalbox' ? (
       <BawalBoxStudio />
+    ) : pathname === '/homepage-promotions' &&
+      (admin.role === 'SUPER_ADMIN' || admin.role === 'DESIGNER') ? (
+      <HomepagePromotions api={api} uploadFile={uploadFile} />
     ) : (
       <Dashboard admin={admin} />
     );

@@ -4,6 +4,7 @@ import { GarbaModule } from './garba/garba.module';
 import { AdminModule } from './admin.module';
 import { VibeMatchModule } from './vibematch/vibematch.module';
 import { BawalBoxModule } from './bawalbox/bawalbox.module';
+import { HomepagePromotionsModule } from './homepage-promotions.module';
 import { prisma } from './admin-auth';
 import { metricsSnapshot } from './observability';
 
@@ -47,7 +48,14 @@ export class MetricsController {
 }
 
 @Module({
-  imports: [ConfessionsModule, GarbaModule, AdminModule, VibeMatchModule, BawalBoxModule],
+  imports: [
+    ConfessionsModule,
+    GarbaModule,
+    AdminModule,
+    VibeMatchModule,
+    BawalBoxModule,
+    HomepagePromotionsModule,
+  ],
   controllers: [HealthController, MetricsController],
 })
 export class AppModule {}

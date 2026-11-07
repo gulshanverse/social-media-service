@@ -6,9 +6,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PublicConfessionPage } from '@ggv/types';
 import { allConfessionCategories } from '@ggv/types';
 import { ConfessionCard } from '../../components/ConfessionCard';
-import { type ConfessionFeedQuery, getConfessions } from '../../lib/api';
+import HomepagePromotionCarousel from '../../components/HomepagePromotionCarousel';
+import {
+  type ConfessionFeedQuery,
+  getConfessions,
+  type PublicHomepagePromotion,
+} from '../../lib/api';
 
-type Props = { initialQuery: ConfessionFeedQuery };
+type Props = { initialQuery: ConfessionFeedQuery; promotions: PublicHomepagePromotion[] };
 type DateRange = NonNullable<ConfessionFeedQuery['dateRange']>;
 type HistoryMode = 'push' | 'replace';
 type ServiceSlide = {
@@ -124,7 +129,7 @@ function pageItems(current: number, totalPages: number): PageItem[] {
   ]);
 }
 
-export default function ConfessionsFeed({ initialQuery }: Props) {
+export default function ConfessionsFeed({ initialQuery, promotions }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const {
@@ -298,6 +303,10 @@ export default function ConfessionsFeed({ initialQuery }: Props) {
         </div>
         <p>Confessions, connections and campus life.</p>
       </section>
+
+      <div className="confessions-promotion-wrap">
+        <HomepagePromotionCarousel promotions={promotions} />
+      </div>
 
       <section className="featured-services" aria-label="Featured campus services">
         <div

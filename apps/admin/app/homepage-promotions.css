@@ -1,0 +1,409 @@
+/* Homepage promotions workspace */
+.homepage-promotions-admin {
+  width: min(1280px, calc(100% - 40px));
+  margin: 24px auto 72px;
+}
+.homepage-promotions-admin .promotions-heading,
+.homepage-promotions-admin .promotion-editor-heading,
+.homepage-promotions-admin .promotion-list-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+.homepage-promotions-admin .promotions-heading h1 {
+  margin: 0;
+  font-size: clamp(1.7rem, 4vw, 2.45rem);
+}
+.homepage-promotions-admin .promotions-heading .muted,
+.homepage-promotions-admin .promotion-list-heading .muted {
+  margin: 8px 0 0;
+}
+.promotion-editor {
+  margin: 26px 0 36px;
+  padding: clamp(16px, 3vw, 28px);
+  border: 1px solid #2b3750;
+  border-radius: 20px;
+  background: #101522;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+}
+.promotion-editor-heading {
+  margin-bottom: 24px;
+}
+.promotion-editor-heading h2,
+.promotion-list-heading h2 {
+  margin: 0;
+}
+.promotion-form-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.promotion-form label,
+.promotion-upload > label {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+  color: #eef2ff;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+.promotion-form label > span,
+.promotion-upload label > span {
+  color: #ff87aa;
+}
+.promotion-form input,
+.promotion-form select,
+.promotion-form textarea,
+.promotion-upload input[type='file'] {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #35435d;
+  border-radius: 10px;
+  background: #0b101b;
+  color: #fff;
+  font: inherit;
+}
+.promotion-form textarea {
+  min-height: 88px;
+  resize: vertical;
+}
+.promotion-form label small,
+.promotion-upload small {
+  color: #9ca9bd;
+  font-size: 0.74rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.promotion-form-wide {
+  grid-column: 1 / -1;
+}
+.promotion-upload {
+  min-width: 0;
+  padding: 12px;
+  border: 1px dashed #47536a;
+  border-radius: 14px;
+  background: rgba(9, 14, 25, 0.56);
+}
+.promotion-upload input[type='file'] {
+  padding: 7px;
+}
+.promotion-upload-preview {
+  height: 130px;
+  margin-top: 11px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #080c15;
+}
+.promotion-upload-preview img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+}
+.promotion-upload-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  color: #cbd5e1;
+  font-size: 0.78rem;
+}
+.promotion-upload-progress progress {
+  width: min(260px, 65%);
+  height: 10px;
+  accent-color: #d467e9;
+}
+.promotion-editor-actions,
+.promotion-preview-switch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 22px;
+}
+.promotion-preview-switch {
+  margin: 0 0 16px;
+}
+.promotion-preview-switch button.active {
+  min-height: 40px;
+}
+.promotion-preview-card {
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  aspect-ratio: 16 / 6;
+  min-height: 220px;
+  border: 1px solid #35435d;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #171b38, #301b50 55%, #631f61);
+}
+.promotion-preview-card--mobile {
+  width: min(100%, 440px);
+  margin: 0 auto;
+  aspect-ratio: 5 / 4;
+  min-height: 0;
+}
+.promotion-preview-card > img,
+.promotion-preview-shade {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.promotion-preview-card > img {
+  display: block;
+  object-fit: cover;
+}
+.promotion-preview-shade {
+  z-index: 1;
+  background:
+    linear-gradient(90deg, rgba(7, 8, 21, 0.8), rgba(12, 11, 28, 0.45) 48%, transparent),
+    linear-gradient(0deg, rgba(7, 8, 21, 0.35), transparent 55%);
+}
+.promotion-preview-copy {
+  position: absolute;
+  z-index: 2;
+  left: 28px;
+  bottom: 25px;
+  width: min(65%, 570px);
+  color: #fff;
+}
+.promotion-preview-copy h3 {
+  margin: 0;
+  font-size: clamp(1.6rem, 4vw, 3rem);
+  line-height: 1;
+}
+.promotion-preview-copy > p:not(.promotion-preview-badge) {
+  margin: 10px 0 0;
+  line-height: 1.45;
+}
+.promotion-preview-badge {
+  width: fit-content;
+  margin: 0 0 10px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: rgba(34, 23, 59, 0.7);
+  color: #f7c7ff;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.promotion-preview-cta {
+  min-height: 40px;
+  width: fit-content;
+  margin-top: 14px;
+  padding: 10px 14px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.76);
+  border-radius: 999px;
+  background: linear-gradient(115deg, #ec358d, #7a56da);
+  font-size: 0.83rem;
+  font-weight: 800;
+}
+.promotion-preview-panel > .muted {
+  margin: 12px 0 0;
+}
+.promotion-list-heading {
+  margin: 34px 0 16px;
+}
+.promotion-list-heading h2 span {
+  display: inline-flex;
+  min-width: 26px;
+  height: 26px;
+  align-items: center;
+  justify-content: center;
+  margin-left: 6px;
+  border-radius: 999px;
+  background: #202b40;
+  color: #e2e8f0;
+  font-size: 0.76rem;
+  vertical-align: middle;
+}
+.promotion-list {
+  display: grid;
+  gap: 14px;
+}
+.promotion-pagination {
+  margin-top: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  color: #9ca9bd;
+}
+.promotion-pagination button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.promotion-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  gap: 18px;
+  padding: 16px;
+  border: 1px solid #27334a;
+  border-radius: 16px;
+  background: #101522;
+}
+.promotion-row-poster {
+  min-height: 130px;
+  overflow: hidden;
+  border-radius: 11px;
+  background: #090e19;
+}
+.promotion-row-poster img {
+  width: 100%;
+  height: 100%;
+  min-height: 130px;
+  display: block;
+  object-fit: cover;
+}
+.promotion-row-details {
+  min-width: 0;
+}
+.promotion-row-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.promotion-row-title h3 {
+  margin: 0;
+  font-size: 1.08rem;
+  overflow-wrap: anywhere;
+}
+.promotion-row-details > .muted {
+  margin: 8px 0 12px;
+  overflow-wrap: anywhere;
+}
+.promotion-status {
+  display: inline-flex;
+  min-height: 26px;
+  align-items: center;
+  padding: 4px 9px;
+  border: 1px solid #3b455a;
+  border-radius: 999px;
+  background: #202b40;
+  color: #d7deea;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+.promotion-status--published {
+  border-color: #16664b;
+  background: #123b30;
+  color: #a7f3d0;
+}
+.promotion-status--scheduled {
+  border-color: #68531a;
+  background: #362e17;
+  color: #fde68a;
+}
+.promotion-status--expired,
+.promotion-status--disabled {
+  border-color: #633042;
+  background: #3b202b;
+  color: #fecdd3;
+}
+.promotion-row-details dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 14px;
+  margin: 0;
+  color: #dbe3f0;
+  font-size: 0.75rem;
+}
+.promotion-row-details dl div {
+  min-width: 0;
+  display: flex;
+  gap: 5px;
+}
+.promotion-row-details dt {
+  flex: 0 0 auto;
+  color: #8f9db2;
+}
+.promotion-row-details dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.promotion-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+.promotion-row-actions button {
+  min-height: 38px;
+}
+.homepage-promotions-admin .empty-state {
+  padding: 30px;
+  border: 1px dashed #35435d;
+  border-radius: 16px;
+  background: #101522;
+}
+.homepage-promotions-admin .empty-state p {
+  color: #9ca9bd;
+}
+@media (max-width: 720px) {
+  .homepage-promotions-admin {
+    width: min(100% - 24px, 640px);
+    margin-top: 18px;
+  }
+  .promotion-form-fields {
+    grid-template-columns: 1fr;
+  }
+  .promotion-form-wide {
+    grid-column: auto;
+  }
+  .promotion-row {
+    grid-template-columns: 1fr;
+  }
+  .promotion-row-poster {
+    height: 180px;
+  }
+  .promotion-row-poster img {
+    min-height: 0;
+  }
+  .promotion-row-details dl {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 420px) {
+  .homepage-promotions-admin {
+    width: calc(100% - 20px);
+  }
+  .homepage-promotions-admin .promotions-heading,
+  .homepage-promotions-admin .promotion-editor-heading {
+    align-items: flex-start;
+  }
+  .homepage-promotions-admin .promotions-heading > button {
+    flex: 0 0 auto;
+    max-width: 118px;
+    white-space: normal;
+  }
+  .promotion-editor {
+    padding: 14px;
+  }
+  .promotion-preview-card {
+    aspect-ratio: 5 / 4;
+    min-height: 0;
+  }
+  .promotion-preview-copy {
+    left: 14px;
+    bottom: 14px;
+    width: calc(100% - 28px);
+  }
+  .promotion-preview-card--mobile {
+    width: 100%;
+  }
+  .promotion-editor-actions > button {
+    flex: 1 1 110px;
+  }
+}

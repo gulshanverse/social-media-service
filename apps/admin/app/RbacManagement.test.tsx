@@ -19,6 +19,7 @@ const permissions = [
   { key: 'dashboard.read', description: 'Read dashboard aggregates', reserved: false },
   { key: 'confessions.read', description: 'Read confession moderation records', reserved: false },
   { key: 'themes.manage', description: 'Create and manage themes', reserved: false },
+  { key: 'homepage-promotions.manage', description: 'Manage homepage promotions', reserved: false },
   { key: 'roles.manage', description: 'Manage custom administrator roles', reserved: true },
 ];
 const roles = [
@@ -62,7 +63,7 @@ const access = {
     },
   ],
   overrides: [{ permissionKey: 'dashboard.read', effect: 'DENY' as const }],
-  effectivePermissions: ['themes.manage'],
+  effectivePermissions: ['themes.manage', 'homepage-promotions.manage'],
 };
 
 function body(value: unknown, ok = true, status = 200) {

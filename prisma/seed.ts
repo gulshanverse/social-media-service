@@ -46,6 +46,7 @@ async function main() {
         PERMISSIONS.DASHBOARD_READ,
         PERMISSIONS.THEMES_READ,
         PERMISSIONS.THEMES_MANAGE,
+        PERMISSIONS.HOMEPAGE_PROMOTIONS_MANAGE,
         PERMISSIONS.PROFILE_MANAGE,
       ].map((permissionKey) => ({ roleId: designer.id, permissionKey })),
     ],

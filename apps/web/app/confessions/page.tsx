@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import ConfessionsFeed from './ConfessionsFeed';
 import { publicPageMetadata } from '../../lib/metadata';
-import type { ConfessionFeedQuery } from '../../lib/api';
+import { getHomepagePromotions, type ConfessionFeedQuery } from '../../lib/api';
 
 export const metadata: Metadata = publicPageMetadata({
   title: 'Community Confessions',
@@ -16,12 +16,14 @@ type ConfessionsPageProps = {
 
 export default async function ConfessionsPage({ searchParams }: ConfessionsPageProps) {
   const params = await searchParams;
+  const promotions = await getHomepagePromotions().catch(() => []);
   const value = (key: string) => (typeof params[key] === 'string' ? params[key] : undefined);
   const page = Math.max(1, Number(value('page') ?? 1) || 1);
   const dateRange = value('dateRange');
   const sort = value('sort');
   return (
     <ConfessionsFeed
+      promotions={promotions}
       initialQuery={{
         page,
         search: value('search'),
