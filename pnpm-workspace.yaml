@@ -1,3 +1,5 @@
 packages:
   - apps/*
   - packages/*
+overrides:
+  sharp: 0.35.5
