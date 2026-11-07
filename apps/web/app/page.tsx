@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import { CommunityPreview } from '../components/CommunityPreview';
+import HomepagePromotionCarousel from '../components/HomepagePromotionCarousel';
+import { getHomepagePromotions } from '../lib/api';
 
 type Service = {
   icon: string;
@@ -70,7 +72,8 @@ const steps = [
   ],
 ];
 
-export default function Home() {
+export default async function Home() {
+  const promotions = await getHomepagePromotions().catch(() => []);
   return (
     <>
       <main className="home-shell">
@@ -103,6 +106,7 @@ export default function Home() {
               </span>
             </div>
           </div>
+          <HomepagePromotionCarousel promotions={promotions} />
           <div className="home-hero__aside" aria-label="A quick note about the platform">
             <div className="home-note">
               <span className="home-note__mark" aria-hidden="true">

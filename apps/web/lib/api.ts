@@ -17,6 +17,18 @@ export class ApiRequestError extends Error {
   }
 }
 
+export type PublicHomepagePromotion = {
+  id: string;
+  title: string;
+  description: string | null;
+  badgeText: string | null;
+  desktopImageUrl: string;
+  mobileImageUrl: string | null;
+  imageAlt: string | null;
+  ctaLabel: string | null;
+  destinationUrl: string | null;
+};
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${apiUrl}${path}`, {
     ...init,
@@ -31,6 +43,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     );
   return body as T;
 }
+
+export const getHomepagePromotions = () =>
+  request<PublicHomepagePromotion[]>('/homepage-promotions', { cache: 'no-store' });
 
 export const createConfession = (payload: {
   content: string;

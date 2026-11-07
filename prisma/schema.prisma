@@ -96,6 +96,12 @@ enum PermissionEffect {
   DENY
 }
 
+enum HomepagePromotionStatus {
+  DRAFT
+  PUBLISHED
+  DISABLED
+}
+
 model AdminUser {
   id             String          @id @default(cuid())
   email          String          @unique
@@ -115,6 +121,8 @@ model AdminUser {
   roleAssignments AdminRoleAssignment[]
   permissionOverrides AdminPermissionOverride[]
   bawalBoxResponsesModerated BawalBoxResponse[] @relation("BawalBoxResponseModerator")
+  createdHomepagePromotions HomepagePromotion[] @relation("HomepagePromotionCreatedBy")
+  updatedHomepagePromotions HomepagePromotion[] @relation("HomepagePromotionUpdatedBy")
 }
 
 model AdminSession {
@@ -381,6 +389,33 @@ model CollegeConfessionProfileSettings {
   updatedBy                String?
 
   @@index([updatedAt])
+}
+
+model HomepagePromotion {
+  id                String                   @id @default(cuid())
+  title             String
+  description       String?
+  badgeText         String?
+  desktopImageUrl   String
+  desktopImageKey   String
+  mobileImageUrl    String?
+  mobileImageKey    String?
+  imageAlt          String?
+  ctaLabel          String?
+  destinationUrl    String?
+  status            HomepagePromotionStatus  @default(DRAFT)
+  priority          Int                      @default(0)
+  startAt           DateTime?
+  endAt             DateTime?
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+  createdById       String?
+  updatedById       String?
+  createdBy         AdminUser?               @relation("HomepagePromotionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy         AdminUser?               @relation("HomepagePromotionUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([status, startAt, endAt, priority])
+  @@index([priority, createdAt])
 }
 
 model BawalBoxSettings {
