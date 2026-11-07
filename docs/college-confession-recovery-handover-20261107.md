@@ -44,12 +44,12 @@ Neon project:
 
 Relevant branches, verified read-only:
 
-| Role | Branch name | Branch ID | Parent branch / notes |
-|---|---|---|---|
-| Production | `production` | `br-tiny-bread-ao1quu8u` | Primary and default; no parent |
-| Staging | `quick-play-staging-20261025` | `br-shy-lab-aovf1xbg` | Parent `production` (`br-tiny-bread-ao1quu8u`) |
+| Role            | Branch name                           | Branch ID                | Parent branch / notes                                                                      |
+| --------------- | ------------------------------------- | ------------------------ | ------------------------------------------------------------------------------------------ |
+| Production      | `production`                          | `br-tiny-bread-ao1quu8u` | Primary and default; no parent                                                             |
+| Staging         | `quick-play-staging-20261025`         | `br-shy-lab-aovf1xbg`    | Parent `production` (`br-tiny-bread-ao1quu8u`)                                             |
 | Recovery anchor | `confession-recovery-anchor-20261107` | `br-green-math-aoh5tklp` | Parent `production` (`br-tiny-bread-ao1quu8u`); anchor timestamp `2026-11-07 10:16:38 UTC` |
-| Ordinary branch | `pre-bawalbox-migration-20261025` | `br-round-term-aosi571r` | Parent `production` (`br-tiny-bread-ao1quu8u`); **not a manual snapshot** |
+| Ordinary branch | `pre-bawalbox-migration-20261025`     | `br-round-term-aosi571r` | Parent `production` (`br-tiny-bread-ao1quu8u`); **not a manual snapshot**                  |
 
 The recovery anchor was observed as ready and its parent was confirmed as production. Production, staging, and the recovery anchor were not modified during this verification.
 
@@ -57,8 +57,8 @@ The recovery anchor was observed as ready and its parent was confirmed as produc
 
 The provider's manual-snapshot inventory was checked separately from the ordinary branch inventory. It contains exactly one manual snapshot:
 
-| Snapshot name | Snapshot ID | Source branch | Created | Provider flag |
-|---|---|---|---|---|
+| Snapshot name                     | Snapshot ID                | Source branch                           | Created                   | Provider flag  |
+| --------------------------------- | -------------------------- | --------------------------------------- | ------------------------- | -------------- |
 | `pre-reaction-migration-20261022` | `snap-broad-wind-aoyjocno` | `production` (`br-tiny-bread-ao1quu8u`) | `2026-10-21 23:34:12 UTC` | `manual: true` |
 
 There is no ordinary Neon branch named `pre-reaction-migration-20261022` in the current branch inventory. The branch `pre-bawalbox-migration-20261025` is a separate ordinary branch and must not be described as, or substituted for, the manual snapshot. Neither the manual snapshot nor any branch may be deleted.
