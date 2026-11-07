@@ -6,40 +6,39 @@ import { PrismaClient, Prisma } from '@prisma/client';
 /**
  * College confession recovery transfer.
  *
- * Safe default: read-only preflight. A write requires all of:
- *   --execute
- *   RECOVERY_APPROVED=true
- *   RECOVERY_TARGET_BRANCH_ID=br-tiny-bread-ao1quu8u
- *   RECOVERY_SNAPSHOT_ID=snap-broad-wind-aoyjocno
- *   RECOVERY_APPROVAL_REFERENCE=<external approval reference>
- *   RECOVERY_SCRIPT_SHA256=<sha256 of this file>
+ * Safe default: read-only preflight. A write requires --execute plus the
+ * explicit approval gates documented below. SOURCE_DATABASE_URL and
+ * TARGET_DATABASE_URL are only connection routes: the script independently
+ * asks each connected database for its actual Neon branch ID and rejects a
+ * wrong connection.
  *
- * The source and target URLs are supplied at runtime and are never logged:
- *   SOURCE_DATABASE_URL=<staging or approved recovery-anchor URL>
- *   TARGET_DATABASE_URL=<production URL>
- *
- * This script never copies CommenterProfile, CommenterSession, or comments.
- * It never prints confession content, profile values, tokens, or connection URLs.
+ * Confession content and originalContent are necessarily transferred for the
+ * approved confession rows. They are never printed, logged, or written to
+ * GitHub. No profiles, comments, sessions, token hashes, or unrelated rows
+ * are copied.
  */
 
-type Args = { execute: boolean };
+export type Args = { execute: boolean };
+export type BranchIdentity = { branchId: string; projectId: string; databaseName: string };
 
-const EXPECTED_TARGET_BRANCH_ID = 'br-tiny-bread-ao1quu8u';
-const EXPECTED_SNAPSHOT_ID = 'snap-broad-wind-aoyjocno';
-const EXPECTED_CONFESSIONS = 93;
-const EXPECTED_ELIGIBLE_REACTIONS = 47;
-const EXPECTED_NULL_PROFILE_REACTIONS = 36;
-const EXPECTED_EXISTING_PROFILE_REACTIONS = 11;
-const EXPECTED_EXCLUDED_REACTIONS = 5;
-const EXPECTED_AUDIT_LOGS = 256;
+const PROJECT_ID = 'frosty-boat-76582250';
+const SOURCE_BRANCH_ID = 'br-shy-lab-aovf1xbg';
+const ANCHOR_BRANCH_ID = 'br-green-math-aoh5tklp';
+const TARGET_BRANCH_ID = 'br-tiny-bread-ao1quu8u';
+const PRESERVED_SNAPSHOT_ID = 'snap-broad-wind-aoyjocno';
+const STAGING_FORK_AT = new Date('2026-10-25T14:08:34.000Z');
 const PRESERVED_CONFESSION_ID = 'cmw684l1r0001id01uhgpyj25';
-const EXPECTED_AUDIT_ACTIONS = {
-  APPROVE: 93,
-  ARCHIVE: 1,
-  RESTORE: 1,
-  EDIT: 105,
-  PUBLISHED_CONFESSION_EDITED: 56,
-} as const;
+const EXPECTED = {
+  confessions: 93,
+  commentsExcluded: 26,
+  reactionsTotal: 52,
+  reactionsEligible: 47,
+  reactionsNullProfile: 36,
+  reactionsExistingProfile: 11,
+  reactionsExcluded: 5,
+  auditLogs: 256,
+  auditActions: { APPROVE: 93, ARCHIVE: 1, RESTORE: 1, EDIT: 105, PUBLISHED_CONFESSION_EDITED: 56 },
+};
 
 const confessionSelect = {
   id: true,
@@ -60,18 +59,8 @@ const confessionSelect = {
   publishedAt: true,
 } satisfies Prisma.ConfessionSelect;
 
-type SourceConfession = Prisma.ConfessionGetPayload<{ select: typeof confessionSelect }>;
-type SourceReaction = Prisma.ConfessionReactionGetPayload<{
-  select: {
-    id: true;
-    confessionId: true;
-    profileId: true;
-    actorHash: true;
-    emoji: true;
-    createdAt: true;
-  };
-}>;
-type SourceAuditLog = Prisma.AuditLogGetPayload<{
+type ConfessionRow = Prisma.ConfessionGetPayload<{ select: typeof confessionSelect }>;
+type AuditRow = Prisma.AuditLogGetPayload<{
   select: {
     id: true;
     actorId: true;
@@ -83,9 +72,13 @@ type SourceAuditLog = Prisma.AuditLogGetPayload<{
   };
 }>;
 
-function parseArgs(): Args {
-  const execute = process.argv.slice(2).includes('--execute');
-  const unknown = process.argv.slice(2).filter((arg) => arg !== '--execute');
+type TxTarget = {
+  $transaction<T>(work: (tx: any) => Promise<T>): Promise<T>;
+};
+
+export function parseArgs(argv = process.argv.slice(2)): Args {
+  const execute = argv.includes('--execute');
+  const unknown = argv.filter((arg) => arg !== '--execute');
   if (unknown.length > 0) throw new Error(`Unknown argument: ${unknown[0]}`);
   return { execute };
 }
@@ -96,100 +89,262 @@ function requiredEnv(name: string): string {
   return value;
 }
 
-function scriptSha256(): string {
-  const path = resolve(__dirname, 'college-confession-transfer.ts');
-  return createHash('sha256').update(readFileSync(path)).digest('hex');
+export function confessionFingerprint(
+  row: Pick<ConfessionRow, 'content' | 'originalContent'>,
+): string {
+  return createHash('sha256').update(`${row.content}\u001f${row.originalContent}`).digest('hex');
 }
 
-function assertExecutionApproval(): void {
-  if (process.env.RECOVERY_APPROVED !== 'true') {
+export function fullRecordFingerprint(row: ConfessionRow): string {
+  return createHash('sha256')
+    .update(
+      JSON.stringify([
+        row.id,
+        row.publicId,
+        row.content,
+        row.originalContent,
+        row.category,
+        row.customCategory,
+        row.status,
+        row.themeId,
+        row.editorId,
+        row.viewCount,
+        row.shareCount,
+        row.reportCount,
+        row.commentsLocked,
+        row.createdAt.toISOString(),
+        row.updatedAt.toISOString(),
+        row.publishedAt?.toISOString() ?? null,
+      ]),
+    )
+    .digest('hex');
+}
+
+export function setDigest(values: string[]): string {
+  return createHash('sha256').update(values.slice().sort().join(',')).digest('hex');
+}
+
+export function assertUniqueIds(ids: string[], label: string): void {
+  if (new Set(ids).size !== ids.length) throw new Error(`${label} contains duplicate IDs`);
+}
+
+export function assertAuditEntity(rows: Array<Pick<AuditRow, 'entity'>>): void {
+  if (rows.some((row) => row.entity !== 'CONFESSION')) {
+    throw new Error('Recovery audit rows must use entity CONFESSION');
+  }
+}
+
+export function assertSharedConfessionFingerprints(
+  sourceRows: Array<Pick<ConfessionRow, 'id' | 'content' | 'originalContent'>>,
+  anchorById: Map<string, Pick<ConfessionRow, 'content' | 'originalContent'>>,
+): void {
+  for (const sourceRow of sourceRows) {
+    const anchorRow = anchorById.get(sourceRow.id);
+    if (anchorRow && confessionFingerprint(anchorRow) !== confessionFingerprint(sourceRow)) {
+      throw new Error(`Unexpected shared confession fingerprint mismatch for ${sourceRow.id}`);
+    }
+  }
+}
+
+export function assertNoMissingDependencies(
+  requiredIds: string[],
+  existingIds: string[],
+  label: string,
+): void {
+  const existing = new Set(existingIds);
+  const missing = requiredIds.filter((id) => !existing.has(id));
+  if (missing.length > 0) throw new Error(`${label}: ${missing.length} dependencies are missing`);
+}
+
+export function assertExpectedAuditMetadata(
+  rows: Array<Pick<AuditRow, 'action' | 'metadata'>>,
+): void {
+  const allowedChangedFields = new Set(['content', 'category', 'customCategory', 'themeId']);
+  for (const row of rows) {
+    if (['APPROVE', 'ARCHIVE', 'RESTORE'].includes(row.action)) {
+      if (row.metadata !== null) throw new Error(`${row.action} audit metadata must be null`);
+      continue;
+    }
+    if (!['EDIT', 'PUBLISHED_CONFESSION_EDITED'].includes(row.action)) {
+      throw new Error(`Unexpected recovery audit action: ${row.action}`);
+    }
+    const metadata = row.metadata;
+    if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
+      throw new Error(`${row.action} audit metadata must be an object`);
+    }
+    const record = metadata as Record<string, unknown>;
+    if (
+      Object.keys(record).length !== 1 ||
+      !Array.isArray(record.changedFields) ||
+      record.changedFields.length === 0
+    ) {
+      throw new Error(
+        `${row.action} audit metadata must contain only a non-empty changedFields array`,
+      );
+    }
+    if (
+      record.changedFields.some(
+        (field) => typeof field !== 'string' || !allowedChangedFields.has(field),
+      )
+    ) {
+      throw new Error(`${row.action} audit metadata contains an invalid changedFields entry`);
+    }
+  }
+}
+
+export function assertExecutionApproval(actualScriptSha256: string): void {
+  if (process.env.RECOVERY_APPROVED !== 'true')
     throw new Error('Refusing writes: RECOVERY_APPROVED=true is required');
+  if (requiredEnv('RECOVERY_TARGET_BRANCH_ID') !== TARGET_BRANCH_ID)
+    throw new Error('Refusing writes: target branch gate mismatch');
+  if (requiredEnv('RECOVERY_SNAPSHOT_ID') !== PRESERVED_SNAPSHOT_ID)
+    throw new Error('Refusing writes: snapshot gate mismatch');
+  if (process.env.RECOVERY_SNAPSHOT_MANUAL !== 'true')
+    throw new Error('Refusing writes: provider snapshot manual=true confirmation is required');
+  requiredEnv('RECOVERY_APPROVAL_REFERENCE');
+  if (requiredEnv('RECOVERY_SCRIPT_SHA256') !== actualScriptSha256)
+    throw new Error(`Refusing writes: checksum mismatch; actual=${actualScriptSha256}`);
+}
+
+export async function readBranchIdentity(client: PrismaClient): Promise<BranchIdentity> {
+  const rows = await client.$queryRaw<BranchIdentity[]>(Prisma.sql`
+    SELECT
+      current_setting('neon.branch_id', true) AS "branchId",
+      current_setting('neon.project_id', true) AS "projectId",
+      current_database() AS "databaseName"
+  `);
+  const identity = rows[0];
+  if (!identity?.branchId || !identity.projectId || !identity.databaseName) {
+    throw new Error('Connected database did not disclose a complete Neon branch identity');
   }
-  if (requiredEnv('RECOVERY_TARGET_BRANCH_ID') !== EXPECTED_TARGET_BRANCH_ID) {
-    throw new Error('Refusing writes: target branch ID does not match production');
-  }
-  if (requiredEnv('RECOVERY_SNAPSHOT_ID') !== EXPECTED_SNAPSHOT_ID) {
+  return identity;
+}
+
+export async function assertBranchIdentity(
+  client: PrismaClient,
+  expectedBranchId: string,
+  label: string,
+): Promise<BranchIdentity> {
+  const actual = await readBranchIdentity(client);
+  if (actual.projectId !== PROJECT_ID || actual.branchId !== expectedBranchId) {
     throw new Error(
-      'Refusing writes: preserved snapshot ID does not match the verified manual snapshot',
+      `${label} connection identity mismatch: expected ${PROJECT_ID}/${expectedBranchId}, got ${actual.projectId}/${actual.branchId}`,
     );
   }
-  requiredEnv('RECOVERY_APPROVAL_REFERENCE');
-  const approvedHash = requiredEnv('RECOVERY_SCRIPT_SHA256');
-  const actualHash = scriptSha256();
-  if (approvedHash !== actualHash) {
-    throw new Error(`Refusing writes: script checksum mismatch; actual checksum is ${actualHash}`);
-  }
+  return actual;
+}
+
+export async function runInTransaction<T>(
+  target: TxTarget,
+  work: (tx: any) => Promise<T>,
+): Promise<T> {
+  return target.$transaction(work);
+}
+
+function scriptSha256(): string {
+  return createHash('sha256')
+    .update(readFileSync(resolve(__dirname, 'college-confession-transfer.ts')))
+    .digest('hex');
 }
 
 function assertCount(actual: number, expected: number, label: string): void {
   if (actual !== expected) throw new Error(`${label}: expected ${expected}, got ${actual}`);
 }
 
-function summarizeActions(rows: Array<{ action: string }>): Record<string, number> {
+function actionCounts(rows: Array<{ action: string }>): Record<string, number> {
   return rows.reduce<Record<string, number>>((counts, row) => {
     counts[row.action] = (counts[row.action] ?? 0) + 1;
     return counts;
   }, {});
 }
 
-function assertExpectedAuditActions(rows: SourceAuditLog[]): void {
-  const actual = summarizeActions(rows);
-  for (const [action, expected] of Object.entries(EXPECTED_AUDIT_ACTIONS)) {
-    assertCount(actual[action] ?? 0, expected, `AuditLog action ${action}`);
-  }
-  if (Object.keys(actual).some((action) => !(action in EXPECTED_AUDIT_ACTIONS))) {
-    throw new Error('AuditLog set contains an unexpected action');
-  }
-}
-
 async function main(): Promise<void> {
   const args = parseArgs();
-  const sourceUrl = requiredEnv('SOURCE_DATABASE_URL');
-  const targetUrl = requiredEnv('TARGET_DATABASE_URL');
-  if (args.execute) assertExecutionApproval();
-
-  const source = new PrismaClient({ datasources: { db: { url: sourceUrl } } });
-  const target = new PrismaClient({ datasources: { db: { url: targetUrl } } });
+  const source = new PrismaClient({
+    datasources: { db: { url: requiredEnv('SOURCE_DATABASE_URL') } },
+  });
+  const anchor = new PrismaClient({
+    datasources: { db: { url: requiredEnv('ANCHOR_DATABASE_URL') } },
+  });
+  const target = new PrismaClient({
+    datasources: { db: { url: requiredEnv('TARGET_DATABASE_URL') } },
+  });
 
   try {
-    const sourceConfessions = await source.confession.findMany({
-      where: { status: 'PUBLISHED' },
-      select: confessionSelect,
-      orderBy: { id: 'asc' },
-    });
-    const sourceIds = sourceConfessions.map((row) => row.id);
-    const sourcePublicIds = sourceConfessions.map((row) => row.publicId);
-    const targetConfessions = await target.confession.findMany({
-      where: { OR: [{ id: { in: sourceIds } }, { publicId: { in: sourcePublicIds } }] },
-      select: { id: true, publicId: true },
-    });
-    const targetConfessionIds = new Set(targetConfessions.map((row) => row.id));
-    const targetPublicIds = new Set(targetConfessions.map((row) => row.publicId));
-    const recoveryConfessions = sourceConfessions.filter(
-      (row) => !targetConfessionIds.has(row.id) && !targetPublicIds.has(row.publicId),
+    const [sourceIdentity, anchorIdentity, targetIdentity] = await Promise.all([
+      assertBranchIdentity(source, SOURCE_BRANCH_ID, 'source'),
+      assertBranchIdentity(anchor, ANCHOR_BRANCH_ID, 'anchor'),
+      assertBranchIdentity(target, TARGET_BRANCH_ID, 'target'),
+    ]);
+    if (args.execute) assertExecutionApproval(scriptSha256());
+
+    const [sourcePublished, anchorPublished] = await Promise.all([
+      source.confession.findMany({
+        where: { status: 'PUBLISHED' },
+        select: confessionSelect,
+        orderBy: { id: 'asc' },
+      }),
+      anchor.confession.findMany({
+        where: { status: 'PUBLISHED' },
+        select: confessionSelect,
+        orderBy: { id: 'asc' },
+      }),
+    ]);
+    assertUniqueIds(
+      sourcePublished.map((row) => row.id),
+      'source confessions',
     );
+    assertUniqueIds(
+      anchorPublished.map((row) => row.id),
+      'anchor confessions',
+    );
+
+    const anchorById = new Map(anchorPublished.map((row) => [row.id, row]));
+    assertSharedConfessionFingerprints(sourcePublished, anchorById);
+    const recoveryConfessions = sourcePublished.filter((row) => !anchorById.has(row.id));
     assertCount(
       recoveryConfessions.length,
-      EXPECTED_CONFESSIONS,
-      'staging-only published confessions',
+      EXPECTED.confessions,
+      'exact staging-only published confessions',
     );
-
-    if (recoveryConfessions.some((row) => row.id === PRESERVED_CONFESSION_ID)) {
-      throw new Error(
-        'Preservation failure: production-only latest confession appears in recovery set',
-      );
+    if (recoveryConfessions.some((row) => row.createdAt <= STAGING_FORK_AT)) {
+      throw new Error('Recovery cohort contains a row at or before the staging fork boundary');
     }
-    const preserved = await target.confession.findUnique({
+    const recoveryIds = recoveryConfessions.map((row) => row.id);
+    assertUniqueIds(recoveryIds, 'recovery confession IDs');
+
+    const targetExisting = await target.confession.findMany({
+      where: {
+        OR: [
+          { id: { in: recoveryIds } },
+          { publicId: { in: recoveryConfessions.map((row) => row.publicId) } },
+        ],
+      },
+      select: { id: true, publicId: true },
+    });
+    if (targetExisting.length > 0)
+      throw new Error('Target already contains a recovery confession ID or publicId');
+
+    const preservedBefore = await target.confession.findUnique({
       where: { id: PRESERVED_CONFESSION_ID },
+      select: confessionSelect,
+    });
+    if (!preservedBefore)
+      throw new Error('Preserved production-only confession is absent from target');
+    const preservedFingerprint = fullRecordFingerprint(preservedBefore);
+
+    const sourceComments = await source.confessionComment.findMany({
+      where: { confessionId: { in: recoveryIds } },
+      select: { id: true, profileId: true, parentId: true },
+    });
+    assertCount(sourceComments.length, EXPECTED.commentsExcluded, 'excluded comments');
+    const commentProfiles = await target.commenterProfile.findMany({
+      where: { id: { in: sourceComments.map((row) => row.profileId) } },
       select: { id: true },
     });
-    if (!preserved)
-      throw new Error(
-        'Preservation failure: production-only latest confession is absent from target',
-      );
+    if (commentProfiles.length > 0)
+      throw new Error('A required comment profile exists in target; re-review the exclusion set');
 
-    const recoveryIds = recoveryConfessions.map((row) => row.id);
-    const recoveryIdSet = new Set(recoveryIds);
     const sourceReactions = await source.confessionReaction.findMany({
       where: { confessionId: { in: recoveryIds } },
       select: {
@@ -202,33 +357,44 @@ async function main(): Promise<void> {
       },
       orderBy: { id: 'asc' },
     });
-    const profileIds = sourceReactions.flatMap((row) => (row.profileId ? [row.profileId] : []));
-    const targetProfiles = await target.commenterProfile.findMany({
-      where: { id: { in: profileIds } },
+    assertCount(sourceReactions.length, EXPECTED.reactionsTotal, 'source recovery reactions');
+    assertUniqueIds(
+      sourceReactions.map((row) => row.id),
+      'source reactions',
+    );
+    const linkedProfileIds = [
+      ...new Set(sourceReactions.flatMap((row) => (row.profileId ? [row.profileId] : []))),
+    ];
+    const existingProfiles = await target.commenterProfile.findMany({
+      where: { id: { in: linkedProfileIds } },
       select: { id: true },
     });
-    const targetProfileIds = new Set(targetProfiles.map((row) => row.id));
+    const existingProfileIds = new Set(existingProfiles.map((row) => row.id));
     const eligibleReactions = sourceReactions.filter(
-      (row) => row.profileId === null || targetProfileIds.has(row.profileId),
+      (row) => row.profileId === null || existingProfileIds.has(row.profileId),
     );
     const excludedReactions = sourceReactions.filter(
-      (row) => row.profileId !== null && !targetProfileIds.has(row.profileId),
+      (row) => row.profileId !== null && !existingProfileIds.has(row.profileId),
     );
-    assertCount(eligibleReactions.length, EXPECTED_ELIGIBLE_REACTIONS, 'eligible reactions');
+    assertCount(eligibleReactions.length, EXPECTED.reactionsEligible, 'eligible reactions');
     assertCount(
       eligibleReactions.filter((row) => row.profileId === null).length,
-      EXPECTED_NULL_PROFILE_REACTIONS,
+      EXPECTED.reactionsNullProfile,
       'null-profile reactions',
     );
     assertCount(
       eligibleReactions.filter((row) => row.profileId !== null).length,
-      EXPECTED_EXISTING_PROFILE_REACTIONS,
+      EXPECTED.reactionsExistingProfile,
       'reactions linked to existing profiles',
     );
-    assertCount(excludedReactions.length, EXPECTED_EXCLUDED_REACTIONS, 'excluded reactions');
+    assertCount(excludedReactions.length, EXPECTED.reactionsExcluded, 'excluded reactions');
 
     const sourceAuditLogs = await source.auditLog.findMany({
-      where: { entity: 'Confession', entityId: { in: recoveryIds } },
+      where: {
+        entity: 'CONFESSION',
+        entityId: { in: recoveryIds },
+        action: { in: Object.keys(EXPECTED.auditActions) },
+      },
       select: {
         id: true,
         actorId: true,
@@ -240,8 +406,12 @@ async function main(): Promise<void> {
       },
       orderBy: { id: 'asc' },
     });
-    assertCount(sourceAuditLogs.length, EXPECTED_AUDIT_LOGS, 'recovery audit logs');
-    assertExpectedAuditActions(sourceAuditLogs);
+    assertCount(sourceAuditLogs.length, EXPECTED.auditLogs, 'recovery audit logs');
+    assertAuditEntity(sourceAuditLogs);
+    const counts = actionCounts(sourceAuditLogs);
+    for (const [action, expected] of Object.entries(EXPECTED.auditActions))
+      assertCount(counts[action] ?? 0, expected, `audit action ${action}`);
+    assertExpectedAuditMetadata(sourceAuditLogs);
 
     const targetThemes = await target.theme.findMany({
       where: {
@@ -250,53 +420,62 @@ async function main(): Promise<void> {
       select: { id: true },
     });
     const targetThemeIds = new Set(targetThemes.map((row) => row.id));
-    const missingThemeIds = recoveryConfessions
-      .filter((row) => row.themeId && !targetThemeIds.has(row.themeId))
-      .map((row) => row.themeId as string);
-    if (missingThemeIds.length > 0)
-      throw new Error(`Missing target themes: ${missingThemeIds.length}`);
-
-    const editorIds = recoveryConfessions.flatMap((row) => (row.editorId ? [row.editorId] : []));
-    const auditActorIds = sourceAuditLogs.flatMap((row) => (row.actorId ? [row.actorId] : []));
+    assertNoMissingDependencies(
+      recoveryConfessions.flatMap((row) => (row.themeId ? [row.themeId] : [])),
+      [...targetThemeIds],
+      'target themes',
+    );
+    const actorIds = [
+      ...new Set([
+        ...recoveryConfessions.flatMap((row) => (row.editorId ? [row.editorId] : [])),
+        ...sourceAuditLogs.flatMap((row) => (row.actorId ? [row.actorId] : [])),
+      ]),
+    ];
     const targetAdmins = await target.adminUser.findMany({
-      where: { id: { in: [...new Set([...editorIds, ...auditActorIds])] } },
+      where: { id: { in: actorIds } },
       select: { id: true },
     });
     const targetAdminIds = new Set(targetAdmins.map((row) => row.id));
-    if (editorIds.some((id) => !targetAdminIds.has(id)))
-      throw new Error('A confession editor is missing from target');
-    if (auditActorIds.some((id) => !targetAdminIds.has(id)))
-      throw new Error('An audit actor is missing from target');
+    assertNoMissingDependencies(actorIds, [...targetAdminIds], 'target editors and audit actors');
 
     const targetReactionKeys = await target.confessionReaction.findMany({
       where: { confessionId: { in: recoveryIds } },
       select: { id: true, confessionId: true, actorHash: true, emoji: true },
     });
     const targetReactionIds = new Set(targetReactionKeys.map((row) => row.id));
-    const targetReactionUniqueKeys = new Set(
+    const targetUniqueKeys = new Set(
       targetReactionKeys.map(
-        (row) => `${row.confessionId}\u0000${row.actorHash}\u0000${row.emoji}`,
+        (row) => `${row.confessionId}\u001f${row.actorHash}\u001f${row.emoji}`,
       ),
     );
     for (const row of eligibleReactions) {
       if (targetReactionIds.has(row.id))
         throw new Error('A recovery reaction ID already exists in target');
-      const key = `${row.confessionId}\u0000${row.actorHash}\u0000${row.emoji}`;
-      if (targetReactionUniqueKeys.has(key))
+      if (targetUniqueKeys.has(`${row.confessionId}\u001f${row.actorHash}\u001f${row.emoji}`))
         throw new Error('A recovery reaction uniqueness key already exists in target');
     }
 
     console.log(
       JSON.stringify({
         mode: args.execute ? 'execute-after-approval' : 'read-only-preflight',
+        identities: {
+          source: sourceIdentity.branchId,
+          anchor: anchorIdentity.branchId,
+          target: targetIdentity.branchId,
+        },
         counts: {
           confessions: recoveryConfessions.length,
-          eligibleReactions: eligibleReactions.length,
-          excludedReactions: excludedReactions.length,
+          commentsExcluded: sourceComments.length,
+          reactionsEligible: eligibleReactions.length,
+          reactionsExcluded: excludedReactions.length,
           auditLogs: sourceAuditLogs.length,
         },
-        auditActions: summarizeActions(sourceAuditLogs),
-        preservedProductionConfessionPresent: true,
+        recoveryIdSetDigest: setDigest(recoveryIds),
+        recoveryContentFingerprintSetDigest: setDigest(
+          recoveryConfessions.map((row) => `${row.id}:${confessionFingerprint(row)}`),
+        ),
+        auditActionCounts: counts,
+        preservedConfessionFullRecordFingerprint: preservedFingerprint,
         profilesCopied: 0,
         commentsCopied: 0,
         sessionsCopied: 0,
@@ -304,45 +483,45 @@ async function main(): Promise<void> {
     );
 
     if (!args.execute) return;
-
-    const confessionData = recoveryConfessions.map(({ id, publicId, ...row }) => ({
-      id,
-      publicId,
-      ...row,
-    }));
+    const confessionData = recoveryConfessions.map((row) => ({ ...row }));
     const reactionData = eligibleReactions.map((row) => ({ ...row }));
     const auditData = sourceAuditLogs.map((row) => ({ ...row }));
-
-    await target.$transaction(async (tx) => {
+    await runInTransaction(target, async (tx) => {
       await tx.confession.createMany({ data: confessionData });
       await tx.confessionReaction.createMany({ data: reactionData });
       await tx.auditLog.createMany({ data: auditData });
-
-      const postflightConfessions = await tx.confession.count({
-        where: { id: { in: recoveryIds }, status: 'PUBLISHED' },
-      });
-      const postflightReactions = await tx.confessionReaction.count({
-        where: { id: { in: eligibleReactions.map((row) => row.id) } },
-      });
-      const postflightAuditLogs = await tx.auditLog.count({
-        where: { id: { in: sourceAuditLogs.map((row) => row.id) } },
-      });
-      assertCount(postflightConfessions, EXPECTED_CONFESSIONS, 'postflight published confessions');
-      assertCount(postflightReactions, EXPECTED_ELIGIBLE_REACTIONS, 'postflight reactions');
-      assertCount(postflightAuditLogs, EXPECTED_AUDIT_LOGS, 'postflight audit logs');
-
-      const stillPreserved = await tx.confession.findUnique({
+      assertCount(
+        await tx.confession.count({ where: { id: { in: recoveryIds }, status: 'PUBLISHED' } }),
+        EXPECTED.confessions,
+        'postflight confessions',
+      );
+      assertCount(
+        await tx.confessionReaction.count({
+          where: { id: { in: eligibleReactions.map((row) => row.id) } },
+        }),
+        EXPECTED.reactionsEligible,
+        'postflight reactions',
+      );
+      assertCount(
+        await tx.auditLog.count({ where: { id: { in: sourceAuditLogs.map((row) => row.id) } } }),
+        EXPECTED.auditLogs,
+        'postflight audit logs',
+      );
+      const preservedAfter = await tx.confession.findUnique({
         where: { id: PRESERVED_CONFESSION_ID },
-        select: { id: true },
+        select: confessionSelect,
       });
-      if (!stillPreserved) throw new Error('Postflight preservation failure');
+      if (!preservedAfter || fullRecordFingerprint(preservedAfter) !== preservedFingerprint)
+        throw new Error('Preserved production-only confession changed during transaction');
     });
   } finally {
-    await Promise.all([source.$disconnect(), target.$disconnect()]);
+    await Promise.all([source.$disconnect(), anchor.$disconnect(), target.$disconnect()]);
   }
 }
 
-main().catch((error: unknown) => {
-  console.error(error instanceof Error ? error.message : 'Recovery transfer failed');
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  main().catch((error: unknown) => {
+    console.error(error instanceof Error ? error.message : 'Recovery transfer failed');
+    process.exitCode = 1;
+  });
+}
