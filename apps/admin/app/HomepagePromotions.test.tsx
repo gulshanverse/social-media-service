@@ -63,6 +63,24 @@ describe('Homepage Promotions admin', () => {
     expect(screen.getByText('DRAFT')).toBeInTheDocument();
   });
 
+  it('loads the next page when more than 100 campaigns exist', async () => {
+    const pageOne = { ...record, id: 'promo-100', title: 'Campaign 100' };
+    const pageTwo = { ...record, id: 'promo-101', title: 'Campaign 101' };
+    const api = vi.fn(async (path: string) => {
+      if (path.includes('page=2'))
+        return { items: [pageTwo], page: 2, limit: 50, total: 101, hasMore: false };
+      if (path.startsWith('/admin/homepage-promotions?'))
+        return { items: [pageOne], page: 1, limit: 50, total: 101, hasMore: true };
+      return {};
+    });
+    render(<HomepagePromotions api={api} uploadFile={vi.fn()} />);
+    expect(await screen.findByRole('heading', { name: 'Campaign 100' })).toBeInTheDocument();
+    expect(screen.getByText('All promotions')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(await screen.findByRole('heading', { name: 'Campaign 101' })).toBeInTheDocument();
+    expect(api).toHaveBeenCalledWith('/admin/homepage-promotions?page=2&limit=50');
+  });
+
   it('uploads a validated poster, previews it, and saves a scheduled draft using UTC timestamps', async () => {
     const api = vi.fn(async (path: string, init?: RequestInit) => {
       if (path.startsWith('/admin/homepage-promotions?'))

@@ -229,6 +229,18 @@
   display: grid;
   gap: 14px;
 }
+.promotion-pagination {
+  margin-top: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  color: #9ca9bd;
+}
+.promotion-pagination button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 .promotion-row {
   min-width: 0;
   display: grid;

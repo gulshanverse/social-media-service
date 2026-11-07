@@ -24,6 +24,13 @@ type Promotion = {
   createdAt: string;
   updatedAt: string;
 };
+type PromotionPage = {
+  items: Promotion[];
+  page: number;
+  limit: number;
+  total: number;
+  hasMore: boolean;
+};
 type PromotionForm = {
   title: string;
   description: string;
@@ -118,6 +125,8 @@ function fromPromotion(promotion: Promotion): PromotionForm {
 
 export default function HomepagePromotions({ api, uploadFile }: Props) {
   const [items, setItems] = useState<Promotion[]>([]);
+  const [pageData, setPageData] = useState<PromotionPage | null>(null);
+  const [page, setPage] = useState(1);
   const [form, setForm] = useState<PromotionForm>(blankForm);
   const [mode, setMode] = useState<EditorMode>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -131,20 +140,31 @@ export default function HomepagePromotions({ api, uploadFile }: Props) {
   const [mobilePreview, setMobilePreview] = useState('');
   const [previewViewport, setPreviewViewport] = useState<'desktop' | 'mobile'>('desktop');
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const result = await api('/admin/homepage-promotions?page=1&limit=100');
-      setItems(result.items ?? []);
-    } catch (requestError) {
-      setError(
-        requestError instanceof Error ? requestError.message : 'Promotions could not be loaded.',
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [api]);
+  const load = useCallback(
+    async (requestedPage = page) => {
+      setLoading(true);
+      setError('');
+      try {
+        const result = (await api(
+          `/admin/homepage-promotions?page=${requestedPage}&limit=50`,
+        )) as PromotionPage;
+        const totalPages = Math.max(1, Math.ceil(result.total / result.limit));
+        if (result.items.length === 0 && requestedPage > totalPages) {
+          setPage(totalPages);
+          return;
+        }
+        setItems(result.items ?? []);
+        setPageData(result);
+      } catch (requestError) {
+        setError(
+          requestError instanceof Error ? requestError.message : 'Promotions could not be loaded.',
+        );
+      } finally {
+        setLoading(false);
+      }
+    },
+    [api, page],
+  );
 
   useEffect(() => {
     void load();
@@ -630,10 +650,12 @@ export default function HomepagePromotions({ api, uploadFile }: Props) {
       <div className="promotion-list-heading">
         <div>
           <h2>
-            All promotions <span>{items.length}</span>
+            All promotions <span>{pageData?.total ?? items.length}</span>
           </h2>
           <p className="muted">
-            Published banners appear automatically when their schedule is active.
+            Published banners appear automatically when their schedule is active. Showing page{' '}
+            {pageData?.page ?? page} of{' '}
+            {pageData ? Math.max(1, Math.ceil(pageData.total / pageData.limit)) : 1}.
           </p>
         </div>
       </div>
@@ -735,6 +757,29 @@ export default function HomepagePromotions({ api, uploadFile }: Props) {
             </article>
           ))}
         </div>
+      )}
+      {pageData && pageData.total > 0 && (
+        <nav className="promotion-pagination" aria-label="Promotion pages">
+          <button
+            type="button"
+            className="secondary"
+            disabled={pageData.page <= 1 || loading}
+            onClick={() => setPage((current) => Math.max(1, current - 1))}
+          >
+            Previous
+          </button>
+          <span aria-live="polite">
+            Page {pageData.page} of {Math.max(1, Math.ceil(pageData.total / pageData.limit))}
+          </span>
+          <button
+            type="button"
+            className="secondary"
+            disabled={!pageData.hasMore || loading}
+            onClick={() => setPage((current) => current + 1)}
+          >
+            Next
+          </button>
+        </nav>
       )}
     </section>
   );

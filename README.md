@@ -39,14 +39,14 @@ The repository is structured as a pnpm monorepo. It separates the public Next.js
 
 ## Product capabilities
 
-| Area                | Implemented capabilities                                                                                                                                                           |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Public experience   | Anonymous submission, paginated feed, public record detail, category metadata, themed cards, responsive layouts, reporting, and share-oriented pages                               |
-| Profile surface     | Configurable handle, header and composer copy, community links, profile image, theme preset, prompt collection, and mobile preview                                                 |
-| Moderation          | Pending queue, server-side search and filters, sorting, pagination, approve/reject/archive actions, pending and published-record editing, bulk actions, and stale-state protection |
+| Area                | Implemented capabilities                                                                                                                                                                     |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Public experience   | Anonymous submission, paginated feed, public record detail, category metadata, themed cards, responsive layouts, reporting, and share-oriented pages                                         |
+| Profile surface     | Configurable handle, header and composer copy, community links, profile image, theme preset, prompt collection, and mobile preview                                                           |
+| Moderation          | Pending queue, server-side search and filters, sorting, pagination, approve/reject/archive actions, pending and published-record editing, bulk actions, and stale-state protection           |
 | Administration      | Dashboard metrics, report review and resolution, append-only audit activity, theme CRUD, live public-card preview, profile settings, homepage promotions, session visibility, and logout-all |
-| Platform operations | Health, liveness, readiness, version, and metrics endpoints; request IDs; structured safe logging; normalized errors; graceful shutdown; and container health checks               |
-| Delivery            | Docker API image, local PostgreSQL Compose service, Prisma migration workflow, GitHub Actions quality pipeline, and separate Next.js deployment targets                            |
+| Platform operations | Health, liveness, readiness, version, and metrics endpoints; request IDs; structured safe logging; normalized errors; graceful shutdown; and container health checks                         |
+| Delivery            | Docker API image, local PostgreSQL Compose service, Prisma migration workflow, GitHub Actions quality pipeline, and separate Next.js deployment targets                                      |
 
 ## Technology stack
 
@@ -125,7 +125,7 @@ The protected **Homepage Promotions** workspace manages the homepage poster caro
 | ------------- | ------------------------------------------------------------------------------------------------------------------ |
 | `SUPER_ADMIN` | Full intended administrative access, including moderation, reports, themes, audit activity, and session operations |
 | `MODERATOR`   | Moderation and report workflows; theme read access; no audit access or theme mutation                              |
-| `DESIGNER`    | Theme and homepage-promotion management; no moderation, report processing, or audit access                      |
+| `DESIGNER`    | Theme and homepage-promotion management; no moderation, report processing, or audit access                         |
 
 The API loads the current administrator from the database on protected requests. Active status and the database role remain authoritative even when the client hides unavailable navigation items.
 
@@ -216,15 +216,15 @@ The development servers use these ports:
 
 The following variables are defined by `.env.example` and are grouped by purpose.
 
-| Variable group           | Variables                                                                                                                                                                               | Purpose                                          |
-| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
-| Database and runtime     | `DATABASE_URL`, `NODE_ENV`, `PORT`                                                                                                                                                      | PostgreSQL connection and API runtime            |
-| Proxy and authentication | `TRUST_PROXY_HOPS`, `JWT_SECRET`, `JWT_REFRESH_SECRET`                                                                                                                                  | Client IP resolution and token signing           |
-| Administrator bootstrap  | `ADMIN_SEED_EMAIL`, `ADMIN_SEED_PASSWORD`                                                                                                                                               | Development-only initial administrator seed      |
-| Rate limits              | `ADMIN_LOGIN_RATE_LIMIT`, `ADMIN_LOGIN_RATE_WINDOW_SECONDS`, `ADMIN_REFRESH_RATE_LIMIT`, `ADMIN_REFRESH_RATE_WINDOW_SECONDS`, `SUBMISSION_RATE_LIMIT`, `SUBMISSION_RATE_WINDOW_SECONDS`, `HOMEPAGE_PROMOTION_UPLOAD_RATE_LIMIT`, `HOMEPAGE_PROMOTION_UPLOAD_RATE_WINDOW_SECONDS` | Process-local request throttling |
-| Promotion uploads        | `BLOB_READ_WRITE_TOKEN`, `HOMEPAGE_PROMOTION_MAX_UPLOAD_BYTES`, `NEXT_PUBLIC_HOMEPAGE_PROMOTION_MAX_UPLOAD_BYTES` | Existing Blob storage and matching API/admin upload limits |
-| Browser origins          | `NEXT_PUBLIC_API_URL`, `WEB_ORIGIN`, `ADMIN_ORIGIN`                                                                                                                                     | API location and exact credentialed CORS origins |
-| Build metadata           | `APP_VERSION`, `GIT_COMMIT`                                                                                                                                                             | Safe version and deployment metadata responses   |
+| Variable group           | Variables                                                                                                                                                                                                                                                                        | Purpose                                                    |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| Database and runtime     | `DATABASE_URL`, `NODE_ENV`, `PORT`                                                                                                                                                                                                                                               | PostgreSQL connection and API runtime                      |
+| Proxy and authentication | `TRUST_PROXY_HOPS`, `JWT_SECRET`, `JWT_REFRESH_SECRET`                                                                                                                                                                                                                           | Client IP resolution and token signing                     |
+| Administrator bootstrap  | `ADMIN_SEED_EMAIL`, `ADMIN_SEED_PASSWORD`                                                                                                                                                                                                                                        | Development-only initial administrator seed                |
+| Rate limits              | `ADMIN_LOGIN_RATE_LIMIT`, `ADMIN_LOGIN_RATE_WINDOW_SECONDS`, `ADMIN_REFRESH_RATE_LIMIT`, `ADMIN_REFRESH_RATE_WINDOW_SECONDS`, `SUBMISSION_RATE_LIMIT`, `SUBMISSION_RATE_WINDOW_SECONDS`, `HOMEPAGE_PROMOTION_UPLOAD_RATE_LIMIT`, `HOMEPAGE_PROMOTION_UPLOAD_RATE_WINDOW_SECONDS` | Process-local request throttling                           |
+| Promotion uploads        | `BLOB_READ_WRITE_TOKEN`, `HOMEPAGE_PROMOTION_MAX_UPLOAD_BYTES`, `NEXT_PUBLIC_HOMEPAGE_PROMOTION_MAX_UPLOAD_BYTES`                                                                                                                                                                | Existing Blob storage and matching API/admin upload limits |
+| Browser origins          | `NEXT_PUBLIC_API_URL`, `WEB_ORIGIN`, `ADMIN_ORIGIN`                                                                                                                                                                                                                              | API location and exact credentialed CORS origins           |
+| Build metadata           | `APP_VERSION`, `GIT_COMMIT`                                                                                                                                                                                                                                                      | Safe version and deployment metadata responses             |
 
 Do not commit real credentials or production connection strings. Production authentication secrets are required; the API fails closed when they are missing.
 

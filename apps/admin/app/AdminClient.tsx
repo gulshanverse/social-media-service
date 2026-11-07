@@ -106,11 +106,7 @@ export async function api(path: string, init: RequestInit = {}) {
   }
   return response.json();
 }
-export async function uploadFile(
-  path: string,
-  file: File,
-  onProgress: (percent: number) => void,
-) {
+export async function uploadFile(path: string, file: File, onProgress: (percent: number) => void) {
   const send = () =>
     new Promise<{ url: string; key: string; width: number; height: number; size: number }>(
       (resolve, reject) => {
@@ -121,20 +117,34 @@ export async function uploadFile(
         xhr.withCredentials = true;
         if (runtimeToken) xhr.setRequestHeader('authorization', `Bearer ${runtimeToken}`);
         xhr.upload.onprogress = (event) => {
-          if (event.lengthComputable) onProgress(Math.min(100, Math.round((event.loaded / event.total) * 100)));
+          if (event.lengthComputable)
+            onProgress(Math.min(100, Math.round((event.loaded / event.total) * 100)));
         };
         xhr.onerror = () => reject(new Error('The image upload could not reach the server.'));
         xhr.onload = () => {
-          let result: { url?: string; key?: string; width?: number; height?: number; size?: number; message?: string } = {};
-          try { result = JSON.parse(xhr.responseText); } catch {}
+          let result: {
+            url?: string;
+            key?: string;
+            width?: number;
+            height?: number;
+            size?: number;
+            message?: string;
+          } = {};
+          try {
+            result = JSON.parse(xhr.responseText);
+          } catch {}
           if (xhr.status < 200 || xhr.status >= 300) {
-            const error = new Error(result.message ?? 'Image upload failed.') as Error & { status?: number };
+            const error = new Error(result.message ?? 'Image upload failed.') as Error & {
+              status?: number;
+            };
             error.status = xhr.status;
             reject(error);
             return;
           }
           onProgress(100);
-          resolve(result as { url: string; key: string; width: number; height: number; size: number });
+          resolve(
+            result as { url: string; key: string; width: number; height: number; size: number },
+          );
         };
         xhr.send(body);
       },
@@ -3985,7 +3995,8 @@ export default function AdminClient() {
       <ProfilePage />
     ) : pathname === '/bawalbox' ? (
       <BawalBoxStudio />
-    ) : pathname === '/homepage-promotions' && (admin.role === 'SUPER_ADMIN' || admin.role === 'DESIGNER') ? (
+    ) : pathname === '/homepage-promotions' &&
+      (admin.role === 'SUPER_ADMIN' || admin.role === 'DESIGNER') ? (
       <HomepagePromotions api={api} uploadFile={uploadFile} />
     ) : (
       <Dashboard admin={admin} />
