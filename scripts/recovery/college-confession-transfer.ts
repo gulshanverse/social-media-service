@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { PrismaClient, Prisma } from '@prisma/client';
@@ -28,9 +28,10 @@ const TARGET_BRANCH_ID = 'br-tiny-bread-ao1quu8u';
 const PRESERVED_SNAPSHOT_ID = 'snap-broad-wind-aoyjocno';
 const STAGING_FORK_AT = new Date('2026-10-25T14:08:34.000Z');
 const PRESERVED_CONFESSION_ID = 'cmw684l1r0001id01uhgpyj25';
-const EXPECTED_RECOVERY_ID_SET_DIGEST = '318793c9a787a94541f2595fe801096e';
-const EXPECTED_RECOVERY_CONTENT_FINGERPRINT_SET_DIGEST = '5ad19af3fafa50fc4f1cf213306ff410';
-const SNAPSHOT_MANIFEST_MAX_AGE_MS = 15 * 60 * 1000;
+const EXPECTED_RECOVERY_ID_SET_DIGEST =
+  'd7c6ade13762566a3401f99221550e583ed22cfac6b5a4e99f69c537bfe32b9c';
+const EXPECTED_RECOVERY_CONTENT_FINGERPRINT_SET_DIGEST =
+  'a92627606ca9e8c6c68d2c650b104b524f9169b316e3ba79e96be891475a7fec';
 const EXPECTED = {
   confessions: 93,
   commentsExcluded: 26,
@@ -75,6 +76,17 @@ type AuditRow = Prisma.AuditLogGetPayload<{
   };
 }>;
 
+const reactionSelect = {
+  id: true,
+  confessionId: true,
+  profileId: true,
+  actorHash: true,
+  emoji: true,
+  createdAt: true,
+} satisfies Prisma.ConfessionReactionSelect;
+
+type ReactionRow = Prisma.ConfessionReactionGetPayload<{ select: typeof reactionSelect }>;
+
 type TxTarget = {
   $transaction<T>(work: (tx: any) => Promise<T>): Promise<T>;
 };
@@ -95,7 +107,7 @@ function requiredEnv(name: string): string {
 export function confessionFingerprint(
   row: Pick<ConfessionRow, 'content' | 'originalContent'>,
 ): string {
-  return createHash('md5').update(`${row.content}|${row.originalContent}`).digest('hex');
+  return createHash('sha256').update(`${row.content}|${row.originalContent}`).digest('hex');
 }
 
 export function fullRecordFingerprint(row: ConfessionRow): string {
@@ -124,7 +136,37 @@ export function fullRecordFingerprint(row: ConfessionRow): string {
 }
 
 export function setDigest(values: string[]): string {
-  return createHash('md5').update(values.slice().sort().join(',')).digest('hex');
+  return createHash('sha256').update(values.slice().sort().join(',')).digest('hex');
+}
+
+export function reactionRecordFingerprint(row: ReactionRow): string {
+  return createHash('sha256')
+    .update(
+      JSON.stringify([
+        row.id,
+        row.confessionId,
+        row.profileId,
+        row.actorHash,
+        row.emoji,
+        row.createdAt.toISOString(),
+      ]),
+    )
+    .digest('hex');
+}
+
+export function auditMappingDigest(rows: Array<Pick<AuditRow, 'id' | 'action'>>): string {
+  return setDigest(rows.map((row) => `${row.id}:${row.action}`));
+}
+
+export function assertExactAuditMappings(
+  expected: Array<Pick<AuditRow, 'id' | 'action'>>,
+  actual: Array<Pick<AuditRow, 'id' | 'action'>>,
+): void {
+  assertDigest(
+    auditMappingDigest(actual),
+    auditMappingDigest(expected),
+    'audit ID-to-action mapping',
+  );
 }
 
 export function assertDigest(actual: string, expected: string, label: string): void {
@@ -160,8 +202,7 @@ export function assertExactIdSet(actualIds: string[], expectedIds: string[], lab
   assertDigest(setDigest(actualIds), setDigest(expectedIds), `${label} ID set`);
 }
 
-export type SnapshotManifest = {
-  provider: string;
+export type SnapshotAttestationPayload = {
   projectId: string;
   snapshotId: string;
   sourceBranchId: string;
@@ -169,24 +210,48 @@ export type SnapshotManifest = {
   verifiedAt: string;
 };
 
-export function validateSnapshotManifest(manifest: SnapshotManifest, now = Date.now()): void {
-  if (manifest.provider !== 'neon-control-plane')
-    throw new Error('Snapshot manifest provider is not Neon control plane');
+export type SnapshotAttestation = {
+  provider: string;
+  payload: SnapshotAttestationPayload;
+  signature: string;
+};
+
+function canonicalAttestationPayload(payload: SnapshotAttestationPayload): string {
+  return JSON.stringify([
+    payload.projectId,
+    payload.snapshotId,
+    payload.sourceBranchId,
+    payload.manual,
+    payload.verifiedAt,
+  ]);
+}
+
+export function verifySnapshotAttestation(
+  attestation: SnapshotAttestation,
+  signingKey: string,
+  now = Date.now(),
+): void {
+  if (attestation.provider !== 'neon-control-plane-signed')
+    throw new Error('Snapshot attestation is not from the trusted Neon control-plane verifier');
+  const expectedSignature = createHmac('sha256', signingKey)
+    .update(canonicalAttestationPayload(attestation.payload))
+    .digest('hex');
+  const actual = Buffer.from(attestation.signature, 'hex');
+  const expected = Buffer.from(expectedSignature, 'hex');
+  if (actual.length !== expected.length || !timingSafeEqual(actual, expected))
+    throw new Error('Snapshot attestation signature is invalid or forged');
+  const payload = attestation.payload;
   if (
-    manifest.projectId !== PROJECT_ID ||
-    manifest.snapshotId !== PRESERVED_SNAPSHOT_ID ||
-    manifest.sourceBranchId !== TARGET_BRANCH_ID ||
-    manifest.manual !== true
+    payload.projectId !== PROJECT_ID ||
+    payload.snapshotId !== PRESERVED_SNAPSHOT_ID ||
+    payload.sourceBranchId !== TARGET_BRANCH_ID ||
+    payload.manual !== true
   ) {
-    throw new Error('Snapshot manifest does not match the verified preserved manual snapshot');
+    throw new Error('Snapshot attestation does not match the verified preserved manual snapshot');
   }
-  const verifiedAt = Date.parse(manifest.verifiedAt);
-  if (
-    !Number.isFinite(verifiedAt) ||
-    now - verifiedAt < 0 ||
-    now - verifiedAt > SNAPSHOT_MANIFEST_MAX_AGE_MS
-  ) {
-    throw new Error('Snapshot manifest is missing, invalid, or stale');
+  const verifiedAt = Date.parse(payload.verifiedAt);
+  if (!Number.isFinite(verifiedAt) || now - verifiedAt < 0 || now - verifiedAt > 15 * 60 * 1000) {
+    throw new Error('Snapshot attestation is missing, invalid, or stale');
   }
 }
 
@@ -268,9 +333,8 @@ export function assertExecutionApproval(actualScriptSha256: string): void {
   requiredEnv('RECOVERY_APPROVAL_REFERENCE');
   if (requiredEnv('RECOVERY_SCRIPT_SHA256') !== actualScriptSha256)
     throw new Error(`Refusing writes: checksum mismatch; actual=${actualScriptSha256}`);
-  const manifestPath = requiredEnv('RECOVERY_SNAPSHOT_MANIFEST_PATH');
-  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as SnapshotManifest;
-  validateSnapshotManifest(manifest);
+  const attestation = JSON.parse(requiredEnv('NEON_SNAPSHOT_ATTESTATION')) as SnapshotAttestation;
+  verifySnapshotAttestation(attestation, requiredEnv('NEON_SNAPSHOT_ATTESTATION_KEY'));
 }
 
 export async function readBranchIdentity(client: PrismaClient): Promise<BranchIdentity> {
@@ -389,6 +453,9 @@ async function main(): Promise<void> {
       EXPECTED_RECOVERY_CONTENT_FINGERPRINT_SET_DIGEST,
       'recovery confession content-fingerprint set',
     );
+    const approvedConfessionRecordDigest = setDigest(
+      recoveryConfessions.map((row) => `${row.id}:${fullRecordFingerprint(row)}`),
+    );
 
     const targetExisting = await target.confession.findMany({
       where: {
@@ -431,14 +498,7 @@ async function main(): Promise<void> {
 
     const sourceReactions = await source.confessionReaction.findMany({
       where: { confessionId: { in: recoveryIds } },
-      select: {
-        id: true,
-        confessionId: true,
-        profileId: true,
-        actorHash: true,
-        emoji: true,
-        createdAt: true,
-      },
+      select: reactionSelect,
       orderBy: { id: 'asc' },
     });
     assertCount(sourceReactions.length, EXPECTED.reactionsTotal, 'source recovery reactions');
@@ -474,6 +534,9 @@ async function main(): Promise<void> {
     assertCount(excludedReactions.length, EXPECTED.reactionsExcluded, 'excluded reactions');
     const eligibleReactionIds = eligibleReactions.map((row) => row.id);
     assertUniqueIds(eligibleReactionIds, 'eligible reaction IDs');
+    const eligibleReactionRecordDigest = setDigest(
+      eligibleReactions.map((row) => `${row.id}:${reactionRecordFingerprint(row)}`),
+    );
 
     const sourceAuditLogs = await source.auditLog.findMany({
       where: {
@@ -500,6 +563,7 @@ async function main(): Promise<void> {
     assertExpectedAuditMetadata(sourceAuditLogs);
     const auditIds = sourceAuditLogs.map((row) => row.id);
     assertUniqueIds(auditIds, 'audit IDs');
+    const approvedAuditMappingDigest = auditMappingDigest(sourceAuditLogs);
 
     const targetThemes = await target.theme.findMany({
       where: {
@@ -528,7 +592,7 @@ async function main(): Promise<void> {
 
     const targetReactionKeys = await target.confessionReaction.findMany({
       where: { id: { in: eligibleReactionIds } },
-      select: { id: true, confessionId: true, actorHash: true, emoji: true },
+      select: reactionSelect,
     });
     assertNoGlobalCollisions(
       eligibleReactionIds,
@@ -609,14 +673,32 @@ async function main(): Promise<void> {
         EXPECTED_RECOVERY_CONTENT_FINGERPRINT_SET_DIGEST,
         'postflight confession content-fingerprint set',
       );
+      assertDigest(
+        setDigest(
+          postflightConfessions.map(
+            (row: ConfessionRow) => `${row.id}:${fullRecordFingerprint(row)}`,
+          ),
+        ),
+        approvedConfessionRecordDigest,
+        'postflight full confession record set',
+      );
       const postflightReactions = await tx.confessionReaction.findMany({
         where: { id: { in: eligibleReactionIds } },
-        select: { id: true },
+        select: reactionSelect,
       });
       assertExactIdSet(
-        postflightReactions.map((row: { id: string }) => row.id),
+        postflightReactions.map((row: ReactionRow) => row.id),
         eligibleReactionIds,
         'postflight reaction',
+      );
+      assertDigest(
+        setDigest(
+          postflightReactions.map(
+            (row: ReactionRow) => `${row.id}:${reactionRecordFingerprint(row)}`,
+          ),
+        ),
+        eligibleReactionRecordDigest,
+        'postflight full reaction record set',
       );
       const postflightAudit = await tx.auditLog.findMany({
         where: { id: { in: auditIds } },
@@ -627,6 +709,12 @@ async function main(): Promise<void> {
         auditIds,
         'postflight audit',
       );
+      assertDigest(
+        auditMappingDigest(postflightAudit),
+        approvedAuditMappingDigest,
+        'postflight audit ID-to-action mapping',
+      );
+      assertExactAuditMappings(sourceAuditLogs, postflightAudit);
       const postflightActionCounts = actionCounts(postflightAudit);
       for (const [action, expected] of Object.entries(EXPECTED.auditActions)) {
         assertCount(
