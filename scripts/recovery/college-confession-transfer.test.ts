@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import { createHmac } from 'node:crypto';
 import test from 'node:test';
 import {
   auditMappingDigest,
@@ -16,7 +15,7 @@ import {
   assertBranchIdentity,
   reactionRecordFingerprint,
   runInTransaction,
-  verifySnapshotAttestation,
+  verifySnapshotFromNeonControlPlane,
 } from './college-confession-transfer';
 
 const confession = (id: string, content: string, originalContent = content) => ({
@@ -76,80 +75,79 @@ test('rejects an anchor-versus-production preservation mismatch', () => {
   );
 });
 
-test('rejects forged or tampered snapshot provenance', () => {
-  const signingKey = 'test-control-plane-key';
-  const payload = {
-    projectId: 'frosty-boat-76582250',
-    snapshotId: 'snap-broad-wind-aoyjocno',
-    sourceBranchId: 'br-tiny-bread-ao1quu8u',
-    manual: true,
-    verifiedAt: new Date(1_700_000_000_000).toISOString(),
+test('verifies Neon snapshot provenance through the authenticated control plane', async () => {
+  let request: { url: string; authorization: string } | undefined;
+  const fetchMock = async (url: string, init: { headers: Record<string, string> }) => {
+    request = { url, authorization: init.headers.Authorization };
+    return {
+      ok: true,
+      status: 200,
+      async json() {
+        return {
+          snapshots: [
+            {
+              id: 'snap-broad-wind-aoyjocno',
+              name: 'pre-reaction-migration-20261022',
+              source_branch_id: 'br-tiny-bread-ao1quu8u',
+              created_at: '2026-10-21T23:34:12Z',
+              manual: true,
+            },
+          ],
+        };
+      },
+    };
   };
-  const signature = createHmac('sha256', signingKey)
-    .update(
-      JSON.stringify([
-        payload.projectId,
-        payload.snapshotId,
-        payload.sourceBranchId,
-        payload.manual,
-        payload.verifiedAt,
-      ]),
-    )
-    .digest('hex');
-  const attestation = { provider: 'neon-control-plane-signed', payload, signature };
-  assert.doesNotThrow(() =>
-    verifySnapshotAttestation(attestation, signingKey, 1_700_000_000_000 + 60_000),
+  await verifySnapshotFromNeonControlPlane('provider-api-key', fetchMock);
+  assert.equal(
+    request?.url,
+    'https://console.neon.tech/api/v2/projects/frosty-boat-76582250/snapshots',
   );
-  assert.throws(
-    () =>
-      verifySnapshotAttestation(
-        { ...attestation, signature: '00' },
-        signingKey,
-        1_700_000_000_000 + 60_000,
-      ),
-    /forged/,
+  assert.equal(request?.authorization, ['Bearer', 'provider-api-key'].join(' '));
+  const response = async (body: unknown) => ({
+    ok: true,
+    status: 200,
+    async json() {
+      return body;
+    },
+  });
+  await assert.rejects(
+    () => verifySnapshotFromNeonControlPlane('key', async () => response({ snapshots: [] })),
+    /did not return/,
   );
-  assert.throws(
+  await assert.rejects(
     () =>
-      verifySnapshotAttestation(
-        { ...attestation, payload: { ...payload, snapshotId: 'wrong' } },
-        signingKey,
-        1_700_000_000_000 + 60_000,
+      verifySnapshotFromNeonControlPlane('key', async () =>
+        response({
+          snapshots: [{ id: 'snap-broad-wind-aoyjocno', source_branch_id: 'wrong', manual: true }],
+        }),
       ),
-    /forged/,
+    /provenance/,
   );
-  assert.throws(
+  await assert.rejects(
     () =>
-      verifySnapshotAttestation(
-        { provider: 'neon-control-plane', payload, signature: '' },
-        signingKey,
-        1_700_000_000_000 + 60_000,
+      verifySnapshotFromNeonControlPlane('key', async () =>
+        response({
+          snapshots: [
+            {
+              id: 'snap-broad-wind-aoyjocno',
+              source_branch_id: 'br-tiny-bread-ao1quu8u',
+              manual: false,
+            },
+          ],
+        }),
       ),
-    /trusted/,
+    /provenance/,
   );
-  const stalePayload = {
-    ...payload,
-    verifiedAt: new Date(1_700_000_000_000 - 16 * 60_000).toISOString(),
-  };
-  const staleSignature = createHmac('sha256', signingKey)
-    .update(
-      JSON.stringify([
-        stalePayload.projectId,
-        stalePayload.snapshotId,
-        stalePayload.sourceBranchId,
-        stalePayload.manual,
-        stalePayload.verifiedAt,
-      ]),
-    )
-    .digest('hex');
-  assert.throws(
+  await assert.rejects(
     () =>
-      verifySnapshotAttestation(
-        { ...attestation, payload: stalePayload, signature: staleSignature },
-        signingKey,
-        1_700_000_000_000,
-      ),
-    /missing, invalid, or stale/,
+      verifySnapshotFromNeonControlPlane('key', async () => ({
+        ok: false,
+        status: 401,
+        async json() {
+          return {};
+        },
+      })),
+    /HTTP 401/,
   );
 });
 
