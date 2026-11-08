@@ -1,4 +1,4 @@
-import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { PrismaClient, Prisma } from '@prisma/client';
@@ -196,67 +196,58 @@ export function assertNoGlobalCollisions(
     throw new Error(`${label} global primary-key collision: ${collisions.length}`);
 }
 
+export function assertUniqueIds(ids: string[], label: string): void {
+  if (new Set(ids).size !== ids.length) throw new Error(`${label} contains duplicate IDs`);
+}
+
 export function assertExactIdSet(actualIds: string[], expectedIds: string[], label: string): void {
   assertUniqueIds(actualIds, `${label} actual IDs`);
   assertUniqueIds(expectedIds, `${label} expected IDs`);
   assertDigest(setDigest(actualIds), setDigest(expectedIds), `${label} ID set`);
 }
 
-export type SnapshotAttestationPayload = {
-  projectId: string;
-  snapshotId: string;
-  sourceBranchId: string;
+export type NeonSnapshot = {
+  id: string;
+  name: string;
+  source_branch_id: string;
+  created_at: string;
   manual: boolean;
-  verifiedAt: string;
 };
 
-export type SnapshotAttestation = {
-  provider: string;
-  payload: SnapshotAttestationPayload;
-  signature: string;
+type NeonSnapshotResponse = {
+  snapshots?: NeonSnapshot[];
 };
 
-function canonicalAttestationPayload(payload: SnapshotAttestationPayload): string {
-  return JSON.stringify([
-    payload.projectId,
-    payload.snapshotId,
-    payload.sourceBranchId,
-    payload.manual,
-    payload.verifiedAt,
-  ]);
-}
+type NeonFetchResponse = {
+  ok: boolean;
+  status: number;
+  json(): Promise<unknown>;
+};
 
-export function verifySnapshotAttestation(
-  attestation: SnapshotAttestation,
-  signingKey: string,
-  now = Date.now(),
-): void {
-  if (attestation.provider !== 'neon-control-plane-signed')
-    throw new Error('Snapshot attestation is not from the trusted Neon control-plane verifier');
-  const expectedSignature = createHmac('sha256', signingKey)
-    .update(canonicalAttestationPayload(attestation.payload))
-    .digest('hex');
-  const actual = Buffer.from(attestation.signature, 'hex');
-  const expected = Buffer.from(expectedSignature, 'hex');
-  if (actual.length !== expected.length || !timingSafeEqual(actual, expected))
-    throw new Error('Snapshot attestation signature is invalid or forged');
-  const payload = attestation.payload;
-  if (
-    payload.projectId !== PROJECT_ID ||
-    payload.snapshotId !== PRESERVED_SNAPSHOT_ID ||
-    payload.sourceBranchId !== TARGET_BRANCH_ID ||
-    payload.manual !== true
-  ) {
-    throw new Error('Snapshot attestation does not match the verified preserved manual snapshot');
-  }
-  const verifiedAt = Date.parse(payload.verifiedAt);
-  if (!Number.isFinite(verifiedAt) || now - verifiedAt < 0 || now - verifiedAt > 15 * 60 * 1000) {
-    throw new Error('Snapshot attestation is missing, invalid, or stale');
-  }
-}
+type NeonFetch = (
+  input: string,
+  init: { headers: Record<string, string> },
+) => Promise<NeonFetchResponse>;
 
-export function assertUniqueIds(ids: string[], label: string): void {
-  if (new Set(ids).size !== ids.length) throw new Error(`${label} contains duplicate IDs`);
+export async function verifySnapshotFromNeonControlPlane(
+  apiKey: string,
+  fetchImpl: NeonFetch = fetch,
+): Promise<NeonSnapshot> {
+  const response = await fetchImpl(
+    `https://console.neon.tech/api/v2/projects/${PROJECT_ID}/snapshots`,
+    { headers: { Authorization: `Bearer ${apiKey}`, Accept: 'application/json' } },
+  );
+  if (!response.ok)
+    throw new Error(`Neon control-plane snapshot lookup failed with HTTP ${response.status}`);
+  const body = (await response.json()) as NeonSnapshotResponse;
+  const snapshot = body.snapshots?.find((candidate) => candidate.id === PRESERVED_SNAPSHOT_ID);
+  if (!snapshot) throw new Error('Neon control plane did not return the preserved snapshot');
+  if (!snapshot.manual || snapshot.source_branch_id !== TARGET_BRANCH_ID) {
+    throw new Error(
+      'Neon control-plane snapshot provenance does not match the preserved manual production snapshot',
+    );
+  }
+  return snapshot;
 }
 
 export function assertAuditEntity(rows: Array<Pick<AuditRow, 'entity'>>): void {
@@ -333,8 +324,7 @@ export function assertExecutionApproval(actualScriptSha256: string): void {
   requiredEnv('RECOVERY_APPROVAL_REFERENCE');
   if (requiredEnv('RECOVERY_SCRIPT_SHA256') !== actualScriptSha256)
     throw new Error(`Refusing writes: checksum mismatch; actual=${actualScriptSha256}`);
-  const attestation = JSON.parse(requiredEnv('NEON_SNAPSHOT_ATTESTATION')) as SnapshotAttestation;
-  verifySnapshotAttestation(attestation, requiredEnv('NEON_SNAPSHOT_ATTESTATION_KEY'));
+  requiredEnv('NEON_API_KEY');
 }
 
 export async function readBranchIdentity(client: PrismaClient): Promise<BranchIdentity> {
@@ -643,6 +633,7 @@ async function main(): Promise<void> {
     );
 
     if (!args.execute) return;
+    await verifySnapshotFromNeonControlPlane(requiredEnv('NEON_API_KEY'));
     const confessionData = recoveryConfessions.map((row) => ({ ...row }));
     const reactionData = eligibleReactions.map((row) => ({ ...row }));
     const auditData = sourceAuditLogs.map((row) => ({ ...row }));
