@@ -28,9 +28,10 @@ const TARGET_BRANCH_ID = 'br-tiny-bread-ao1quu8u';
 const PRESERVED_SNAPSHOT_ID = 'snap-broad-wind-aoyjocno';
 const STAGING_FORK_AT = new Date('2026-10-25T14:08:34.000Z');
 const PRESERVED_CONFESSION_ID = 'cmw684l1r0001id01uhgpyj25';
-const EXPECTED_RECOVERY_ID_SET_DIGEST = '318793c9a787a94541f2595fe801096e';
-const EXPECTED_RECOVERY_CONTENT_FINGERPRINT_SET_DIGEST = '5ad19af3fafa50fc4f1cf213306ff410';
-const SNAPSHOT_MANIFEST_MAX_AGE_MS = 15 * 60 * 1000;
+const EXPECTED_RECOVERY_ID_SET_DIGEST =
+  'd7c6ade13762566a3401f99221550e583ed22cfac6b5a4e99f69c537bfe32b9c';
+const EXPECTED_RECOVERY_CONTENT_FINGERPRINT_SET_DIGEST =
+  'a92627606ca9e8c6c68d2c650b104b524f9169b316e3ba79e96be891475a7fec';
 const EXPECTED = {
   confessions: 93,
   commentsExcluded: 26,
@@ -75,6 +76,17 @@ type AuditRow = Prisma.AuditLogGetPayload<{
   };
 }>;
 
+const reactionSelect = {
+  id: true,
+  confessionId: true,
+  profileId: true,
+  actorHash: true,
+  emoji: true,
+  createdAt: true,
+} satisfies Prisma.ConfessionReactionSelect;
+
+type ReactionRow = Prisma.ConfessionReactionGetPayload<{ select: typeof reactionSelect }>;
+
 type TxTarget = {
   $transaction<T>(work: (tx: any) => Promise<T>): Promise<T>;
 };
@@ -95,7 +107,7 @@ function requiredEnv(name: string): string {
 export function confessionFingerprint(
   row: Pick<ConfessionRow, 'content' | 'originalContent'>,
 ): string {
-  return createHash('md5').update(`${row.content}|${row.originalContent}`).digest('hex');
+  return createHash('sha256').update(`${row.content}|${row.originalContent}`).digest('hex');
 }
 
 export function fullRecordFingerprint(row: ConfessionRow): string {
@@ -124,7 +136,37 @@ export function fullRecordFingerprint(row: ConfessionRow): string {
 }
 
 export function setDigest(values: string[]): string {
-  return createHash('md5').update(values.slice().sort().join(',')).digest('hex');
+  return createHash('sha256').update(values.slice().sort().join(',')).digest('hex');
+}
+
+export function reactionRecordFingerprint(row: ReactionRow): string {
+  return createHash('sha256')
+    .update(
+      JSON.stringify([
+        row.id,
+        row.confessionId,
+        row.profileId,
+        row.actorHash,
+        row.emoji,
+        row.createdAt.toISOString(),
+      ]),
+    )
+    .digest('hex');
+}
+
+export function auditMappingDigest(rows: Array<Pick<AuditRow, 'id' | 'action'>>): string {
+  return setDigest(rows.map((row) => `${row.id}:${row.action}`));
+}
+
+export function assertExactAuditMappings(
+  expected: Array<Pick<AuditRow, 'id' | 'action'>>,
+  actual: Array<Pick<AuditRow, 'id' | 'action'>>,
+): void {
+  assertDigest(
+    auditMappingDigest(actual),
+    auditMappingDigest(expected),
+    'audit ID-to-action mapping',
+  );
 }
 
 export function assertDigest(actual: string, expected: string, label: string): void {
@@ -154,44 +196,58 @@ export function assertNoGlobalCollisions(
     throw new Error(`${label} global primary-key collision: ${collisions.length}`);
 }
 
+export function assertUniqueIds(ids: string[], label: string): void {
+  if (new Set(ids).size !== ids.length) throw new Error(`${label} contains duplicate IDs`);
+}
+
 export function assertExactIdSet(actualIds: string[], expectedIds: string[], label: string): void {
   assertUniqueIds(actualIds, `${label} actual IDs`);
   assertUniqueIds(expectedIds, `${label} expected IDs`);
   assertDigest(setDigest(actualIds), setDigest(expectedIds), `${label} ID set`);
 }
 
-export type SnapshotManifest = {
-  provider: string;
-  projectId: string;
-  snapshotId: string;
-  sourceBranchId: string;
+export type NeonSnapshot = {
+  id: string;
+  name: string;
+  source_branch_id: string;
+  created_at: string;
   manual: boolean;
-  verifiedAt: string;
 };
 
-export function validateSnapshotManifest(manifest: SnapshotManifest, now = Date.now()): void {
-  if (manifest.provider !== 'neon-control-plane')
-    throw new Error('Snapshot manifest provider is not Neon control plane');
-  if (
-    manifest.projectId !== PROJECT_ID ||
-    manifest.snapshotId !== PRESERVED_SNAPSHOT_ID ||
-    manifest.sourceBranchId !== TARGET_BRANCH_ID ||
-    manifest.manual !== true
-  ) {
-    throw new Error('Snapshot manifest does not match the verified preserved manual snapshot');
-  }
-  const verifiedAt = Date.parse(manifest.verifiedAt);
-  if (
-    !Number.isFinite(verifiedAt) ||
-    now - verifiedAt < 0 ||
-    now - verifiedAt > SNAPSHOT_MANIFEST_MAX_AGE_MS
-  ) {
-    throw new Error('Snapshot manifest is missing, invalid, or stale');
-  }
-}
+type NeonSnapshotResponse = {
+  snapshots?: NeonSnapshot[];
+};
 
-export function assertUniqueIds(ids: string[], label: string): void {
-  if (new Set(ids).size !== ids.length) throw new Error(`${label} contains duplicate IDs`);
+type NeonFetchResponse = {
+  ok: boolean;
+  status: number;
+  json(): Promise<unknown>;
+};
+
+type NeonFetch = (
+  input: string,
+  init: { headers: Record<string, string> },
+) => Promise<NeonFetchResponse>;
+
+export async function verifySnapshotFromNeonControlPlane(
+  apiKey: string,
+  fetchImpl: NeonFetch = fetch,
+): Promise<NeonSnapshot> {
+  const response = await fetchImpl(
+    `https://console.neon.tech/api/v2/projects/${PROJECT_ID}/snapshots`,
+    { headers: { Authorization: `Bearer ${apiKey}`, Accept: 'application/json' } },
+  );
+  if (!response.ok)
+    throw new Error(`Neon control-plane snapshot lookup failed with HTTP ${response.status}`);
+  const body = (await response.json()) as NeonSnapshotResponse;
+  const snapshot = body.snapshots?.find((candidate) => candidate.id === PRESERVED_SNAPSHOT_ID);
+  if (!snapshot) throw new Error('Neon control plane did not return the preserved snapshot');
+  if (!snapshot.manual || snapshot.source_branch_id !== TARGET_BRANCH_ID) {
+    throw new Error(
+      'Neon control-plane snapshot provenance does not match the preserved manual production snapshot',
+    );
+  }
+  return snapshot;
 }
 
 export function assertAuditEntity(rows: Array<Pick<AuditRow, 'entity'>>): void {
@@ -268,9 +324,7 @@ export function assertExecutionApproval(actualScriptSha256: string): void {
   requiredEnv('RECOVERY_APPROVAL_REFERENCE');
   if (requiredEnv('RECOVERY_SCRIPT_SHA256') !== actualScriptSha256)
     throw new Error(`Refusing writes: checksum mismatch; actual=${actualScriptSha256}`);
-  const manifestPath = requiredEnv('RECOVERY_SNAPSHOT_MANIFEST_PATH');
-  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as SnapshotManifest;
-  validateSnapshotManifest(manifest);
+  requiredEnv('NEON_API_KEY');
 }
 
 export async function readBranchIdentity(client: PrismaClient): Promise<BranchIdentity> {
@@ -389,6 +443,9 @@ async function main(): Promise<void> {
       EXPECTED_RECOVERY_CONTENT_FINGERPRINT_SET_DIGEST,
       'recovery confession content-fingerprint set',
     );
+    const approvedConfessionRecordDigest = setDigest(
+      recoveryConfessions.map((row) => `${row.id}:${fullRecordFingerprint(row)}`),
+    );
 
     const targetExisting = await target.confession.findMany({
       where: {
@@ -431,14 +488,7 @@ async function main(): Promise<void> {
 
     const sourceReactions = await source.confessionReaction.findMany({
       where: { confessionId: { in: recoveryIds } },
-      select: {
-        id: true,
-        confessionId: true,
-        profileId: true,
-        actorHash: true,
-        emoji: true,
-        createdAt: true,
-      },
+      select: reactionSelect,
       orderBy: { id: 'asc' },
     });
     assertCount(sourceReactions.length, EXPECTED.reactionsTotal, 'source recovery reactions');
@@ -474,6 +524,9 @@ async function main(): Promise<void> {
     assertCount(excludedReactions.length, EXPECTED.reactionsExcluded, 'excluded reactions');
     const eligibleReactionIds = eligibleReactions.map((row) => row.id);
     assertUniqueIds(eligibleReactionIds, 'eligible reaction IDs');
+    const eligibleReactionRecordDigest = setDigest(
+      eligibleReactions.map((row) => `${row.id}:${reactionRecordFingerprint(row)}`),
+    );
 
     const sourceAuditLogs = await source.auditLog.findMany({
       where: {
@@ -500,6 +553,7 @@ async function main(): Promise<void> {
     assertExpectedAuditMetadata(sourceAuditLogs);
     const auditIds = sourceAuditLogs.map((row) => row.id);
     assertUniqueIds(auditIds, 'audit IDs');
+    const approvedAuditMappingDigest = auditMappingDigest(sourceAuditLogs);
 
     const targetThemes = await target.theme.findMany({
       where: {
@@ -528,7 +582,7 @@ async function main(): Promise<void> {
 
     const targetReactionKeys = await target.confessionReaction.findMany({
       where: { id: { in: eligibleReactionIds } },
-      select: { id: true, confessionId: true, actorHash: true, emoji: true },
+      select: reactionSelect,
     });
     assertNoGlobalCollisions(
       eligibleReactionIds,
@@ -579,6 +633,7 @@ async function main(): Promise<void> {
     );
 
     if (!args.execute) return;
+    await verifySnapshotFromNeonControlPlane(requiredEnv('NEON_API_KEY'));
     const confessionData = recoveryConfessions.map((row) => ({ ...row }));
     const reactionData = eligibleReactions.map((row) => ({ ...row }));
     const auditData = sourceAuditLogs.map((row) => ({ ...row }));
@@ -609,14 +664,32 @@ async function main(): Promise<void> {
         EXPECTED_RECOVERY_CONTENT_FINGERPRINT_SET_DIGEST,
         'postflight confession content-fingerprint set',
       );
+      assertDigest(
+        setDigest(
+          postflightConfessions.map(
+            (row: ConfessionRow) => `${row.id}:${fullRecordFingerprint(row)}`,
+          ),
+        ),
+        approvedConfessionRecordDigest,
+        'postflight full confession record set',
+      );
       const postflightReactions = await tx.confessionReaction.findMany({
         where: { id: { in: eligibleReactionIds } },
-        select: { id: true },
+        select: reactionSelect,
       });
       assertExactIdSet(
-        postflightReactions.map((row: { id: string }) => row.id),
+        postflightReactions.map((row: ReactionRow) => row.id),
         eligibleReactionIds,
         'postflight reaction',
+      );
+      assertDigest(
+        setDigest(
+          postflightReactions.map(
+            (row: ReactionRow) => `${row.id}:${reactionRecordFingerprint(row)}`,
+          ),
+        ),
+        eligibleReactionRecordDigest,
+        'postflight full reaction record set',
       );
       const postflightAudit = await tx.auditLog.findMany({
         where: { id: { in: auditIds } },
@@ -627,6 +700,12 @@ async function main(): Promise<void> {
         auditIds,
         'postflight audit',
       );
+      assertDigest(
+        auditMappingDigest(postflightAudit),
+        approvedAuditMappingDigest,
+        'postflight audit ID-to-action mapping',
+      );
+      assertExactAuditMappings(sourceAuditLogs, postflightAudit);
       const postflightActionCounts = actionCounts(postflightAudit);
       for (const [action, expected] of Object.entries(EXPECTED.auditActions)) {
         assertCount(

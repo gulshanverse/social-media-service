@@ -20,12 +20,14 @@ The script now performs the same identity check itself. Environment variable nam
 
 ## Snapshot control-plane check
 
-The Neon provider manual-snapshot inventory was checked read-only at preflight time. The preserved snapshot exists:
+The Neon provider manual-snapshot inventory was checked read-only at preflight time through the Neon control-plane tool. The preserved snapshot exists:
 
 - Name: `pre-reaction-migration-20261022`
 - Snapshot ID: `snap-broad-wind-aoyjocno`
 - Source branch: production `br-tiny-bread-ao1quu8u`
 - Provider flag: `manual: true`
+
+The transfer script no longer accepts a local JSON manifest or an HMAC supplied by the caller. Immediately before a future write transaction, it makes an authenticated `GET https://console.neon.tech/api/v2/projects/frosty-boat-76582250/snapshots` request to the official Neon Management API using `NEON_API_KEY`. Neon authenticates that bearer credential and returns the provider-owned snapshot inventory; the script then requires the exact snapshot ID, `manual: true`, and production source branch. A manually created or tampered local object cannot satisfy this gate. The API credential must be held by the controlled execution environment as a secret and is never logged or committed.
 
 ## Exact confession reconciliation
 
@@ -34,13 +36,13 @@ The source staging branch contains 458 published confessions. The immutable reco
 - Recovery cohort: **93** published confessions.
 - Staging fork boundary: `2026-10-25 14:08:34 UTC`.
 - All 93 cohort rows are after the staging fork boundary.
-- Exact cohort ID-set digest (source SQL MD5): `318793c9a787a94541f2595fe801096e`.
-- Exact ID-plus-content-fingerprint set digest (source SQL MD5): `5ad19af3fafa50fc4f1cf213306ff410`.
+- Exact cohort ID-set digest (SHA-256): `d7c6ade13762566a3401f99221550e583ed22cfac6b5a4e99f69c537bfe32b9c`.
+- Exact ID-plus-content-fingerprint set digest (SHA-256): `a92627606ca9e8c6c68d2c650b104b524f9169b316e3ba79e96be891475a7fec`.
 - The same 93 IDs were checked against the immutable anchor: **0 present**.
 - The same 93 IDs were checked against current production: **0 present**.
 - Shared source/anchor confession content fingerprints were checked; no mismatch was returned.
 
-The SQL fingerprint is computed from `md5(content || '|' || originalContent)`, and the transfer script uses that same algorithm and ordered serialization for its pinned cohort digests. The script uses a separate SHA-256 full-record fingerprint for preservation checks. Confession `content` and `originalContent` are necessarily transferred for the approved rows, but neither is logged or exposed.
+The pinned ID digest is SHA-256 over the comma-joined ascending ID list. The pinned content digest is SHA-256 over the comma-joined ascending `id:sha256(content || '|' || originalContent)` values. The script uses a separate SHA-256 full-record fingerprint for preservation and postflight checks. Confession `content` and `originalContent` are necessarily transferred for the approved rows, but neither is logged or exposed.
 
 ## Dependency reconciliation
 
@@ -81,27 +83,27 @@ The production-only confession `cmw684l1r0001id01uhgpyj25` was present in both t
 
 `dd0246efb4724b4de70724245c878625`
 
-The transfer script captures the target fingerprint before a future transaction and compares it after the transaction; a mismatch aborts the transaction.
+The transfer script captures the target fingerprint before a future transaction, compares it against the anchor before proceeding, and compares it after the transaction; a mismatch aborts the transaction. It also compares exact approved confession full-record fingerprints, exact reaction record contents, and exact audit ID-to-action mappings inside the transaction.
 
 ## Script and test evidence
 
 The corrected transfer script is dry-run by default and now includes:
 
 - actual connected Neon branch identity checks;
-- source/anchor fingerprint reconciliation;
+- source/anchor SHA-256 fingerprint reconciliation with pinned expected digests;
 - exact target collision checks;
 - uppercase `CONFESSION` audit filtering;
 - action-specific audit metadata validation;
 - theme, editor, audit-actor, reaction-profile, and comment dependency checks;
 - preserved-record full-field fingerprint checks;
-- explicit transaction postflight checks;
-- write gates requiring exact target branch, snapshot, approval reference, script checksum, and a fresh provider-side Neon snapshot manifest. The manifest must identify the project, exact manual snapshot, production source branch, and a verification time no older than 15 minutes.
+- explicit transaction postflight checks for full confession records, full reaction records, and audit ID-to-action mappings;
+- write gates requiring exact target branch, snapshot, approval reference, script checksum, and a fresh direct Neon Management API lookup immediately before the transaction. A local JSON file, HMAC, or caller-supplied `verifiedAt` value cannot satisfy the gate.
 
-Tests cover wrong branch identity, wrong entity casing, unexpected fingerprints, missing dependencies, duplicate IDs, invalid audit metadata, and transaction error propagation for rollback.
+Tests cover wrong branch identity, wrong entity casing, SHA-256 digest mismatch, unexpected fingerprints, missing dependencies, duplicate IDs, wrong or tampered provider snapshot responses, HTTP authentication failure, global ID collisions, exact reaction-content and audit-mapping mismatches, invalid audit metadata, and transaction error propagation for rollback.
 
-Test result: **12 passed, 0 failed**.
+Test result: **13 passed, 0 failed**.
 
-- Script SHA-256: `0f2c70cea9252fdc131fe3a159045e59ab26867789a6db1a64c045d1959732ef`
-- Test SHA-256: `86c3c289f50ccc9e6d9a27e734f849c215fa428e5bba091275fe0eba9e1205ae`
+- Script SHA-256: `7b97ce7ed37bc3d5bd7768d6f7625fb924e780242b1e63ba9e803053e4808243`
+- Test SHA-256: `870abcb644507e3a6257eb60b45869356e3444a1399a76670b267145d10e8613`
 
 No production transfer was executed. Independent review is required before any production execution.
