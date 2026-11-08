@@ -27,7 +27,7 @@ The Neon provider manual-snapshot inventory was checked read-only at preflight t
 - Source branch: production `br-tiny-bread-ao1quu8u`
 - Provider flag: `manual: true`
 
-The transfer script no longer accepts a local JSON manifest. Its execution gate requires a fresh signed attestation from a trusted Neon control-plane verifier, carried directly in the execution environment. The attestation signature covers the project, snapshot ID, source branch, manual flag, and verification timestamp; forged, tampered, wrong-provider, and stale attestations are rejected.
+The transfer script no longer accepts a local JSON manifest or an HMAC supplied by the caller. Immediately before a future write transaction, it makes an authenticated `GET https://console.neon.tech/api/v2/projects/frosty-boat-76582250/snapshots` request to the official Neon Management API using `NEON_API_KEY`. Neon authenticates that bearer credential and returns the provider-owned snapshot inventory; the script then requires the exact snapshot ID, `manual: true`, and production source branch. A manually created or tampered local object cannot satisfy this gate. The API credential must be held by the controlled execution environment as a secret and is never logged or committed.
 
 ## Exact confession reconciliation
 
@@ -97,13 +97,13 @@ The corrected transfer script is dry-run by default and now includes:
 - theme, editor, audit-actor, reaction-profile, and comment dependency checks;
 - preserved-record full-field fingerprint checks;
 - explicit transaction postflight checks for full confession records, full reaction records, and audit ID-to-action mappings;
-- write gates requiring exact target branch, snapshot, approval reference, script checksum, and a fresh signed provider-side Neon control-plane attestation. A local JSON file cannot satisfy the gate.
+- write gates requiring exact target branch, snapshot, approval reference, script checksum, and a fresh direct Neon Management API lookup immediately before the transaction. A local JSON file, HMAC, or caller-supplied `verifiedAt` value cannot satisfy the gate.
 
-Tests cover wrong branch identity, wrong entity casing, SHA-256 digest mismatch, unexpected fingerprints, missing dependencies, duplicate IDs, forged or tampered snapshot attestations, global ID collisions, exact reaction-content and audit-mapping mismatches, invalid audit metadata, and transaction error propagation for rollback.
+Tests cover wrong branch identity, wrong entity casing, SHA-256 digest mismatch, unexpected fingerprints, missing dependencies, duplicate IDs, wrong or tampered provider snapshot responses, HTTP authentication failure, global ID collisions, exact reaction-content and audit-mapping mismatches, invalid audit metadata, and transaction error propagation for rollback.
 
 Test result: **13 passed, 0 failed**.
 
-- Script SHA-256: `0aeaffe9330b746fc153c5774d8d76308e84f69f5d81e4598e267c8bffe3d086`
-- Test SHA-256: `cd3a751d122a40a653b0b55030ed510b097be3b537bfa06dcdc749040b93bfef`
+- Script SHA-256: `7b97ce7ed37bc3d5bd7768d6f7625fb924e780242b1e63ba9e803053e4808243`
+- Test SHA-256: `870abcb644507e3a6257eb60b45869356e3444a1399a76670b267145d10e8613`
 
 No production transfer was executed. Independent review is required before any production execution.
