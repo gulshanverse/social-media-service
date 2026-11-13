@@ -5005,3 +5005,31 @@ body:has(.home-shell) .footer-nav-group a:hover {
     transition: none;
   }
 }
+
+/* Keep the confessions feed compact on phones after shared feed defaults. */
+@media (max-width: 600px) {
+  .site-shell .feed-heading {
+    padding: 12px 5vw 0;
+  }
+  .site-shell .feed-heading > p {
+    margin: 4px 0 0;
+  }
+  .site-shell .confessions-promotion-wrap {
+    padding-bottom: 4px;
+  }
+  .site-shell .featured-services {
+    padding-bottom: 4px;
+  }
+  .site-shell .featured-services__dots {
+    padding-top: 4px;
+  }
+  .site-shell .discovery-controls {
+    padding-bottom: 6px;
+  }
+  .site-shell .feed-toolbar {
+    padding-top: 2px;
+  }
+  .site-shell .card-grid {
+    padding-top: 8px;
+  }
+}
