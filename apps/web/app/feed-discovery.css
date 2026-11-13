@@ -555,7 +555,7 @@
   .feed-heading {
     display: block;
     padding-top: 12px;
-    padding-bottom: 4px;
+    padding-bottom: 2px;
   }
   .feed-heading .eyebrow {
     margin-bottom: 6px;
@@ -564,11 +564,16 @@
     line-height: 0.9;
   }
   .feed-heading > p {
-    margin-top: 8px;
+    margin-top: 6px;
+  }
+  .confessions-promotion-wrap {
+    margin-top: 0;
+    padding-bottom: 12px;
   }
   .featured-services {
     padding-inline: 16px;
     padding-top: 0;
+    padding-bottom: 10px;
   }
   .featured-service {
     min-height: 120px;
@@ -583,9 +588,19 @@
     align-self: flex-end;
     margin-left: auto;
   }
+  .featured-services__dots {
+    padding-top: 7px;
+  }
+  .discovery-controls {
+    padding-bottom: 12px;
+  }
+  .category-scroller {
+    padding-top: 8px;
+  }
   .feed-toolbar {
     align-items: flex-start;
     gap: 10px;
+    padding-top: 4px;
   }
   .feed-toolbar > div:first-child {
     min-width: 0;
@@ -596,6 +611,9 @@
   }
   .feed-pagination {
     padding-inline: 16px;
+  }
+  .card-grid {
+    padding-top: 14px;
   }
   .pagination-button {
     min-width: 34px;

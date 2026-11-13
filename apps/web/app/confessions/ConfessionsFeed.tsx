@@ -304,9 +304,11 @@ export default function ConfessionsFeed({ initialQuery, promotions }: Props) {
         <p>Confessions, connections and campus life.</p>
       </section>
 
-      <div className="confessions-promotion-wrap">
-        <HomepagePromotionCarousel promotions={promotions} />
-      </div>
+      {promotions.length > 0 && (
+        <div className="confessions-promotion-wrap">
+          <HomepagePromotionCarousel promotions={promotions} />
+        </div>
+      )}
 
       <section className="featured-services" aria-label="Featured campus services">
         <div
