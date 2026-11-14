@@ -156,7 +156,33 @@ describe('Homepage Promotions admin', () => {
     expect(uploadFile).toHaveBeenCalledOnce();
   });
 
-  it('blocks publish attempts until a title and poster are provided', async () => {
+  it('saves a background-only promotion without requiring an upload', async () => {
+    const api = vi.fn(async (path: string, init?: RequestInit) => {
+      if (path.startsWith('/admin/homepage-promotions?'))
+        return { items: [], page: 1, limit: 50, total: 0, hasMore: false };
+      return {};
+    });
+    render(<HomepagePromotions api={api} uploadFile={vi.fn()} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Create promotion' }));
+    fireEvent.change(screen.getByRole('textbox', { name: /Promotion title/ }), {
+      target: { value: 'CSS campaign' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+    await waitFor(() =>
+      expect(api).toHaveBeenCalledWith(
+        '/admin/homepage-promotions',
+        expect.objectContaining({ method: 'POST' }),
+      ),
+    );
+    const call = api.mock.calls.find(
+      ([path, init]) => path === '/admin/homepage-promotions' && init?.method === 'POST',
+    );
+    const payload = JSON.parse(call?.[1]?.body as string);
+    expect(payload.desktopImageUrl).toBeNull();
+    expect(payload.backgroundPreset).toBe('aurora');
+  });
+
+  it('blocks publish attempts until a title is provided', async () => {
     const api = vi.fn(async () => ({ items: [], page: 1, limit: 100, total: 0, hasMore: false }));
     render(<HomepagePromotions api={api} uploadFile={vi.fn()} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Create promotion' }));

@@ -4740,6 +4740,7 @@ body:has(.home-shell) .footer-nav-group a:hover {
 }
 .homepage-promotion-media,
 .homepage-promotion-media img,
+.homepage-promotion-media picture,
 .homepage-promotion-shade {
   position: absolute;
   inset: 0;
@@ -4750,6 +4751,31 @@ body:has(.home-shell) .footer-nav-group a:hover {
   display: block;
   object-fit: cover;
   object-position: center;
+}
+.homepage-promotion-media picture {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.promotion-background--aurora {
+  background:
+    radial-gradient(circle at 78% 18%, #b8f1ff 0 7%, transparent 28%),
+    linear-gradient(120deg, #171b38, #5266c5 48%, #ef6fc4);
+}
+.promotion-background--sunset {
+  background:
+    radial-gradient(circle at 80% 14%, #ffd36e, transparent 28%),
+    linear-gradient(125deg, #54203e, #e45b68 48%, #ffb35c);
+}
+.promotion-background--ocean {
+  background:
+    radial-gradient(circle at 78% 18%, #7ef7dc, transparent 26%),
+    linear-gradient(125deg, #052b50, #087da9 54%, #4ed4d1);
+}
+.promotion-background--midnight {
+  background:
+    radial-gradient(circle at 75% 20%, #c36cff, transparent 22%),
+    linear-gradient(125deg, #090c21, #211447 52%, #5d275c);
 }
 .homepage-promotion-shade {
   z-index: 1;

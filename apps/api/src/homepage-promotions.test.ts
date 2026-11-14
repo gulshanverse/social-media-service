@@ -123,6 +123,16 @@ async function serviceMutationTests() {
       },
       'admin-1',
     );
+    const backgroundOnly = await service.create(
+      { title: 'Background-only campaign', backgroundPreset: 'ocean' },
+      'admin-1',
+    );
+    assert.equal(backgroundOnly.desktopImageUrl, null);
+    assert.equal(backgroundOnly.backgroundPreset, 'ocean');
+    await assert.rejects(
+      () => service.create({ title: 'Unknown preset', backgroundPreset: 'neon' }, 'admin-1'),
+      (error) => error instanceof BadRequestException,
+    );
     const second = await service.create(
       {
         title: 'Active campus event',
@@ -164,7 +174,7 @@ async function serviceMutationTests() {
     );
     assert.equal(edited.title, 'Updated campus event');
     assert.equal((await service.get(second.id)).description, 'Open to all students.');
-    assert.equal((await service.list()).items.length, 2);
+    assert.equal((await service.list()).items.length, 3);
 
     const draft = await service.create(
       {
@@ -227,7 +237,7 @@ async function serviceMutationTests() {
     );
     assert.equal((await service.delete(draft.id, 'admin-1')).deleted, true);
     assert.equal(memory.rows.has(draft.id), false);
-    assert.equal(memory.audits.length, 9);
+    assert.equal(memory.audits.length, 10);
   } finally {
     setPrismaForTests(realPrisma);
     if (previousBlobToken === undefined) delete process.env.BLOB_READ_WRITE_TOKEN;

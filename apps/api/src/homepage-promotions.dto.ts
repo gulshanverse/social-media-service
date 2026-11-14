@@ -17,10 +17,11 @@ import {
 
 export class CreateHomepagePromotionDto {
   @IsString() @MinLength(1) @MaxLength(120) title!: string;
-  @IsString() @MinLength(1) @MaxLength(2048) desktopImageUrl!: string;
-  @IsString() @MinLength(1) @MaxLength(512) desktopImageKey!: string;
+  @IsOptional() @IsString() @MaxLength(2048) desktopImageUrl?: string | null;
+  @IsOptional() @IsString() @MaxLength(512) desktopImageKey?: string | null;
   @IsOptional() @IsString() @MaxLength(500) description?: string | null;
   @IsOptional() @IsString() @MaxLength(80) badgeText?: string | null;
+  @IsOptional() @IsString() @MaxLength(32) backgroundPreset?: string | null;
   @IsOptional() @IsString() @MaxLength(2048) mobileImageUrl?: string | null;
   @IsOptional() @IsString() @MaxLength(512) mobileImageKey?: string | null;
   @IsOptional() @IsString() @MaxLength(300) imageAlt?: string | null;
@@ -36,8 +37,9 @@ export class UpdateHomepagePromotionDto {
   @IsOptional() @IsString() @MinLength(1) @MaxLength(120) title?: string;
   @IsOptional() @IsString() @MaxLength(500) description?: string | null;
   @IsOptional() @IsString() @MaxLength(80) badgeText?: string | null;
-  @IsOptional() @IsString() @MaxLength(2048) desktopImageUrl?: string;
-  @IsOptional() @IsString() @MaxLength(512) desktopImageKey?: string;
+  @IsOptional() @IsString() @MaxLength(32) backgroundPreset?: string | null;
+  @IsOptional() @IsString() @MaxLength(2048) desktopImageUrl?: string | null;
+  @IsOptional() @IsString() @MaxLength(512) desktopImageKey?: string | null;
   @IsOptional() @IsString() @MaxLength(2048) mobileImageUrl?: string | null;
   @IsOptional() @IsString() @MaxLength(512) mobileImageKey?: string | null;
   @IsOptional() @IsString() @MaxLength(300) imageAlt?: string | null;

@@ -3,6 +3,12 @@
 import { useEffect, useRef, useState } from 'react';
 import type { PublicHomepagePromotion } from '../lib/api';
 
+const BACKGROUND_PRESETS = ['aurora', 'sunset', 'ocean', 'midnight'] as const;
+
+function backgroundClass(preset: string | null | undefined) {
+  return `promotion-background--${BACKGROUND_PRESETS.includes(preset as (typeof BACKGROUND_PRESETS)[number]) ? preset : 'aurora'}`;
+}
+
 type Props = { promotions: PublicHomepagePromotion[] };
 
 export default function HomepagePromotionCarousel({ promotions }: Props) {
@@ -81,21 +87,25 @@ export default function HomepagePromotionCarousel({ promotions }: Props) {
       onTouchEnd={onTouchEnd}
     >
       <div className="homepage-promotion-card" key={active.id}>
-        <picture className="homepage-promotion-media">
-          {active.mobileImageUrl && (
-            <source media="(max-width: 600px)" srcSet={active.mobileImageUrl} />
+        <div className={`homepage-promotion-media ${backgroundClass(active.backgroundPreset)}`}>
+          {active.desktopImageUrl && (
+            <picture>
+              {active.mobileImageUrl && (
+                <source media="(max-width: 600px)" srcSet={active.mobileImageUrl} />
+              )}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={active.desktopImageUrl}
+                alt={active.imageAlt || active.title}
+                width={1200}
+                height={450}
+                loading={activeIndex === 0 ? 'eager' : 'lazy'}
+                decoding="async"
+                fetchPriority={activeIndex === 0 ? 'high' : 'auto'}
+              />
+            </picture>
           )}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={active.desktopImageUrl}
-            alt={active.imageAlt || active.title}
-            width={1200}
-            height={450}
-            loading={activeIndex === 0 ? 'eager' : 'lazy'}
-            decoding="async"
-            fetchPriority={activeIndex === 0 ? 'high' : 'auto'}
-          />
-        </picture>
+        </div>
         <div className="homepage-promotion-shade" />
         <div className="homepage-promotion-copy" key={`${active.id}-copy`}>
           {active.badgeText && <p className="homepage-promotion-badge">{active.badgeText}</p>}

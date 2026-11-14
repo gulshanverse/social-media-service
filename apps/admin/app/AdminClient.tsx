@@ -114,6 +114,7 @@ export async function uploadFile(path: string, file: File, onProgress: (percent:
         const body = new FormData();
         body.append('file', file);
         xhr.open('POST', `${API}${path}`);
+        xhr.timeout = 45_000;
         xhr.withCredentials = true;
         if (runtimeToken) xhr.setRequestHeader('authorization', `Bearer ${runtimeToken}`);
         xhr.upload.onprogress = (event) => {
@@ -121,6 +122,14 @@ export async function uploadFile(path: string, file: File, onProgress: (percent:
             onProgress(Math.min(100, Math.round((event.loaded / event.total) * 100)));
         };
         xhr.onerror = () => reject(new Error('The image upload could not reach the server.'));
+        xhr.ontimeout = () =>
+          reject(
+            new Error('The image upload timed out. Please retry or use a built-in background.'),
+          );
+        xhr.onabort = () =>
+          reject(
+            new Error('The image upload was cancelled. Please retry or use a built-in background.'),
+          );
         xhr.onload = () => {
           let result: {
             url?: string;
