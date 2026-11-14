@@ -150,7 +150,9 @@ export default function ConfessionsFeed({ initialQuery, promotions }: Props) {
   const [sortOpen, setSortOpen] = useState(false);
   const [draft, setDraft] = useState({ ...defaultQuery, ...initialQuery });
   const [serviceIndex, setServiceIndex] = useState(0);
-  const [servicePaused, setServicePaused] = useState(false);
+  const [serviceHovered, setServiceHovered] = useState(false);
+  const [serviceFocused, setServiceFocused] = useState(false);
+  const [serviceInteracting, setServiceInteracting] = useState(false);
   const [serviceVisible, setServiceVisible] = useState(true);
   const [documentVisible, setDocumentVisible] = useState(true);
   const [reducedMotion, setReducedMotion] = useState(false);
@@ -159,8 +161,12 @@ export default function ConfessionsFeed({ initialQuery, promotions }: Props) {
   const serviceCarousel = useRef<HTMLElement>(null);
   const feedToolbar = useRef<HTMLDivElement>(null);
   const paginationScrollPending = useRef(false);
+  const keyboardNavigation = useRef(false);
+  const lastPointerType = useRef<string | null>(null);
+  const serviceProgrammaticTarget = useRef<number | null>(null);
   const pointerStart = useRef<number | null>(null);
   const serviceDragged = useRef(false);
+  const servicePaused = serviceHovered || serviceFocused || serviceInteracting;
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -175,6 +181,24 @@ export default function ConfessionsFeed({ initialQuery, promotions }: Props) {
     updateVisibility();
     document.addEventListener('visibilitychange', updateVisibility);
     return () => document.removeEventListener('visibilitychange', updateVisibility);
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = () => {
+      keyboardNavigation.current = true;
+      if (serviceCarousel.current?.contains(document.activeElement)) setServiceFocused(true);
+    };
+    const onPointerDown = (event: PointerEvent) => {
+      keyboardNavigation.current = false;
+      lastPointerType.current = event.pointerType;
+      setServiceFocused(false);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('pointerdown', onPointerDown);
+    };
   }, []);
 
   useEffect(() => {
@@ -326,8 +350,11 @@ export default function ConfessionsFeed({ initialQuery, promotions }: Props) {
   };
 
   useEffect(() => {
-    serviceTrack.current?.scrollTo({
-      left: serviceIndex * (serviceTrack.current.clientWidth || 1),
+    const track = serviceTrack.current;
+    if (!track) return;
+    serviceProgrammaticTarget.current = serviceIndex;
+    track.scrollTo({
+      left: serviceIndex * (track.clientWidth || 1),
       behavior: reducedMotion ? 'auto' : 'smooth',
     });
   }, [reducedMotion, serviceIndex]);
@@ -357,12 +384,25 @@ export default function ConfessionsFeed({ initialQuery, promotions }: Props) {
         aria-label="Featured campus services"
         aria-roledescription="carousel"
         ref={serviceCarousel}
-        onMouseEnter={() => setServicePaused(true)}
-        onMouseLeave={() => setServicePaused(false)}
-        onFocus={() => setServicePaused(true)}
+        onPointerEnter={(event) => {
+          if (
+            event.pointerType === 'mouse' &&
+            window.matchMedia('(hover: hover) and (pointer: fine)').matches
+          ) {
+            setServiceHovered(true);
+          }
+        }}
+        onPointerLeave={(event) => {
+          if (event.pointerType === 'mouse') setServiceHovered(false);
+        }}
+        onFocus={(event) => {
+          if (keyboardNavigation.current) setServiceFocused(true);
+          else if (lastPointerType.current === 'touch' && event.target instanceof HTMLElement)
+            event.target.blur();
+        }}
         onBlur={(event) => {
           if (!event.currentTarget.contains(event.relatedTarget as Node | null))
-            setServicePaused(false);
+            setServiceFocused(false);
         }}
       >
         <div
@@ -389,12 +429,21 @@ export default function ConfessionsFeed({ initialQuery, promotions }: Props) {
           onScroll={(event) => {
             const track = event.currentTarget;
             const nextIndex = Math.round(track.scrollLeft / Math.max(track.clientWidth, 1));
+            if (serviceProgrammaticTarget.current !== null) {
+              if (nextIndex === serviceProgrammaticTarget.current)
+                serviceProgrammaticTarget.current = null;
+              else return;
+            }
             if (nextIndex !== serviceIndex) setServiceIndex(nextIndex);
           }}
           onPointerDown={(event) => {
+            serviceProgrammaticTarget.current = null;
             pointerStart.current = event.clientX;
             serviceDragged.current = false;
-            setServicePaused(true);
+            setServiceInteracting(true);
+          }}
+          onWheel={() => {
+            serviceProgrammaticTarget.current = null;
           }}
           onPointerMove={(event) => {
             if (pointerStart.current !== null && Math.abs(event.clientX - pointerStart.current) > 8)
@@ -402,11 +451,15 @@ export default function ConfessionsFeed({ initialQuery, promotions }: Props) {
           }}
           onPointerUp={() => {
             pointerStart.current = null;
-            setServicePaused(false);
+            setServiceInteracting(false);
           }}
           onPointerCancel={() => {
             pointerStart.current = null;
-            setServicePaused(false);
+            setServiceInteracting(false);
+          }}
+          onLostPointerCapture={() => {
+            pointerStart.current = null;
+            setServiceInteracting(false);
           }}
         >
           {serviceSlides.map((slide, index) => {
