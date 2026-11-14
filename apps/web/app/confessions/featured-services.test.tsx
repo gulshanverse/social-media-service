@@ -111,15 +111,15 @@ afterEach(() => {
 });
 
 describe('Featured Services carousel', () => {
-  it('does not advance at 3,999 ms and advances at exactly 4,000 ms', async () => {
+  it('does not advance at 2,999 ms and advances at exactly 3,000 ms', async () => {
     render(<ConfessionsFeed initialQuery={initialQuery} promotions={[]} />);
     expect(activeDot()?.getAttribute('aria-label')).toBe('Show VibeMatch');
-    await act(async () => vi.advanceTimersByTime(3999));
+    await act(async () => vi.advanceTimersByTime(2999));
     expect(activeDot()?.getAttribute('aria-label')).toBe('Show VibeMatch');
     await act(async () => vi.advanceTimersByTime(1));
     expect(activeDot()?.getAttribute('aria-label')).toBe('Show BawalBox');
     for (let step = 0; step < 3; step += 1) {
-      await act(async () => vi.advanceTimersByTime(4000));
+      await act(async () => vi.advanceTimersByTime(3000));
     }
     expect(activeDot()?.getAttribute('aria-label')).toBe('Show VibeMatch');
   });
@@ -142,18 +142,18 @@ describe('Featured Services carousel', () => {
       'Show Campus Garba',
       'Show Rentals & Finds',
     ].entries()) {
-      await act(async () => vi.advanceTimersByTime(4000));
+      await act(async () => vi.advanceTimersByTime(3000));
       expect(activeDot()?.getAttribute('aria-label')).toBe(label);
       expect(scrollTo).toHaveBeenLastCalledWith({ left: (index + 1) * 100, behavior: 'smooth' });
     }
-    await act(async () => vi.advanceTimersByTime(4000));
+    await act(async () => vi.advanceTimersByTime(3000));
     expect(scrollTo).toHaveBeenLastCalledWith({ left: 400, behavior: 'smooth' });
     expect(activeDot()?.getAttribute('aria-label')).toBe('Show VibeMatch');
 
     act(() => track.dispatchEvent(new Event('scrollend')));
     expect(scrollTo).toHaveBeenLastCalledWith({ left: 0, behavior: 'auto' });
     expect(activeDot()?.getAttribute('aria-label')).toBe('Show VibeMatch');
-    await act(async () => vi.advanceTimersByTime(4000));
+    await act(async () => vi.advanceTimersByTime(3000));
     expect(activeDot()?.getAttribute('aria-label')).toBe('Show BawalBox');
     expect(scrollTo).toHaveBeenLastCalledWith({ left: 100, behavior: 'smooth' });
   });
@@ -163,7 +163,7 @@ describe('Featured Services carousel', () => {
     const track = screen.getByRole('group', { name: 'Featured services' });
     const scrollTo = makeScrollable(track);
     for (let step = 0; step < 4; step += 1) {
-      await act(async () => vi.advanceTimersByTime(4000));
+      await act(async () => vi.advanceTimersByTime(3000));
     }
     expect(scrollTo).toHaveBeenLastCalledWith({ left: 400, behavior: 'smooth' });
     const cloneTransitionIndex = scrollTo.mock.calls.length - 1;
@@ -187,7 +187,7 @@ describe('Featured Services carousel', () => {
     const smoothTargets: number[] = [];
 
     for (let transition = 1; transition <= 20; transition += 1) {
-      await act(async () => vi.advanceTimersByTime(4000));
+      await act(async () => vi.advanceTimersByTime(3000));
       const isWrap = transition % 4 === 0;
       const expectedLabel = labels[(transition - 1) % labels.length];
       expect(activeDot()?.getAttribute('aria-label')).toBe(expectedLabel);
@@ -235,7 +235,7 @@ describe('Featured Services carousel', () => {
     const scrollTo = makeScrollable(track);
     for (let loop = 0; loop < 2; loop += 1) {
       for (let step = 0; step < 4; step += 1) {
-        await act(async () => vi.advanceTimersByTime(4000));
+        await act(async () => vi.advanceTimersByTime(3000));
       }
       expect(scrollTo).toHaveBeenLastCalledWith({ left: 400, behavior: 'smooth' });
       expect(activeDot()?.getAttribute('aria-label')).toBe('Show VibeMatch');
@@ -244,7 +244,7 @@ describe('Featured Services carousel', () => {
       expect(
         screen.getByRole('group', { name: 'Choose a featured service' }).querySelectorAll('button'),
       ).toHaveLength(4);
-      await act(async () => vi.advanceTimersByTime(4000));
+      await act(async () => vi.advanceTimersByTime(3000));
     }
     expect(activeDot()?.getAttribute('aria-label')).toBe('Show BawalBox');
   });
@@ -300,10 +300,10 @@ describe('Featured Services carousel', () => {
 
   it('resets autoplay after dot navigation and supports keyboard slide navigation', async () => {
     render(<ConfessionsFeed initialQuery={initialQuery} promotions={[]} />);
-    await act(async () => vi.advanceTimersByTime(4000));
+    await act(async () => vi.advanceTimersByTime(3000));
     fireEvent.click(screen.getByRole('button', { name: 'Show Campus Garba' }));
     expect(activeDot()?.getAttribute('aria-label')).toBe('Show Campus Garba');
-    await act(async () => vi.advanceTimersByTime(3999));
+    await act(async () => vi.advanceTimersByTime(2999));
     expect(activeDot()?.getAttribute('aria-label')).toBe('Show Campus Garba');
     await act(async () => vi.advanceTimersByTime(1));
     expect(activeDot()?.getAttribute('aria-label')).toBe('Show Rentals & Finds');
@@ -322,13 +322,13 @@ describe('Featured Services carousel', () => {
     fireEvent.scroll(track);
     fireEvent.pointerUp(track, { pointerType: 'touch', clientX: 20 });
     expect(activeDot()?.getAttribute('aria-label')).toBe('Show BawalBox');
-    await act(async () => vi.advanceTimersByTime(3999));
+    await act(async () => vi.advanceTimersByTime(2999));
     expect(activeDot()?.getAttribute('aria-label')).toBe('Show BawalBox');
     await act(async () => vi.advanceTimersByTime(1));
     expect(activeDot()?.getAttribute('aria-label')).toBe('Show Campus Garba');
   });
 
-  it('resumes four-second rotation after a completed touch swipe', async () => {
+  it('resumes three-second rotation after a completed touch swipe', async () => {
     render(<ConfessionsFeed initialQuery={initialQuery} promotions={[]} />);
     const track = screen.getByRole('group', { name: 'Featured services' });
     Object.defineProperty(track, 'clientWidth', { configurable: true, value: 100 });
@@ -338,7 +338,7 @@ describe('Featured Services carousel', () => {
     fireEvent.scroll(track);
     fireEvent.pointerUp(track, { pointerType: 'touch' });
     expect(activeDot()?.getAttribute('aria-label')).toBe('Show BawalBox');
-    await act(async () => vi.advanceTimersByTime(4000));
+    await act(async () => vi.advanceTimersByTime(3000));
     expect(activeDot()?.getAttribute('aria-label')).toBe('Show Campus Garba');
   });
 
@@ -353,7 +353,7 @@ describe('Featured Services carousel', () => {
     if (!serviceLink) throw new Error('The first service link was not rendered.');
     fireEvent.focus(serviceLink);
     expect(document.activeElement).not.toBe(serviceLink);
-    await act(async () => vi.advanceTimersByTime(4000));
+    await act(async () => vi.advanceTimersByTime(3000));
     expect(activeDot()?.getAttribute('aria-label')).toBe('Show BawalBox');
   });
 
@@ -364,7 +364,7 @@ describe('Featured Services carousel', () => {
     await act(async () => vi.advanceTimersByTime(10_000));
     expect(activeDot()?.getAttribute('aria-label')).toBe('Show VibeMatch');
     fireEvent.pointerUp(track, { pointerType: 'touch' });
-    await act(async () => vi.advanceTimersByTime(3999));
+    await act(async () => vi.advanceTimersByTime(2999));
     expect(activeDot()?.getAttribute('aria-label')).toBe('Show VibeMatch');
     await act(async () => vi.advanceTimersByTime(1));
     expect(activeDot()?.getAttribute('aria-label')).toBe('Show BawalBox');
@@ -376,7 +376,7 @@ describe('Featured Services carousel', () => {
     fireEvent.pointerDown(track, { pointerType: 'touch' });
     await act(async () => vi.advanceTimersByTime(10_000));
     fireEvent.pointerCancel(track, { pointerType: 'touch' });
-    await act(async () => vi.advanceTimersByTime(4000));
+    await act(async () => vi.advanceTimersByTime(3000));
     expect(activeDot()?.getAttribute('aria-label')).toBe('Show BawalBox');
   });
 
@@ -389,7 +389,7 @@ describe('Featured Services carousel', () => {
     fireEvent.pointerUp(track, { pointerType: 'touch' });
     // Compatibility mouse events can be emitted after touch; no genuine hover/leave pair exists.
     fireEvent.mouseEnter(carousel);
-    await act(async () => vi.advanceTimersByTime(4000));
+    await act(async () => vi.advanceTimersByTime(3000));
     expect(activeDot()?.getAttribute('aria-label')).toBe('Show BawalBox');
   });
 
@@ -404,7 +404,7 @@ describe('Featured Services carousel', () => {
     await act(async () => vi.advanceTimersByTime(10_000));
     expect(activeDot()?.getAttribute('aria-label')).toBe('Show VibeMatch');
     fireEvent.pointerLeave(carousel, { pointerType: 'mouse' });
-    await act(async () => vi.advanceTimersByTime(4000));
+    await act(async () => vi.advanceTimersByTime(3000));
     expect(activeDot()?.getAttribute('aria-label')).toBe('Show BawalBox');
   });
 
@@ -416,7 +416,7 @@ describe('Featured Services carousel', () => {
     await act(async () => vi.advanceTimersByTime(10_000));
     expect(activeDot()?.getAttribute('aria-label')).toBe('Show VibeMatch');
     fireEvent.blur(track, { relatedTarget: null });
-    await act(async () => vi.advanceTimersByTime(4000));
+    await act(async () => vi.advanceTimersByTime(3000));
     expect(activeDot()?.getAttribute('aria-label')).toBe('Show BawalBox');
   });
 
@@ -428,7 +428,7 @@ describe('Featured Services carousel', () => {
     expect(activeDot()?.getAttribute('aria-label')).toBe('Show VibeMatch');
     Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
     act(() => document.dispatchEvent(new Event('visibilitychange')));
-    await act(async () => vi.advanceTimersByTime(4000));
+    await act(async () => vi.advanceTimersByTime(3000));
     expect(activeDot()?.getAttribute('aria-label')).toBe('Show BawalBox');
   });
 
@@ -438,7 +438,7 @@ describe('Featured Services carousel', () => {
     await act(async () => vi.advanceTimersByTime(10_000));
     expect(activeDot()?.getAttribute('aria-label')).toBe('Show VibeMatch');
     emitIntersection(true, 0.5);
-    await act(async () => vi.advanceTimersByTime(4000));
+    await act(async () => vi.advanceTimersByTime(3000));
     expect(activeDot()?.getAttribute('aria-label')).toBe('Show BawalBox');
   });
 
