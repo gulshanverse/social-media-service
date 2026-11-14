@@ -1,10 +1,21 @@
 import type { CSSProperties, ReactNode } from 'react';
-import type { PromotionLayoutSettings, PublicHomepagePromotion, PublicPromotionTheme } from '@ggv/types';
+import type {
+  PromotionLayoutSettings,
+  PublicHomepagePromotion,
+  PublicPromotionTheme,
+} from '@ggv/types';
 
 export type HomepagePromotionBannerProps = {
   promotion: Pick<
     PublicHomepagePromotion,
-    'title' | 'description' | 'badgeText' | 'desktopImageUrl' | 'mobileImageUrl' | 'imageAlt' | 'ctaLabel' | 'destinationUrl'
+    | 'title'
+    | 'description'
+    | 'badgeText'
+    | 'desktopImageUrl'
+    | 'mobileImageUrl'
+    | 'imageAlt'
+    | 'ctaLabel'
+    | 'destinationUrl'
   >;
   theme: PublicPromotionTheme;
   layoutSettings: PromotionLayoutSettings;
@@ -18,14 +29,24 @@ export type HomepagePromotionBannerProps = {
 function styleFor(theme: PublicPromotionTheme, layout: PromotionLayoutSettings): CSSProperties {
   const font = (value: string) => (value === 'inherit' ? theme.fontFamily : value);
   const width = { narrow: '48%', standard: '62%', wide: '78%' }[layout.contentWidth];
-  const padding = { compact: 'clamp(16px, 3vw, 24px)', comfortable: 'clamp(20px, 4vw, 36px)', airy: 'clamp(26px, 5vw, 52px)' }[layout.padding];
+  const padding = {
+    compact: 'clamp(16px, 3vw, 24px)',
+    comfortable: 'clamp(20px, 4vw, 36px)',
+    airy: 'clamp(26px, 5vw, 52px)',
+  }[layout.padding];
   const gap = { compact: '8px', comfortable: '12px', airy: '17px' }[layout.spacing];
   const isAuto = layout.mode === 'auto';
-  const flexAlign = isAuto ? 'flex-start' : { left: 'flex-start', center: 'center', right: 'flex-end' }[layout.alignment];
+  const flexAlign = isAuto
+    ? 'flex-start'
+    : { left: 'flex-start', center: 'center', right: 'flex-end' }[layout.alignment];
   const x = isAuto ? '0%' : { left: '0%', center: '50%', right: '100%' }[layout.horizontalPosition];
   const y = isAuto ? '100%' : { top: '0%', center: '50%', bottom: '100%' }[layout.verticalPosition];
-  const translateX = isAuto ? '0' : { left: '0', center: '-50%', right: '-100%' }[layout.horizontalPosition];
-  const translateY = isAuto ? '-100%' : { top: '0', center: '-50%', bottom: '-100%' }[layout.verticalPosition];
+  const translateX = isAuto
+    ? '0'
+    : { left: '0', center: '-50%', right: '-100%' }[layout.horizontalPosition];
+  const translateY = isAuto
+    ? '-100%'
+    : { top: '0', center: '-50%', bottom: '-100%' }[layout.verticalPosition];
   return {
     '--promotion-background': theme.background,
     '--promotion-gradient': theme.gradient,
@@ -48,7 +69,12 @@ function styleFor(theme: PublicPromotionTheme, layout: PromotionLayoutSettings):
     '--promotion-copy-gap': gap,
     '--promotion-copy-flex-align': flexAlign,
     '--promotion-copy-text-align': isAuto ? 'left' : layout.alignment,
-    '--promotion-letter-spacing': layout.letterSpacing === 'tight' ? '-0.04em' : layout.letterSpacing === 'wide' ? '0.04em' : 'normal',
+    '--promotion-letter-spacing':
+      layout.letterSpacing === 'tight'
+        ? '-0.04em'
+        : layout.letterSpacing === 'wide'
+          ? '0.04em'
+          : 'normal',
     '--promotion-heading-transform': layout.headingTransform,
     '--promotion-radius': theme.radius,
   } as CSSProperties;
@@ -66,23 +92,34 @@ export function HomepagePromotionBanner({
 }: HomepagePromotionBannerProps) {
   const artwork = image ?? promotion.desktopImageUrl ?? promotion.mobileImageUrl;
   const external = Boolean(promotion.destinationUrl?.startsWith('https://'));
-  const cta = promotion.ctaLabel && promotion.destinationUrl ? (
-    interactiveCta ? (
-      <a className="homepage-promotion-cta" href={promotion.destinationUrl} rel={external ? 'noopener noreferrer' : undefined} aria-label={`${promotion.ctaLabel}: ${promotion.title}`}>
-        {promotion.ctaLabel} <span aria-hidden="true">↗</span>
-      </a>
-    ) : (
-      <span className="homepage-promotion-cta">{promotion.ctaLabel} ↗</span>
-    )
-  ) : null;
+  const cta =
+    promotion.ctaLabel && promotion.destinationUrl ? (
+      interactiveCta ? (
+        <a
+          className="homepage-promotion-cta"
+          href={promotion.destinationUrl}
+          rel={external ? 'noopener noreferrer' : undefined}
+          aria-label={`${promotion.ctaLabel}: ${promotion.title}`}
+        >
+          {promotion.ctaLabel} <span aria-hidden="true">↗</span>
+        </a>
+      ) : (
+        <span className="homepage-promotion-cta">{promotion.ctaLabel} ↗</span>
+      )
+    ) : null;
   const Heading = headingLevel === 3 ? 'h3' : 'h2';
 
   return (
-    <div className={`homepage-promotion-card ${className}`.trim()} style={styleFor(theme, layoutSettings)}>
+    <div
+      className={`homepage-promotion-card ${className}`.trim()}
+      style={styleFor(theme, layoutSettings)}
+    >
       <div className="homepage-promotion-media">
         {artwork && (
           <picture>
-            {promotion.mobileImageUrl && <source media="(max-width: 600px)" srcSet={promotion.mobileImageUrl} />}
+            {promotion.mobileImageUrl && (
+              <source media="(max-width: 600px)" srcSet={promotion.mobileImageUrl} />
+            )}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={artwork} alt={promotion.imageAlt || promotion.title} />
           </picture>
@@ -92,7 +129,9 @@ export function HomepagePromotionBanner({
       <div className="homepage-promotion-copy">
         {promotion.badgeText && <p className="homepage-promotion-badge">{promotion.badgeText}</p>}
         <Heading>{promotion.title}</Heading>
-        {promotion.description && <p className="homepage-promotion-description">{promotion.description}</p>}
+        {promotion.description && (
+          <p className="homepage-promotion-description">{promotion.description}</p>
+        )}
         {cta}
       </div>
       {controls}

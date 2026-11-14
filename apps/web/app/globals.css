@@ -4760,26 +4760,89 @@ body:has(.home-shell) .footer-nav-group a:hover {
   font-size: 1.8rem;
   line-height: 1;
 }
-.homepage-promotion-count { min-width: 42px; color: #fff; font-size: .74rem; font-weight: 700; text-align: center; }
-.homepage-promotion-dots { display: flex; justify-content: center; gap: 9px; padding: 14px 0 0; }
-.homepage-promotion-dots button { width: 10px; height: 10px; padding: 0; border: 0; border-radius: 999px; background: #5c5d73; cursor: pointer; transition: width 180ms ease, background 180ms ease; }
-.homepage-promotion-dots button.is-active { width: 30px; background: #df75e9; }
+.homepage-promotion-count {
+  min-width: 42px;
+  color: #fff;
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-align: center;
+}
+.homepage-promotion-dots {
+  display: flex;
+  justify-content: center;
+  gap: 9px;
+  padding: 14px 0 0;
+}
+.homepage-promotion-dots button {
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: #5c5d73;
+  cursor: pointer;
+  transition:
+    width 180ms ease,
+    background 180ms ease;
+}
+.homepage-promotion-dots button.is-active {
+  width: 30px;
+  background: #df75e9;
+}
 @media (max-width: 820px) {
-  .home-hero { padding: 48px 0 42px; grid-template-areas: 'copy' 'banner' 'aside'; grid-template-columns: minmax(0, 1fr); gap: 28px; }
-  .homepage-promotion-controls { right: 12px; top: 12px; bottom: auto; }
+  .home-hero {
+    padding: 48px 0 42px;
+    grid-template-areas: 'copy' 'banner' 'aside';
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+  }
+  .homepage-promotion-controls {
+    right: 12px;
+    top: 12px;
+    bottom: auto;
+  }
 }
 @media (max-width: 520px) {
-  .home-hero { padding-top: 40px; padding-bottom: 32px; gap: 22px; }
-  .home-hero h1 { font-size: clamp(2.8rem, 13vw, 4rem); line-height: .96; }
-  .home-hero__lede { margin-top: 17px; font-size: .98rem; line-height: 1.5; }
-  .home-actions { margin-top: 20px; }
-  .home-trust { margin-top: 18px; }
-  .homepage-promotion-controls { right: 9px; top: 9px; gap: 6px; padding: 4px; }
-  .homepage-promotion-controls button { width: 36px; height: 36px; }
-  .homepage-promotion-count { min-width: 34px; font-size: .68rem; }
+  .home-hero {
+    padding-top: 40px;
+    padding-bottom: 32px;
+    gap: 22px;
+  }
+  .home-hero h1 {
+    font-size: clamp(2.8rem, 13vw, 4rem);
+    line-height: 0.96;
+  }
+  .home-hero__lede {
+    margin-top: 17px;
+    font-size: 0.98rem;
+    line-height: 1.5;
+  }
+  .home-actions {
+    margin-top: 20px;
+  }
+  .home-trust {
+    margin-top: 18px;
+  }
+  .homepage-promotion-controls {
+    right: 9px;
+    top: 9px;
+    gap: 6px;
+    padding: 4px;
+  }
+  .homepage-promotion-controls button {
+    width: 36px;
+    height: 36px;
+  }
+  .homepage-promotion-count {
+    min-width: 34px;
+    font-size: 0.68rem;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .homepage-promotion-dots button { animation: none; transition: none; }
+  .homepage-promotion-dots button {
+    animation: none;
+    transition: none;
+  }
 }
 
 /* Keep the confessions feed compact on phones after shared feed defaults. */

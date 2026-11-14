@@ -1,7 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react';
-import { garbaThemes, normalizeImportedTheme, normalizeTheme, themePresets, themes } from '@ggv/themes';
+import {
+  garbaThemes,
+  normalizeImportedTheme,
+  normalizeTheme,
+  themePresets,
+  themes,
+} from '@ggv/themes';
 import type { PromotionLayoutSettings, PublicPromotionTheme } from '@ggv/types';
 import { HomepagePromotionBanner } from '@ggv/ui';
 
@@ -82,21 +88,80 @@ const MAX_UPLOAD_BYTES =
     : DEFAULT_UPLOAD_LIMIT;
 const MAX_UPLOAD_LABEL = `${(MAX_UPLOAD_BYTES / (1024 * 1024)).toFixed(1).replace(/\.0$/, '')} MB`;
 const DEFAULT_LAYOUT: PromotionLayoutSettings = {
-  version: 1, mode: 'auto', headingFont: 'inherit', bodyFont: 'inherit', headingSize: 3.2, descriptionSize: 1, headingWeight: 800, descriptionWeight: 500, headingLineHeight: 1.02, descriptionLineHeight: 1.45, letterSpacing: 'tight', headingTransform: 'none', alignment: 'left', horizontalPosition: 'left', verticalPosition: 'bottom', contentWidth: 'standard', padding: 'comfortable', spacing: 'comfortable',
+  version: 1,
+  mode: 'auto',
+  headingFont: 'inherit',
+  bodyFont: 'inherit',
+  headingSize: 3.2,
+  descriptionSize: 1,
+  headingWeight: 800,
+  descriptionWeight: 500,
+  headingLineHeight: 1.02,
+  descriptionLineHeight: 1.45,
+  letterSpacing: 'tight',
+  headingTransform: 'none',
+  alignment: 'left',
+  horizontalPosition: 'left',
+  verticalPosition: 'bottom',
+  contentWidth: 'standard',
+  padding: 'comfortable',
+  spacing: 'comfortable',
 };
-const LEGACY_THEME: PublicPromotionTheme = { id: 'midnight', name: 'Midnight', background: '#090c21', gradient: 'linear-gradient(125deg,#090c21,#211447 52%,#5d275c)', textColor: '#fff', accentColor: '#c36cff', fontFamily: 'Inter', radius: '24px' };
+const LEGACY_THEME: PublicPromotionTheme = {
+  id: 'midnight',
+  name: 'Midnight',
+  background: '#090c21',
+  gradient: 'linear-gradient(125deg,#090c21,#211447 52%,#5d275c)',
+  textColor: '#fff',
+  accentColor: '#c36cff',
+  fontFamily: 'Inter',
+  radius: '24px',
+};
 type ThemeLifecycle = 'AVAILABLE' | 'DRAFT' | 'SCHEDULED' | 'EXPIRED' | 'UNPUBLISHED';
-type ThemeChoice = PublicPromotionTheme & { source: 'built-in' | 'database'; value: string; lifecycle: ThemeLifecycle };
+type ThemeChoice = PublicPromotionTheme & {
+  source: 'built-in' | 'database';
+  value: string;
+  lifecycle: ThemeLifecycle;
+};
 function publicTheme(theme: any): PublicPromotionTheme {
   const normalized = normalizeTheme({ ...theme, slug: theme.slug ?? theme.id });
-  return { id: normalized.slug, name: normalized.name, background: normalized.background, gradient: normalized.gradient, textColor: normalized.textColor, accentColor: normalized.accentColor, fontFamily: normalized.fontFamily, radius: `${normalized.radius}px` };
+  return {
+    id: normalized.slug,
+    name: normalized.name,
+    background: normalized.background,
+    gradient: normalized.gradient,
+    textColor: normalized.textColor,
+    accentColor: normalized.accentColor,
+    fontFamily: normalized.fontFamily,
+    radius: `${normalized.radius}px`,
+  };
 }
 function builtInThemes(): ThemeChoice[] {
-  const values = [...themes, ...garbaThemes].map((theme) => ({ ...publicTheme(theme), source: 'built-in' as const, value: `builtin:${theme.id}`, lifecycle: 'AVAILABLE' as const }));
-  for (const preset of themePresets) try { const theme = normalizeImportedTheme(preset).normalized; values.push({ ...publicTheme(theme), source: 'built-in', value: `builtin:${preset.slug}`, lifecycle: 'AVAILABLE' }); } catch { /* invalid registry entries are not selectable */ }
+  const values = [...themes, ...garbaThemes].map((theme) => ({
+    ...publicTheme(theme),
+    source: 'built-in' as const,
+    value: `builtin:${theme.id}`,
+    lifecycle: 'AVAILABLE' as const,
+  }));
+  for (const preset of themePresets)
+    try {
+      const theme = normalizeImportedTheme(preset).normalized;
+      values.push({
+        ...publicTheme(theme),
+        source: 'built-in',
+        value: `builtin:${preset.slug}`,
+        lifecycle: 'AVAILABLE',
+      });
+    } catch {
+      /* invalid registry entries are not selectable */
+    }
   return Array.from(new Map(values.map((theme) => [theme.value, theme])).values());
 }
-function databaseThemeLifecycle(theme: { status?: string; startAt?: string | null; endAt?: string | null }): ThemeLifecycle {
+function databaseThemeLifecycle(theme: {
+  status?: string;
+  startAt?: string | null;
+  endAt?: string | null;
+}): ThemeLifecycle {
   const now = Date.now();
   if (theme.status === 'DRAFT') return 'DRAFT';
   if (theme.endAt && new Date(theme.endAt).getTime() <= now) return 'EXPIRED';
@@ -105,7 +170,13 @@ function databaseThemeLifecycle(theme: { status?: string; startAt?: string | nul
   return theme.status === 'ACTIVE' || theme.status === 'PUBLISHED' ? 'AVAILABLE' : 'UNPUBLISHED';
 }
 function lifecycleLabel(lifecycle: ThemeLifecycle) {
-  return { AVAILABLE: 'available', DRAFT: 'draft · publish first', SCHEDULED: 'scheduled', EXPIRED: 'expired', UNPUBLISHED: 'unpublished' }[lifecycle];
+  return {
+    AVAILABLE: 'available',
+    DRAFT: 'draft · publish first',
+    SCHEDULED: 'scheduled',
+    EXPIRED: 'expired',
+    UNPUBLISHED: 'unpublished',
+  }[lifecycle];
 }
 
 const blankForm = (): PromotionForm => ({
@@ -197,14 +268,33 @@ export default function HomepagePromotions({ api, uploadFile }: Props) {
         if (!active) return;
         const databaseThemes = (result.items ?? []).flatMap((theme: any) => {
           try {
-            return [{ ...publicTheme(theme), source: 'database' as const, value: `db:${theme.id}`, lifecycle: databaseThemeLifecycle(theme), name: theme.name }];
-          } catch { return []; }
+            return [
+              {
+                ...publicTheme(theme),
+                source: 'database' as const,
+                value: `db:${theme.id}`,
+                lifecycle: databaseThemeLifecycle(theme),
+                name: theme.name,
+              },
+            ];
+          } catch {
+            return [];
+          }
         });
         setAvailableThemes([...builtInThemes(), ...databaseThemes]);
       })
-      .catch((requestError) => { if (active) setThemeError(requestError instanceof Error ? requestError.message : 'Themes unavailable.'); })
-      .finally(() => { if (active) setThemeLoading(false); });
-    return () => { active = false; };
+      .catch((requestError) => {
+        if (active)
+          setThemeError(
+            requestError instanceof Error ? requestError.message : 'Themes unavailable.',
+          );
+      })
+      .finally(() => {
+        if (active) setThemeLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, [api]);
 
   const load = useCallback(
@@ -245,7 +335,8 @@ export default function HomepagePromotions({ api, uploadFile }: Props) {
   }, [desktopPreview, mobilePreview]);
 
   const editing = mode === 'edit' && Boolean(selectedId);
-  const selectedTheme = availableThemes.find((theme) => theme.value === form.themeId) ?? LEGACY_THEME;
+  const selectedTheme =
+    availableThemes.find((theme) => theme.value === form.themeId) ?? LEGACY_THEME;
 
   const imageForPreview = useMemo(() => {
     if (previewViewport === 'mobile')
@@ -291,8 +382,14 @@ export default function HomepagePromotions({ api, uploadFile }: Props) {
   function updateField<K extends keyof PromotionForm>(key: K, value: PromotionForm[K]) {
     setForm((current) => ({ ...current, [key]: value }));
   }
-  function updateLayout<K extends keyof PromotionLayoutSettings>(key: K, value: PromotionLayoutSettings[K]) {
-    setForm((current) => ({ ...current, layoutSettings: { ...current.layoutSettings, [key]: value } }));
+  function updateLayout<K extends keyof PromotionLayoutSettings>(
+    key: K,
+    value: PromotionLayoutSettings[K],
+  ) {
+    setForm((current) => ({
+      ...current,
+      layoutSettings: { ...current.layoutSettings, [key]: value },
+    }));
   }
 
   async function onFileChange(event: ChangeEvent<HTMLInputElement>, variant: 'desktop' | 'mobile') {
@@ -355,10 +452,17 @@ export default function HomepagePromotions({ api, uploadFile }: Props) {
 
   function validateForm(publishNow = false) {
     if (!form.title.trim()) return 'Enter a promotion title.';
-    if (!BACKGROUND_PRESETS.includes(form.backgroundPreset)) return 'Choose a valid built-in background.';
+    if (!BACKGROUND_PRESETS.includes(form.backgroundPreset))
+      return 'Choose a valid built-in background.';
     const selectedThemeChoice = availableThemes.find((theme) => theme.value === form.themeId);
-    if ((publishNow || form.status === 'PUBLISHED') && form.themeId && selectedThemeChoice?.lifecycle !== 'AVAILABLE')
-      return selectedThemeChoice ? `Theme “${selectedThemeChoice.name}” is ${lifecycleLabel(selectedThemeChoice.lifecycle)} and cannot publish this promotion.` : 'Choose an available theme before publishing.';
+    if (
+      (publishNow || form.status === 'PUBLISHED') &&
+      form.themeId &&
+      selectedThemeChoice?.lifecycle !== 'AVAILABLE'
+    )
+      return selectedThemeChoice
+        ? `Theme “${selectedThemeChoice.name}” is ${lifecycleLabel(selectedThemeChoice.lifecycle)} and cannot publish this promotion.`
+        : 'Choose an available theme before publishing.';
     if (Boolean(form.desktopImageUrl) !== Boolean(form.desktopImageKey))
       return 'Replace the desktop poster or remove it before saving.';
     if (Boolean(form.mobileImageUrl) !== Boolean(form.mobileImageKey))
@@ -567,7 +671,16 @@ export default function HomepagePromotions({ api, uploadFile }: Props) {
               </div>
               <div className={`promotion-preview-card promotion-preview-card--${previewViewport}`}>
                 <HomepagePromotionBanner
-                  promotion={{ title: form.title || 'Promotion title', description: form.description || null, badgeText: form.badgeText || null, desktopImageUrl: form.desktopImageUrl || null, mobileImageUrl: form.mobileImageUrl || null, imageAlt: form.imageAlt || null, ctaLabel: form.ctaLabel || null, destinationUrl: form.destinationUrl || null }}
+                  promotion={{
+                    title: form.title || 'Promotion title',
+                    description: form.description || null,
+                    badgeText: form.badgeText || null,
+                    desktopImageUrl: form.desktopImageUrl || null,
+                    mobileImageUrl: form.mobileImageUrl || null,
+                    imageAlt: form.imageAlt || null,
+                    ctaLabel: form.ctaLabel || null,
+                    destinationUrl: form.destinationUrl || null,
+                  }}
                   theme={selectedTheme}
                   layoutSettings={form.layoutSettings}
                   image={imageForPreview}
@@ -653,30 +766,262 @@ export default function HomepagePromotions({ api, uploadFile }: Props) {
                 </label>
                 <fieldset className="promotion-theme-section promotion-form-wide">
                   <legend>Visual theme</legend>
-                  {themeLoading ? <p className="muted">Loading themes…</p> : themeError ? <p className="notice error">{themeError} Built-in themes remain available.</p> : null}
-                  {!themeLoading && availableThemes.length === 0 ? <p className="muted">No themes are available. The safe fallback will be used.</p> : <div className="promotion-theme-gallery" aria-label="Promotion themes">{availableThemes.map((theme) => <button type="button" key={theme.value} className={`promotion-theme-choice${form.themeId === theme.value ? ' is-selected' : ''}${theme.lifecycle !== 'AVAILABLE' ? ' is-unavailable' : ''}`} onClick={() => updateField('themeId', theme.value)} aria-pressed={form.themeId === theme.value} aria-label={`${theme.name} (${lifecycleLabel(theme.lifecycle)})`}><span className="promotion-theme-swatch" style={{ background: theme.gradient, color: theme.textColor, borderColor: theme.accentColor }} /><strong>{theme.name}</strong><small>{theme.source} · {lifecycleLabel(theme.lifecycle)}</small></button>)}</div>}
-                  {form.themeId && selectedTheme !== LEGACY_THEME && availableThemes.find((theme) => theme.value === form.themeId)?.lifecycle !== 'AVAILABLE' && <p className="notice error">This theme can be saved for a draft, but publication is blocked until its lifecycle is available.</p>}
-                  <label className="promotion-legacy-select">Legacy background fallback
-                    <select value={form.backgroundPreset} onChange={(event) => updateField('backgroundPreset', event.target.value as BackgroundPreset)}>
-                      {BACKGROUND_PRESETS.map((preset) => <option key={preset} value={preset}>{preset[0].toUpperCase() + preset.slice(1)}</option>)}
+                  {themeLoading ? (
+                    <p className="muted">Loading themes…</p>
+                  ) : themeError ? (
+                    <p className="notice error">{themeError} Built-in themes remain available.</p>
+                  ) : null}
+                  {!themeLoading && availableThemes.length === 0 ? (
+                    <p className="muted">
+                      No themes are available. The safe fallback will be used.
+                    </p>
+                  ) : (
+                    <div className="promotion-theme-gallery" aria-label="Promotion themes">
+                      {availableThemes.map((theme) => (
+                        <button
+                          type="button"
+                          key={theme.value}
+                          className={`promotion-theme-choice${form.themeId === theme.value ? ' is-selected' : ''}${theme.lifecycle !== 'AVAILABLE' ? ' is-unavailable' : ''}`}
+                          onClick={() => updateField('themeId', theme.value)}
+                          aria-pressed={form.themeId === theme.value}
+                          aria-label={`${theme.name} (${lifecycleLabel(theme.lifecycle)})`}
+                        >
+                          <span
+                            className="promotion-theme-swatch"
+                            style={{
+                              background: theme.gradient,
+                              color: theme.textColor,
+                              borderColor: theme.accentColor,
+                            }}
+                          />
+                          <strong>{theme.name}</strong>
+                          <small>
+                            {theme.source} · {lifecycleLabel(theme.lifecycle)}
+                          </small>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {form.themeId &&
+                    selectedTheme !== LEGACY_THEME &&
+                    availableThemes.find((theme) => theme.value === form.themeId)?.lifecycle !==
+                      'AVAILABLE' && (
+                      <p className="notice error">
+                        This theme can be saved for a draft, but publication is blocked until its
+                        lifecycle is available.
+                      </p>
+                    )}
+                  <label className="promotion-legacy-select">
+                    Legacy background fallback
+                    <select
+                      value={form.backgroundPreset}
+                      onChange={(event) =>
+                        updateField('backgroundPreset', event.target.value as BackgroundPreset)
+                      }
+                    >
+                      {BACKGROUND_PRESETS.map((preset) => (
+                        <option key={preset} value={preset}>
+                          {preset[0].toUpperCase() + preset.slice(1)}
+                        </option>
+                      ))}
                     </select>
                   </label>
                 </fieldset>
                 <fieldset className="promotion-layout-section promotion-form-wide">
                   <legend>Banner layout &amp; typography</legend>
                   <div className="promotion-layout-grid">
-                    <label>Layout mode<select value={form.layoutSettings.mode} onChange={(event) => updateLayout('mode', event.target.value as PromotionLayoutSettings['mode'])}><option value="auto">Automatic</option><option value="manual">Manual</option></select></label>
-                    <label>Alignment<select value={form.layoutSettings.alignment} onChange={(event) => updateLayout('alignment', event.target.value as PromotionLayoutSettings['alignment'])}><option>left</option><option>center</option><option>right</option></select></label>
-                    <label>Horizontal placement<select value={form.layoutSettings.horizontalPosition} onChange={(event) => updateLayout('horizontalPosition', event.target.value as PromotionLayoutSettings['horizontalPosition'])}><option>left</option><option>center</option><option>right</option></select></label>
-                    <label>Vertical placement<select value={form.layoutSettings.verticalPosition} onChange={(event) => updateLayout('verticalPosition', event.target.value as PromotionLayoutSettings['verticalPosition'])}><option>top</option><option>center</option><option>bottom</option></select></label>
-                    <label>Heading font<select value={form.layoutSettings.headingFont} onChange={(event) => updateLayout('headingFont', event.target.value as PromotionLayoutSettings['headingFont'])}><option>inherit</option><option>Inter</option><option>Poppins</option><option>Space Grotesk</option><option>DM Sans</option><option>Georgia</option></select></label>
-                    <label>Body font<select value={form.layoutSettings.bodyFont} onChange={(event) => updateLayout('bodyFont', event.target.value as PromotionLayoutSettings['bodyFont'])}><option>inherit</option><option>Inter</option><option>Poppins</option><option>Space Grotesk</option><option>DM Sans</option><option>Georgia</option></select></label>
-                    <label>Content width<select value={form.layoutSettings.contentWidth} onChange={(event) => updateLayout('contentWidth', event.target.value as PromotionLayoutSettings['contentWidth'])}><option>narrow</option><option>standard</option><option>wide</option></select></label>
-                    <label>Spacing<select value={form.layoutSettings.spacing} onChange={(event) => updateLayout('spacing', event.target.value as PromotionLayoutSettings['spacing'])}><option>compact</option><option>comfortable</option><option>airy</option></select></label>
-                    <label>Heading size<input type="number" min={1.4} max={5.5} step={0.1} value={form.layoutSettings.headingSize} onChange={(event) => updateLayout('headingSize', Number(event.target.value))} /></label>
-                    <label>Description size<input type="number" min={0.7} max={2} step={0.05} value={form.layoutSettings.descriptionSize} onChange={(event) => updateLayout('descriptionSize', Number(event.target.value))} /></label>
-                    <label>Heading weight<select value={form.layoutSettings.headingWeight} onChange={(event) => updateLayout('headingWeight', Number(event.target.value) as PromotionLayoutSettings['headingWeight'])}><option value={500}>500</option><option value={600}>600</option><option value={700}>700</option><option value={800}>800</option></select></label>
-                    <label>Text transform<select value={form.layoutSettings.headingTransform} onChange={(event) => updateLayout('headingTransform', event.target.value as PromotionLayoutSettings['headingTransform'])}><option>none</option><option>uppercase</option><option>capitalize</option></select></label>
+                    <label>
+                      Layout mode
+                      <select
+                        value={form.layoutSettings.mode}
+                        onChange={(event) =>
+                          updateLayout(
+                            'mode',
+                            event.target.value as PromotionLayoutSettings['mode'],
+                          )
+                        }
+                      >
+                        <option value="auto">Automatic</option>
+                        <option value="manual">Manual</option>
+                      </select>
+                    </label>
+                    <label>
+                      Alignment
+                      <select
+                        value={form.layoutSettings.alignment}
+                        onChange={(event) =>
+                          updateLayout(
+                            'alignment',
+                            event.target.value as PromotionLayoutSettings['alignment'],
+                          )
+                        }
+                      >
+                        <option>left</option>
+                        <option>center</option>
+                        <option>right</option>
+                      </select>
+                    </label>
+                    <label>
+                      Horizontal placement
+                      <select
+                        value={form.layoutSettings.horizontalPosition}
+                        onChange={(event) =>
+                          updateLayout(
+                            'horizontalPosition',
+                            event.target.value as PromotionLayoutSettings['horizontalPosition'],
+                          )
+                        }
+                      >
+                        <option>left</option>
+                        <option>center</option>
+                        <option>right</option>
+                      </select>
+                    </label>
+                    <label>
+                      Vertical placement
+                      <select
+                        value={form.layoutSettings.verticalPosition}
+                        onChange={(event) =>
+                          updateLayout(
+                            'verticalPosition',
+                            event.target.value as PromotionLayoutSettings['verticalPosition'],
+                          )
+                        }
+                      >
+                        <option>top</option>
+                        <option>center</option>
+                        <option>bottom</option>
+                      </select>
+                    </label>
+                    <label>
+                      Heading font
+                      <select
+                        value={form.layoutSettings.headingFont}
+                        onChange={(event) =>
+                          updateLayout(
+                            'headingFont',
+                            event.target.value as PromotionLayoutSettings['headingFont'],
+                          )
+                        }
+                      >
+                        <option>inherit</option>
+                        <option>Inter</option>
+                        <option>Poppins</option>
+                        <option>Space Grotesk</option>
+                        <option>DM Sans</option>
+                        <option>Georgia</option>
+                      </select>
+                    </label>
+                    <label>
+                      Body font
+                      <select
+                        value={form.layoutSettings.bodyFont}
+                        onChange={(event) =>
+                          updateLayout(
+                            'bodyFont',
+                            event.target.value as PromotionLayoutSettings['bodyFont'],
+                          )
+                        }
+                      >
+                        <option>inherit</option>
+                        <option>Inter</option>
+                        <option>Poppins</option>
+                        <option>Space Grotesk</option>
+                        <option>DM Sans</option>
+                        <option>Georgia</option>
+                      </select>
+                    </label>
+                    <label>
+                      Content width
+                      <select
+                        value={form.layoutSettings.contentWidth}
+                        onChange={(event) =>
+                          updateLayout(
+                            'contentWidth',
+                            event.target.value as PromotionLayoutSettings['contentWidth'],
+                          )
+                        }
+                      >
+                        <option>narrow</option>
+                        <option>standard</option>
+                        <option>wide</option>
+                      </select>
+                    </label>
+                    <label>
+                      Spacing
+                      <select
+                        value={form.layoutSettings.spacing}
+                        onChange={(event) =>
+                          updateLayout(
+                            'spacing',
+                            event.target.value as PromotionLayoutSettings['spacing'],
+                          )
+                        }
+                      >
+                        <option>compact</option>
+                        <option>comfortable</option>
+                        <option>airy</option>
+                      </select>
+                    </label>
+                    <label>
+                      Heading size
+                      <input
+                        type="number"
+                        min={1.4}
+                        max={5.5}
+                        step={0.1}
+                        value={form.layoutSettings.headingSize}
+                        onChange={(event) =>
+                          updateLayout('headingSize', Number(event.target.value))
+                        }
+                      />
+                    </label>
+                    <label>
+                      Description size
+                      <input
+                        type="number"
+                        min={0.7}
+                        max={2}
+                        step={0.05}
+                        value={form.layoutSettings.descriptionSize}
+                        onChange={(event) =>
+                          updateLayout('descriptionSize', Number(event.target.value))
+                        }
+                      />
+                    </label>
+                    <label>
+                      Heading weight
+                      <select
+                        value={form.layoutSettings.headingWeight}
+                        onChange={(event) =>
+                          updateLayout(
+                            'headingWeight',
+                            Number(event.target.value) as PromotionLayoutSettings['headingWeight'],
+                          )
+                        }
+                      >
+                        <option value={500}>500</option>
+                        <option value={600}>600</option>
+                        <option value={700}>700</option>
+                        <option value={800}>800</option>
+                      </select>
+                    </label>
+                    <label>
+                      Text transform
+                      <select
+                        value={form.layoutSettings.headingTransform}
+                        onChange={(event) =>
+                          updateLayout(
+                            'headingTransform',
+                            event.target.value as PromotionLayoutSettings['headingTransform'],
+                          )
+                        }
+                      >
+                        <option>none</option>
+                        <option>uppercase</option>
+                        <option>capitalize</option>
+                      </select>
+                    </label>
                   </div>
                 </fieldset>
                 <PosterUpload

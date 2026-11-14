@@ -1,4 +1,3 @@
-
 ## Audit fixes completed
 
 The renderer stylesheet now lives in `packages/ui/src/HomepagePromotionBanner.css` and is imported by both applications. Public carousel controls and admin preview framing remain application-specific; the renderer’s theme tokens, artwork crop, shade, typography, spacing, responsive sizing, and reduced-motion behavior are shared exactly once.

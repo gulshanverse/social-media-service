@@ -1,5 +1,3 @@
-
-
 ## Audit-fix pass
 
 - [x] Shared banner CSS is centralized in `packages/ui` and imported by admin and web apps.

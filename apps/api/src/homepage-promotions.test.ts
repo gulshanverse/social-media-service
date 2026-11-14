@@ -21,10 +21,94 @@ import { prisma, setPrismaForTests } from './admin-auth';
 function memoryDatabase() {
   const rows = new Map<string, Record<string, any>>();
   const themes = new Map<string, Record<string, any>>([
-    ['published-theme', { id: 'published-theme', status: 'PUBLISHED', startAt: null, endAt: null, slug: 'published-theme', name: 'Published Theme', background: '#101828', gradient: 'linear-gradient(#101828,#344054)', textColor: '#fff', accentColor: '#c8ff00', fontFamily: 'Inter', radius: 24, borderStyle: 'solid', logoVisibility: true, handleVisibility: true, layoutVariant: 'classic', tokens: {} }],
-    ['draft-theme', { id: 'draft-theme', status: 'DRAFT', startAt: null, endAt: null, slug: 'draft-theme', name: 'Draft Theme', background: '#101828', gradient: 'linear-gradient(#101828,#344054)', textColor: '#fff', accentColor: '#c8ff00', fontFamily: 'Inter', radius: 24, borderStyle: 'solid', logoVisibility: true, handleVisibility: true, layoutVariant: 'classic', tokens: {} }],
-    ['expired-theme', { id: 'expired-theme', status: 'PUBLISHED', startAt: null, endAt: new Date(Date.now() - 60_000), slug: 'expired-theme', name: 'Expired Theme', background: '#101828', gradient: 'linear-gradient(#101828,#344054)', textColor: '#fff', accentColor: '#c8ff00', fontFamily: 'Inter', radius: 24, borderStyle: 'solid', logoVisibility: true, handleVisibility: true, layoutVariant: 'classic', tokens: {} }],
-    ['scheduled-theme', { id: 'scheduled-theme', status: 'SCHEDULED', startAt: new Date(Date.now() + 60_000), endAt: null, slug: 'scheduled-theme', name: 'Scheduled Theme', background: '#101828', gradient: 'linear-gradient(#101828,#344054)', textColor: '#fff', accentColor: '#c8ff00', fontFamily: 'Inter', radius: 24, borderStyle: 'solid', logoVisibility: true, handleVisibility: true, layoutVariant: 'classic', tokens: {} }],
+    [
+      'published-theme',
+      {
+        id: 'published-theme',
+        status: 'PUBLISHED',
+        startAt: null,
+        endAt: null,
+        slug: 'published-theme',
+        name: 'Published Theme',
+        background: '#101828',
+        gradient: 'linear-gradient(#101828,#344054)',
+        textColor: '#fff',
+        accentColor: '#c8ff00',
+        fontFamily: 'Inter',
+        radius: 24,
+        borderStyle: 'solid',
+        logoVisibility: true,
+        handleVisibility: true,
+        layoutVariant: 'classic',
+        tokens: {},
+      },
+    ],
+    [
+      'draft-theme',
+      {
+        id: 'draft-theme',
+        status: 'DRAFT',
+        startAt: null,
+        endAt: null,
+        slug: 'draft-theme',
+        name: 'Draft Theme',
+        background: '#101828',
+        gradient: 'linear-gradient(#101828,#344054)',
+        textColor: '#fff',
+        accentColor: '#c8ff00',
+        fontFamily: 'Inter',
+        radius: 24,
+        borderStyle: 'solid',
+        logoVisibility: true,
+        handleVisibility: true,
+        layoutVariant: 'classic',
+        tokens: {},
+      },
+    ],
+    [
+      'expired-theme',
+      {
+        id: 'expired-theme',
+        status: 'PUBLISHED',
+        startAt: null,
+        endAt: new Date(Date.now() - 60_000),
+        slug: 'expired-theme',
+        name: 'Expired Theme',
+        background: '#101828',
+        gradient: 'linear-gradient(#101828,#344054)',
+        textColor: '#fff',
+        accentColor: '#c8ff00',
+        fontFamily: 'Inter',
+        radius: 24,
+        borderStyle: 'solid',
+        logoVisibility: true,
+        handleVisibility: true,
+        layoutVariant: 'classic',
+        tokens: {},
+      },
+    ],
+    [
+      'scheduled-theme',
+      {
+        id: 'scheduled-theme',
+        status: 'SCHEDULED',
+        startAt: new Date(Date.now() + 60_000),
+        endAt: null,
+        slug: 'scheduled-theme',
+        name: 'Scheduled Theme',
+        background: '#101828',
+        gradient: 'linear-gradient(#101828,#344054)',
+        textColor: '#fff',
+        accentColor: '#c8ff00',
+        fontFamily: 'Inter',
+        radius: 24,
+        borderStyle: 'solid',
+        logoVisibility: true,
+        handleVisibility: true,
+        layoutVariant: 'classic',
+        tokens: {},
+      },
+    ],
   ]);
   const audits: Record<string, any>[] = [];
   let sequence = 0;
@@ -102,7 +186,13 @@ function memoryDatabase() {
       },
     },
     theme: {
-      findUnique: async ({ where, select }: { where: { id: string }; select?: Record<string, boolean> }) => {
+      findUnique: async ({
+        where,
+        select,
+      }: {
+        where: { id: string };
+        select?: Record<string, boolean>;
+      }) => {
         const theme = themes.get(where.id) ?? null;
         return theme && select ? project(theme, select) : theme;
       },
@@ -144,17 +234,28 @@ async function serviceMutationTests() {
     );
     assert.equal(backgroundOnly.desktopImageUrl, null);
     assert.equal(backgroundOnly.backgroundPreset, 'ocean');
-    const themed = await service.create({ title: 'Published theme campaign', themeId: 'db:published-theme' }, 'admin-1');
+    const themed = await service.create(
+      { title: 'Published theme campaign', themeId: 'db:published-theme' },
+      'admin-1',
+    );
     assert.equal(themed.themeId, 'db:published-theme');
     await assert.rejects(
-      () => service.create({ title: 'Unknown built-in', themeId: 'builtin:not-a-real-theme' }, 'admin-1'),
+      () =>
+        service.create(
+          { title: 'Unknown built-in', themeId: 'builtin:not-a-real-theme' },
+          'admin-1',
+        ),
       (error) => error instanceof BadRequestException,
     );
     await assert.rejects(
-      () => service.create({ title: 'Missing database theme', themeId: 'db:missing-theme' }, 'admin-1'),
+      () =>
+        service.create({ title: 'Missing database theme', themeId: 'db:missing-theme' }, 'admin-1'),
       (error) => error instanceof BadRequestException,
     );
-    const draftThemeCampaign = await service.create({ title: 'Draft theme campaign', themeId: 'db:draft-theme' }, 'admin-1');
+    const draftThemeCampaign = await service.create(
+      { title: 'Draft theme campaign', themeId: 'db:draft-theme' },
+      'admin-1',
+    );
     await assert.rejects(
       () => service.publish(draftThemeCampaign.id, 'admin-1'),
       (error) => error instanceof BadRequestException,
@@ -176,10 +277,19 @@ async function serviceMutationTests() {
       'admin-1',
     );
     const publishedThemeCampaign = await service.create(
-      { title: 'Published theme update guard', themeId: 'db:published-theme', status: HomepagePromotionStatus.PUBLISHED },
+      {
+        title: 'Published theme update guard',
+        themeId: 'db:published-theme',
+        status: HomepagePromotionStatus.PUBLISHED,
+      },
       'admin-1',
     );
-    for (const themeId of ['db:draft-theme', 'db:expired-theme', 'db:scheduled-theme', 'db:missing-theme']) {
+    for (const themeId of [
+      'db:draft-theme',
+      'db:expired-theme',
+      'db:scheduled-theme',
+      'db:missing-theme',
+    ]) {
       await assert.rejects(
         () => service.update(publishedThemeCampaign.id, { themeId }, 'admin-1'),
         (error) => error instanceof BadRequestException,
@@ -268,7 +378,11 @@ async function serviceMutationTests() {
       ['Still live'],
     );
     const fallbackCampaign = await service.create(
-      { title: 'Fallback campaign', themeId: 'db:published-theme', status: HomepagePromotionStatus.PUBLISHED },
+      {
+        title: 'Fallback campaign',
+        themeId: 'db:published-theme',
+        status: HomepagePromotionStatus.PUBLISHED,
+      },
       'admin-1',
     );
     memory.themes.delete('published-theme');
@@ -317,20 +431,46 @@ async function main() {
   assert.equal(isSupportedBuiltinThemeId('not-a-real-theme'), false);
   assert.equal(promotionThemeAvailability({ status: 'DRAFT' }, now), 'DRAFT');
   assert.equal(
-    promotionThemeAvailability({ status: 'SCHEDULED', startAt: new Date('2026-11-08T00:00:00.000Z'), endAt: new Date('2026-11-09T00:00:00.000Z') }, now),
+    promotionThemeAvailability(
+      {
+        status: 'SCHEDULED',
+        startAt: new Date('2026-11-08T00:00:00.000Z'),
+        endAt: new Date('2026-11-09T00:00:00.000Z'),
+      },
+      now,
+    ),
     'SCHEDULED',
   );
   assert.equal(
-    promotionThemeAvailability({ status: 'SCHEDULED', startAt: new Date('2026-11-06T00:00:00.000Z'), endAt: new Date('2026-11-09T00:00:00.000Z') }, now),
+    promotionThemeAvailability(
+      {
+        status: 'SCHEDULED',
+        startAt: new Date('2026-11-06T00:00:00.000Z'),
+        endAt: new Date('2026-11-09T00:00:00.000Z'),
+      },
+      now,
+    ),
     'AVAILABLE',
   );
   assert.equal(
-    promotionThemeAvailability({ status: 'PUBLISHED', startAt: null, endAt: new Date('2026-11-06T00:00:00.000Z') }, now),
+    promotionThemeAvailability(
+      { status: 'PUBLISHED', startAt: null, endAt: new Date('2026-11-06T00:00:00.000Z') },
+      now,
+    ),
     'EXPIRED',
   );
-  assert.throws(() => normalizePromotionLayout({ alignment: 'diagonal' }), (error) => error instanceof BadRequestException);
-  assert.throws(() => normalizePromotionLayout({ headingSize: 5.6 }), (error) => error instanceof BadRequestException);
-  assert.throws(() => normalizePromotionLayout('malformed'), (error) => error instanceof BadRequestException);
+  assert.throws(
+    () => normalizePromotionLayout({ alignment: 'diagonal' }),
+    (error) => error instanceof BadRequestException,
+  );
+  assert.throws(
+    () => normalizePromotionLayout({ headingSize: 5.6 }),
+    (error) => error instanceof BadRequestException,
+  );
+  assert.throws(
+    () => normalizePromotionLayout('malformed'),
+    (error) => error instanceof BadRequestException,
+  );
   assert.equal(
     derivePromotionState(
       { status: HomepagePromotionStatus.DRAFT, startAt: null, endAt: null },
