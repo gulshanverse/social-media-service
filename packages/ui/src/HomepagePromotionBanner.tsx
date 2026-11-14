@@ -20,11 +20,12 @@ function styleFor(theme: PublicPromotionTheme, layout: PromotionLayoutSettings):
   const width = { narrow: '48%', standard: '62%', wide: '78%' }[layout.contentWidth];
   const padding = { compact: 'clamp(16px, 3vw, 24px)', comfortable: 'clamp(20px, 4vw, 36px)', airy: 'clamp(26px, 5vw, 52px)' }[layout.padding];
   const gap = { compact: '8px', comfortable: '12px', airy: '17px' }[layout.spacing];
-  const flexAlign = { left: 'flex-start', center: 'center', right: 'flex-end' }[layout.alignment];
-  const x = { left: '0%', center: '50%', right: '100%' }[layout.horizontalPosition];
-  const y = { top: '0%', center: '50%', bottom: '100%' }[layout.verticalPosition];
-  const translateX = { left: '0', center: '-50%', right: '-100%' }[layout.horizontalPosition];
-  const translateY = { top: '0', center: '-50%', bottom: '-100%' }[layout.verticalPosition];
+  const isAuto = layout.mode === 'auto';
+  const flexAlign = isAuto ? 'flex-start' : { left: 'flex-start', center: 'center', right: 'flex-end' }[layout.alignment];
+  const x = isAuto ? '0%' : { left: '0%', center: '50%', right: '100%' }[layout.horizontalPosition];
+  const y = isAuto ? '100%' : { top: '0%', center: '50%', bottom: '100%' }[layout.verticalPosition];
+  const translateX = isAuto ? '0' : { left: '0', center: '-50%', right: '-100%' }[layout.horizontalPosition];
+  const translateY = isAuto ? '-100%' : { top: '0', center: '-50%', bottom: '-100%' }[layout.verticalPosition];
   return {
     '--promotion-background': theme.background,
     '--promotion-gradient': theme.gradient,
@@ -38,7 +39,7 @@ function styleFor(theme: PublicPromotionTheme, layout: PromotionLayoutSettings):
     '--promotion-description-weight': layout.descriptionWeight,
     '--promotion-heading-line-height': layout.headingLineHeight,
     '--promotion-description-line-height': layout.descriptionLineHeight,
-    '--promotion-copy-width': layout.mode === 'auto' ? 'min(62%, 620px)' : width,
+    '--promotion-copy-width': isAuto ? 'min(62%, 620px)' : width,
     '--promotion-copy-x': x,
     '--promotion-copy-y': y,
     '--promotion-copy-translate-x': translateX,
@@ -46,7 +47,7 @@ function styleFor(theme: PublicPromotionTheme, layout: PromotionLayoutSettings):
     '--promotion-copy-padding': padding,
     '--promotion-copy-gap': gap,
     '--promotion-copy-flex-align': flexAlign,
-    '--promotion-copy-text-align': layout.alignment,
+    '--promotion-copy-text-align': isAuto ? 'left' : layout.alignment,
     '--promotion-letter-spacing': layout.letterSpacing === 'tight' ? '-0.04em' : layout.letterSpacing === 'wide' ? '0.04em' : 'normal',
     '--promotion-heading-transform': layout.headingTransform,
     '--promotion-radius': theme.radius,

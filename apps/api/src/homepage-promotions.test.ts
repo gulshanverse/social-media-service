@@ -23,6 +23,8 @@ function memoryDatabase() {
   const themes = new Map<string, Record<string, any>>([
     ['published-theme', { id: 'published-theme', status: 'PUBLISHED', startAt: null, endAt: null, slug: 'published-theme', name: 'Published Theme', background: '#101828', gradient: 'linear-gradient(#101828,#344054)', textColor: '#fff', accentColor: '#c8ff00', fontFamily: 'Inter', radius: 24, borderStyle: 'solid', logoVisibility: true, handleVisibility: true, layoutVariant: 'classic', tokens: {} }],
     ['draft-theme', { id: 'draft-theme', status: 'DRAFT', startAt: null, endAt: null, slug: 'draft-theme', name: 'Draft Theme', background: '#101828', gradient: 'linear-gradient(#101828,#344054)', textColor: '#fff', accentColor: '#c8ff00', fontFamily: 'Inter', radius: 24, borderStyle: 'solid', logoVisibility: true, handleVisibility: true, layoutVariant: 'classic', tokens: {} }],
+    ['expired-theme', { id: 'expired-theme', status: 'PUBLISHED', startAt: null, endAt: new Date(Date.now() - 60_000), slug: 'expired-theme', name: 'Expired Theme', background: '#101828', gradient: 'linear-gradient(#101828,#344054)', textColor: '#fff', accentColor: '#c8ff00', fontFamily: 'Inter', radius: 24, borderStyle: 'solid', logoVisibility: true, handleVisibility: true, layoutVariant: 'classic', tokens: {} }],
+    ['scheduled-theme', { id: 'scheduled-theme', status: 'SCHEDULED', startAt: new Date(Date.now() + 60_000), endAt: null, slug: 'scheduled-theme', name: 'Scheduled Theme', background: '#101828', gradient: 'linear-gradient(#101828,#344054)', textColor: '#fff', accentColor: '#c8ff00', fontFamily: 'Inter', radius: 24, borderStyle: 'solid', logoVisibility: true, handleVisibility: true, layoutVariant: 'classic', tokens: {} }],
   ]);
   const audits: Record<string, any>[] = [];
   let sequence = 0;
@@ -173,11 +175,26 @@ async function serviceMutationTests() {
       },
       'admin-1',
     );
+    const publishedThemeCampaign = await service.create(
+      { title: 'Published theme update guard', themeId: 'db:published-theme', status: HomepagePromotionStatus.PUBLISHED },
+      'admin-1',
+    );
+    for (const themeId of ['db:draft-theme', 'db:expired-theme', 'db:scheduled-theme', 'db:missing-theme']) {
+      await assert.rejects(
+        () => service.update(publishedThemeCampaign.id, { themeId }, 'admin-1'),
+        (error) => error instanceof BadRequestException,
+        `published promotion should reject ${themeId} when status is omitted`,
+      );
+    }
+    assert.equal(
+      (await service.update(publishedThemeCampaign.id, { title: 'Still live' }, 'admin-1')).status,
+      HomepagePromotionStatus.PUBLISHED,
+    );
     assert.equal(first.state, 'SCHEDULED');
     const publicItems = await service.publicPromotions();
     assert.deepEqual(
       publicItems.map((item) => item.title),
-      ['Active campus event'],
+      ['Active campus event', 'Still live'],
     );
     for (const field of [
       'desktopImageKey',
@@ -212,7 +229,7 @@ async function serviceMutationTests() {
     );
     assert.equal(edited.title, 'Updated campus event');
     assert.equal((await service.get(second.id)).description, 'Open to all students.');
-    assert.equal((await service.list()).items.length, 5);
+    assert.equal((await service.list()).items.length, 6);
 
     const draft = await service.create(
       {
@@ -246,7 +263,10 @@ async function serviceMutationTests() {
       'admin-1',
     );
     assert.equal(expired.state, 'EXPIRED');
-    assert.equal((await service.publicPromotions()).length, 0);
+    assert.deepEqual(
+      (await service.publicPromotions()).map((item) => item.title),
+      ['Still live'],
+    );
     const fallbackCampaign = await service.create(
       { title: 'Fallback campaign', themeId: 'db:published-theme', status: HomepagePromotionStatus.PUBLISHED },
       'admin-1',
@@ -282,7 +302,7 @@ async function serviceMutationTests() {
     );
     assert.equal((await service.delete(draft.id, 'admin-1')).deleted, true);
     assert.equal(memory.rows.has(draft.id), false);
-    assert.equal(memory.audits.length, 13);
+    assert.equal(memory.audits.length, 15);
   } finally {
     setPrismaForTests(realPrisma);
     if (previousBlobToken === undefined) delete process.env.BLOB_READ_WRITE_TOKEN;

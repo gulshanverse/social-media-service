@@ -330,7 +330,8 @@ export class HomepagePromotionsService {
     const endAt =
       body.endAt === undefined ? current.endAt : body.endAt ? new Date(body.endAt) : null;
     validateDateRange(startAt, endAt);
-    if (body.status === HomepagePromotionStatus.PUBLISHED) {
+    const resultingStatus = (data.status as HomepagePromotionStatus | undefined) ?? current.status;
+    if (resultingStatus === HomepagePromotionStatus.PUBLISHED) {
       await this.assertThemeEligible((data.themeId as string | null | undefined) ?? current.themeId);
     }
     if (body.startAt !== undefined) data.startAt = startAt;

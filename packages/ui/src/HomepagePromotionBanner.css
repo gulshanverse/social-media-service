@@ -19,7 +19,7 @@
   width: 100%;
   height: 100%;
 }
-.homepage-promotion-media { background: var(--promotion-background, #090c21); }
+.homepage-promotion-media { background: transparent; }
 .homepage-promotion-media picture { display: block; }
 .homepage-promotion-media img { display: block; object-fit: cover; object-position: center; }
 .homepage-promotion-shade {
@@ -35,7 +35,9 @@
   left: var(--promotion-copy-x, 0%);
   top: var(--promotion-copy-y, 100%);
   width: var(--promotion-copy-width, min(62%, 620px));
+  max-width: 100%;
   max-height: 100%;
+  box-sizing: border-box;
   padding: var(--promotion-copy-padding, clamp(20px, 4vw, 36px));
   display: flex;
   flex-direction: column;
@@ -45,6 +47,10 @@
   transform: translate(var(--promotion-copy-translate-x, 0), var(--promotion-copy-translate-y, -100%));
   color: var(--promotion-text, #fff);
   text-align: var(--promotion-copy-text-align, left);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
   animation: promotion-copy-in 300ms ease both;
 }
 .homepage-promotion-badge {
