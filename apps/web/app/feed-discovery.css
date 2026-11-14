@@ -359,6 +359,10 @@
   border-radius: 18px;
   touch-action: pan-x;
 }
+.featured-services__track:focus-visible {
+  outline: 3px solid #c8ff00;
+  outline-offset: 4px;
+}
 .featured-services__track::-webkit-scrollbar {
   display: none;
 }
