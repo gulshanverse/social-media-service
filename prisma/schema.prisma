@@ -396,10 +396,11 @@ model HomepagePromotion {
   title             String
   description       String?
   badgeText         String?
-  desktopImageUrl   String
-  desktopImageKey   String
+  desktopImageUrl   String?
+  desktopImageKey   String?
   mobileImageUrl    String?
   mobileImageKey    String?
+  backgroundPreset  String    @default("aurora")
   imageAlt          String?
   ctaLabel          String?
   destinationUrl    String?

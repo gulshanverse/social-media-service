@@ -10,6 +10,7 @@ const promotions: PublicHomepagePromotion[] = [
     description: 'Meet your community this Friday.',
     badgeText: 'This Friday',
     desktopImageUrl: 'https://assets.example/desktop.webp',
+    backgroundPreset: 'aurora',
     mobileImageUrl: 'https://assets.example/mobile.webp',
     imageAlt: 'Campus lights and people',
     ctaLabel: 'Get details',
@@ -21,6 +22,7 @@ const promotions: PublicHomepagePromotion[] = [
     description: null,
     badgeText: null,
     desktopImageUrl: 'https://assets.example/club-fair.webp',
+    backgroundPreset: 'midnight',
     mobileImageUrl: null,
     imageAlt: null,
     ctaLabel: 'Explore clubs',
@@ -72,6 +74,53 @@ describe('HomepagePromotionCarousel', () => {
     expect(
       screen.getByRole('link', { name: 'Explore clubs: Club fair' }).getAttribute('href'),
     ).toBe('https://events.example/clubs');
+  });
+
+  it('renders desktop-only artwork', () => {
+    const { container } = render(
+      <HomepagePromotionCarousel promotions={[{ ...promotions[0], mobileImageUrl: null }]} />,
+    );
+    expect(container.querySelector('img')?.getAttribute('src')).toBe(
+      'https://assets.example/desktop.webp',
+    );
+  });
+
+  it('renders mobile-only artwork with the mobile image as the fallback source', () => {
+    const { container } = render(
+      <HomepagePromotionCarousel promotions={[{ ...promotions[0], desktopImageUrl: null }]} />,
+    );
+    expect(container.querySelector('img')?.getAttribute('src')).toBe(
+      'https://assets.example/mobile.webp',
+    );
+    expect(container.querySelector('source')?.getAttribute('srcset')).toBe(
+      'https://assets.example/mobile.webp',
+    );
+  });
+
+  it('falls back to Aurora for an invalid background preset', () => {
+    const { container } = render(
+      <HomepagePromotionCarousel
+        promotions={[{ ...promotions[0], backgroundPreset: 'invalid' }]}
+      />,
+    );
+    expect(container.querySelector('.promotion-background--aurora')).toBeTruthy();
+  });
+
+  it('renders a CSS background when a campaign has no uploaded artwork', () => {
+    const { container } = render(
+      <HomepagePromotionCarousel
+        promotions={[
+          {
+            ...promotions[0],
+            desktopImageUrl: null,
+            mobileImageUrl: null,
+            backgroundPreset: 'ocean',
+          },
+        ]}
+      />,
+    );
+    expect(container.querySelector('.promotion-background--ocean')).toBeTruthy();
+    expect(container.querySelector('img')).toBeNull();
   });
 
   it('keeps a single campaign free of redundant carousel controls', () => {

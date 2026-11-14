@@ -156,7 +156,57 @@ describe('Homepage Promotions admin', () => {
     expect(uploadFile).toHaveBeenCalledOnce();
   });
 
-  it('blocks publish attempts until a title and poster are provided', async () => {
+  it('saves a background-only promotion without requiring an upload', async () => {
+    const api = vi.fn(async (path: string, init?: RequestInit) => {
+      if (path.startsWith('/admin/homepage-promotions?'))
+        return { items: [], page: 1, limit: 50, total: 0, hasMore: false };
+      return {};
+    });
+    render(<HomepagePromotions api={api} uploadFile={vi.fn()} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Create promotion' }));
+    fireEvent.change(screen.getByRole('textbox', { name: /Promotion title/ }), {
+      target: { value: 'CSS campaign' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+    await waitFor(() =>
+      expect(api).toHaveBeenCalledWith(
+        '/admin/homepage-promotions',
+        expect.objectContaining({ method: 'POST' }),
+      ),
+    );
+    const call = api.mock.calls.find(
+      ([path, init]) => path === '/admin/homepage-promotions' && init?.method === 'POST',
+    );
+    const payload = JSON.parse(call?.[1]?.body as string);
+    expect(payload.desktopImageUrl).toBeNull();
+    expect(payload.backgroundPreset).toBe('aurora');
+  });
+
+  it('switches artwork modes without discarding uploaded artwork', async () => {
+    const api = vi.fn(async (path: string) =>
+      path.startsWith('/admin/homepage-promotions?')
+        ? {
+            items: [{ ...record, mobileImageUrl: 'https://blob.example/mobile.webp' }],
+            page: 1,
+            limit: 50,
+            total: 1,
+            hasMore: false,
+          }
+        : {},
+    );
+    render(<HomepagePromotions api={api} uploadFile={vi.fn()} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
+    const selector = screen.getByDisplayValue('Upload poster') as HTMLSelectElement;
+    expect(selector.value).toBe('upload');
+    fireEvent.change(selector, { target: { value: 'background' } });
+    expect(selector.value).toBe('background');
+    expect(screen.getByText('Remove uploaded artwork')).toBeInTheDocument();
+    fireEvent.change(selector, { target: { value: 'upload' } });
+    expect(selector.value).toBe('upload');
+    expect(screen.getByText('Remove uploaded artwork')).toBeInTheDocument();
+  });
+
+  it('blocks publish attempts until a title is provided', async () => {
     const api = vi.fn(async () => ({ items: [], page: 1, limit: 100, total: 0, hasMore: false }));
     render(<HomepagePromotions api={api} uploadFile={vi.fn()} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Create promotion' }));

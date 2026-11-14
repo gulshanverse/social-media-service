@@ -4,13 +4,16 @@ import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'rea
 
 type PublicationStatus = 'DRAFT' | 'PUBLISHED' | 'DISABLED';
 type PromotionState = PublicationStatus | 'SCHEDULED' | 'EXPIRED';
+const BACKGROUND_PRESETS = ['aurora', 'sunset', 'ocean', 'midnight'] as const;
+type BackgroundPreset = (typeof BACKGROUND_PRESETS)[number];
 type Promotion = {
   id: string;
   title: string;
   description: string | null;
   badgeText: string | null;
-  desktopImageUrl: string;
-  desktopImageKey: string;
+  desktopImageUrl: string | null;
+  desktopImageKey: string | null;
+  backgroundPreset: string;
   mobileImageUrl: string | null;
   mobileImageKey: string | null;
   imageAlt: string | null;
@@ -37,6 +40,7 @@ type PromotionForm = {
   badgeText: string;
   desktopImageUrl: string;
   desktopImageKey: string;
+  backgroundPreset: BackgroundPreset;
   mobileImageUrl: string;
   mobileImageKey: string;
   imageAlt: string;
@@ -77,6 +81,7 @@ const blankForm = (): PromotionForm => ({
   badgeText: '',
   desktopImageUrl: '',
   desktopImageKey: '',
+  backgroundPreset: 'aurora',
   mobileImageUrl: '',
   mobileImageKey: '',
   imageAlt: '',
@@ -109,8 +114,11 @@ function fromPromotion(promotion: Promotion): PromotionForm {
     title: promotion.title,
     description: promotion.description ?? '',
     badgeText: promotion.badgeText ?? '',
-    desktopImageUrl: promotion.desktopImageUrl,
-    desktopImageKey: promotion.desktopImageKey,
+    desktopImageUrl: promotion.desktopImageUrl ?? '',
+    desktopImageKey: promotion.desktopImageKey ?? '',
+    backgroundPreset: (BACKGROUND_PRESETS.includes(promotion.backgroundPreset as BackgroundPreset)
+      ? promotion.backgroundPreset
+      : 'aurora') as BackgroundPreset,
     mobileImageUrl: promotion.mobileImageUrl ?? '',
     mobileImageKey: promotion.mobileImageKey ?? '',
     imageAlt: promotion.imageAlt ?? '',
@@ -139,6 +147,7 @@ export default function HomepagePromotions({ api, uploadFile }: Props) {
   const [desktopPreview, setDesktopPreview] = useState('');
   const [mobilePreview, setMobilePreview] = useState('');
   const [previewViewport, setPreviewViewport] = useState<'desktop' | 'mobile'>('desktop');
+  const [artworkMode, setArtworkMode] = useState<'background' | 'upload'>('background');
 
   const load = useCallback(
     async (requestedPage = page) => {
@@ -178,6 +187,8 @@ export default function HomepagePromotions({ api, uploadFile }: Props) {
   }, [desktopPreview, mobilePreview]);
 
   const editing = mode === 'edit' && Boolean(selectedId);
+  const backgroundClass = `promotion-background--${form.backgroundPreset}`;
+
   const imageForPreview = useMemo(() => {
     if (previewViewport === 'mobile')
       return mobilePreview || form.mobileImageUrl || desktopPreview || form.desktopImageUrl;
@@ -193,6 +204,7 @@ export default function HomepagePromotions({ api, uploadFile }: Props) {
     setDesktopProgress(null);
     setMobileProgress(null);
     setError('');
+    setArtworkMode('background');
   }
 
   function openCreate() {
@@ -200,6 +212,7 @@ export default function HomepagePromotions({ api, uploadFile }: Props) {
     setSelectedId(null);
     setDesktopPreview('');
     setMobilePreview('');
+    setArtworkMode('background');
     setMode('create');
     setError('');
     setMessage('');
@@ -207,6 +220,7 @@ export default function HomepagePromotions({ api, uploadFile }: Props) {
 
   function openEdit(item: Promotion, nextMode: EditorMode = 'edit') {
     setForm(fromPromotion(item));
+    setArtworkMode(item.desktopImageUrl || item.mobileImageUrl ? 'upload' : 'background');
     setSelectedId(item.id);
     setDesktopPreview('');
     setMobilePreview('');
@@ -280,7 +294,10 @@ export default function HomepagePromotions({ api, uploadFile }: Props) {
 
   function validateForm() {
     if (!form.title.trim()) return 'Enter a promotion title.';
-    if (!form.desktopImageUrl || !form.desktopImageKey) return 'Upload a desktop poster image.';
+    if (!BACKGROUND_PRESETS.includes(form.backgroundPreset))
+      return 'Choose a valid built-in background.';
+    if (Boolean(form.desktopImageUrl) !== Boolean(form.desktopImageKey))
+      return 'Replace the desktop poster or remove it before saving.';
     if (Boolean(form.mobileImageUrl) !== Boolean(form.mobileImageKey))
       return 'Replace the mobile image or remove it before saving.';
     if (form.startAt && form.endAt && new Date(form.endAt) <= new Date(form.startAt))
@@ -314,8 +331,9 @@ export default function HomepagePromotions({ api, uploadFile }: Props) {
       title: form.title.trim(),
       description: form.description.trim() || null,
       badgeText: form.badgeText.trim() || null,
-      desktopImageUrl: form.desktopImageUrl,
-      desktopImageKey: form.desktopImageKey,
+      desktopImageUrl: form.desktopImageUrl || null,
+      desktopImageKey: form.desktopImageKey || null,
+      backgroundPreset: form.backgroundPreset,
       mobileImageUrl: form.mobileImageUrl || null,
       mobileImageKey: form.mobileImageKey || null,
       imageAlt: form.imageAlt.trim() || null,
@@ -482,11 +500,13 @@ export default function HomepagePromotions({ api, uploadFile }: Props) {
                   Back to editor
                 </button>
               </div>
-              <div className={`promotion-preview-card promotion-preview-card--${previewViewport}`}>
-                {(imageForPreview || form.desktopImageUrl) && (
+              <div
+                className={`promotion-preview-card promotion-preview-card--${previewViewport} ${backgroundClass}`}
+              >
+                {imageForPreview && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={imageForPreview || form.desktopImageUrl}
+                    src={imageForPreview}
                     alt={form.imageAlt || form.title || 'Promotion artwork'}
                   />
                 )}
@@ -562,9 +582,36 @@ export default function HomepagePromotions({ api, uploadFile }: Props) {
                     placeholder="Describe the poster for screen readers"
                   />
                 </label>
+                <label className="promotion-form-wide" htmlFor="artwork-mode">
+                  <span>Artwork mode</span>
+                  <select
+                    id="artwork-mode"
+                    value={artworkMode}
+                    onChange={(event) =>
+                      setArtworkMode(event.target.value as 'background' | 'upload')
+                    }
+                  >
+                    <option value="background">Built-in background</option>
+                    <option value="upload">Upload poster</option>
+                  </select>
+                  <small>Posters are optional. A built-in background is always available.</small>
+                </label>
+                <label>
+                  Background preset
+                  <select
+                    value={form.backgroundPreset}
+                    onChange={(event) =>
+                      updateField('backgroundPreset', event.target.value as BackgroundPreset)
+                    }
+                  >
+                    <option value="aurora">Aurora</option>
+                    <option value="sunset">Sunset</option>
+                    <option value="ocean">Ocean</option>
+                    <option value="midnight">Midnight</option>
+                  </select>
+                </label>
                 <PosterUpload
-                  label="Desktop poster"
-                  required
+                  label="Desktop poster (optional)"
                   image={desktopPreview || form.desktopImageUrl}
                   progress={desktopProgress}
                   onChange={(event) => void onFileChange(event, 'desktop')}
@@ -575,6 +622,23 @@ export default function HomepagePromotions({ api, uploadFile }: Props) {
                   progress={mobileProgress}
                   onChange={(event) => void onFileChange(event, 'mobile')}
                 />
+                {(form.desktopImageUrl || form.mobileImageUrl) && (
+                  <button
+                    type="button"
+                    className="secondary promotion-form-wide"
+                    onClick={() => {
+                      updateField('desktopImageUrl', '');
+                      updateField('desktopImageKey', '');
+                      updateField('mobileImageUrl', '');
+                      updateField('mobileImageKey', '');
+                      setDesktopPreview('');
+                      setMobilePreview('');
+                      setMessage('Uploaded artwork removed. The built-in background will be used.');
+                    }}
+                  >
+                    Remove uploaded artwork
+                  </button>
+                )}
                 <label>
                   CTA button label
                   <input
@@ -677,7 +741,15 @@ export default function HomepagePromotions({ api, uploadFile }: Props) {
             <article className="promotion-row" key={item.id}>
               <div className="promotion-row-poster">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={item.desktopImageUrl} alt={item.imageAlt || item.title} />
+                {item.desktopImageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={item.desktopImageUrl} alt={item.imageAlt || item.title} />
+                ) : (
+                  <div
+                    className={`promotion-row-background promotion-background--${BACKGROUND_PRESETS.includes(item.backgroundPreset as BackgroundPreset) ? item.backgroundPreset : 'aurora'}`}
+                    aria-label="Built-in background preview"
+                  />
+                )}
               </div>
               <div className="promotion-row-details">
                 <div className="promotion-row-title">

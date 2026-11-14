@@ -9,6 +9,20 @@ import type {
 } from './homepage-promotions.dto';
 
 const ASSET_PREFIX = 'college-confession/promotions/';
+export const HOMEPAGE_PROMOTION_PRESETS = ['aurora', 'sunset', 'ocean', 'midnight'] as const;
+type HomepagePromotionPreset = (typeof HOMEPAGE_PROMOTION_PRESETS)[number];
+function validateBackgroundPreset(value?: string | null): HomepagePromotionPreset {
+  const preset = value || 'aurora';
+  if (!(HOMEPAGE_PROMOTION_PRESETS as readonly string[]).includes(preset))
+    throw new BadRequestException('Choose a valid built-in promotion background.');
+  return preset as HomepagePromotionPreset;
+}
+function validateArtwork(url?: string | null, key?: string | null, preset?: string | null) {
+  if (Boolean(url) !== Boolean(key))
+    throw new BadRequestException('Upload both parts of the desktop poster image.');
+  validateBackgroundPreset(preset);
+  if (url && key) validateImageReference(url, key);
+}
 
 type PromotionRecord = Prisma.HomepagePromotionGetPayload<Record<string, never>>;
 
@@ -95,6 +109,7 @@ export class HomepagePromotionsService {
         badgeText: true,
         desktopImageUrl: true,
         mobileImageUrl: true,
+        backgroundPreset: true,
         imageAlt: true,
         ctaLabel: true,
         destinationUrl: true,
@@ -133,7 +148,7 @@ export class HomepagePromotionsService {
   async create(body: CreateHomepagePromotionDto, actorId: string) {
     const title = body.title.trim();
     if (!title) throw new BadRequestException('Enter a promotion title.');
-    validateImageReference(body.desktopImageUrl, body.desktopImageKey);
+    validateArtwork(body.desktopImageUrl, body.desktopImageKey, body.backgroundPreset);
     if (body.mobileImageUrl || body.mobileImageKey) {
       if (!body.mobileImageUrl || !body.mobileImageKey)
         throw new BadRequestException('Upload both parts of the mobile poster image.');
@@ -148,8 +163,9 @@ export class HomepagePromotionsService {
         title,
         description: body.description?.trim() || null,
         badgeText: body.badgeText?.trim() || null,
-        desktopImageUrl: body.desktopImageUrl,
-        desktopImageKey: body.desktopImageKey,
+        desktopImageUrl: body.desktopImageUrl ?? null,
+        desktopImageKey: body.desktopImageKey ?? null,
+        backgroundPreset: validateBackgroundPreset(body.backgroundPreset),
         mobileImageUrl: body.mobileImageUrl ?? null,
         mobileImageKey: body.mobileImageKey ?? null,
         imageAlt: body.imageAlt?.trim() || null,
@@ -186,12 +202,21 @@ export class HomepagePromotionsService {
       data.destinationUrl = safePromotionDestination(body.destinationUrl);
     if (body.status !== undefined) data.status = body.status;
     if (body.priority !== undefined) data.priority = body.priority;
-    if (body.desktopImageUrl !== undefined || body.desktopImageKey !== undefined) {
-      const nextUrl = body.desktopImageUrl ?? current.desktopImageUrl;
-      const nextKey = body.desktopImageKey ?? current.desktopImageKey;
-      validateImageReference(nextUrl, nextKey);
+    const nextUrl =
+      body.desktopImageUrl === undefined ? current.desktopImageUrl : body.desktopImageUrl;
+    const nextKey =
+      body.desktopImageKey === undefined ? current.desktopImageKey : body.desktopImageKey;
+    const nextPreset =
+      body.backgroundPreset === undefined ? current.backgroundPreset : body.backgroundPreset;
+    if (
+      body.desktopImageUrl !== undefined ||
+      body.desktopImageKey !== undefined ||
+      body.backgroundPreset !== undefined
+    ) {
+      validateArtwork(nextUrl, nextKey, nextPreset);
       data.desktopImageUrl = nextUrl;
       data.desktopImageKey = nextKey;
+      data.backgroundPreset = validateBackgroundPreset(nextPreset);
     }
     if (body.mobileImageUrl !== undefined || body.mobileImageKey !== undefined) {
       const nextUrl = body.mobileImageUrl ?? null;
@@ -283,6 +308,7 @@ export class HomepagePromotionsService {
       badgeText: item.badgeText,
       desktopImageUrl: item.desktopImageUrl,
       desktopImageKey: item.desktopImageKey,
+      backgroundPreset: item.backgroundPreset,
       mobileImageUrl: item.mobileImageUrl,
       mobileImageKey: item.mobileImageKey,
       imageAlt: item.imageAlt,

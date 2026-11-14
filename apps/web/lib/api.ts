@@ -22,7 +22,8 @@ export type PublicHomepagePromotion = {
   title: string;
   description: string | null;
   badgeText: string | null;
-  desktopImageUrl: string;
+  desktopImageUrl: string | null;
+  backgroundPreset: string;
   mobileImageUrl: string | null;
   imageAlt: string | null;
   ctaLabel: string | null;
