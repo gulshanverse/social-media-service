@@ -239,6 +239,38 @@ async function serviceMutationTests() {
       'admin-1',
     );
     assert.equal(themed.themeId, 'db:published-theme');
+    const builtInUpdate = await service.update(
+      backgroundOnly.id,
+      {
+        themeId: 'builtin:sunset',
+        layoutSettings: { alignment: 'center', headingSize: 2.25 },
+      },
+      'admin-1',
+    );
+    assert.equal(builtInUpdate.themeId, 'builtin:sunset');
+    const persistedLayout = (await service.get(backgroundOnly.id)).layoutSettings as Record<
+      string,
+      unknown
+    >;
+    assert.equal(persistedLayout.alignment, 'center');
+    assert.equal(persistedLayout.headingSize, 2.25);
+    assert.equal(persistedLayout.version, 1);
+    assert.equal(
+      (await service.update(backgroundOnly.id, { themeId: 'builtin:aurora' }, 'admin-1')).themeId,
+      'builtin:aurora',
+    );
+    const databaseUpdate = await service.update(
+      backgroundOnly.id,
+      { themeId: 'db:published-theme' },
+      'admin-1',
+    );
+    assert.equal(databaseUpdate.themeId, 'db:published-theme');
+    const unchangedTheme = await service.update(
+      backgroundOnly.id,
+      { title: 'Database theme retained' },
+      'admin-1',
+    );
+    assert.equal(unchangedTheme.themeId, 'db:published-theme');
     await assert.rejects(
       () =>
         service.create(
@@ -284,6 +316,7 @@ async function serviceMutationTests() {
       },
       'admin-1',
     );
+    await service.update(second.id, { themeId: 'builtin:sunset' }, 'admin-1');
     for (const themeId of [
       'db:draft-theme',
       'db:expired-theme',
@@ -305,6 +338,11 @@ async function serviceMutationTests() {
     assert.deepEqual(
       publicItems.map((item) => item.title),
       ['Active campus event', 'Still live'],
+    );
+    assert.equal(publicItems.find((item) => item.id === second.id)?.theme.id, 'sunset');
+    assert.equal(
+      publicItems.find((item) => item.id === publishedThemeCampaign.id)?.theme.id,
+      'published-theme',
     );
     for (const field of [
       'desktopImageKey',
@@ -416,7 +454,7 @@ async function serviceMutationTests() {
     );
     assert.equal((await service.delete(draft.id, 'admin-1')).deleted, true);
     assert.equal(memory.rows.has(draft.id), false);
-    assert.equal(memory.audits.length, 15);
+    assert.equal(memory.audits.length, 20);
   } finally {
     setPrismaForTests(realPrisma);
     if (previousBlobToken === undefined) delete process.env.BLOB_READ_WRITE_TOKEN;
