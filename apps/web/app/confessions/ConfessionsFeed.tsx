@@ -166,6 +166,10 @@ export default function ConfessionsFeed({ initialQuery, promotions }: Props) {
   const serviceProgrammaticTarget = useRef<number | null>(null);
   const servicePointerActive = useRef(false);
   const serviceLoopFallbackTimer = useRef<number | null>(null);
+  const serviceLoopActive = useRef(false);
+  const serviceLoopLastPosition = useRef<number | null>(null);
+  const serviceLoopStableChecks = useRef(0);
+  const serviceLoopCheck = useRef<() => void>(() => {});
   const serviceResetInstantly = useRef(false);
   const pointerStart = useRef<number | null>(null);
   const serviceDragged = useRef(false);
@@ -226,36 +230,67 @@ export default function ConfessionsFeed({ initialQuery, promotions }: Props) {
     return () => window.clearTimeout(timer);
   }, [documentVisible, reducedMotion, serviceIndex, servicePaused, serviceVisible]);
 
-  const finishServiceLoop = useCallback(() => {
-    const track = serviceTrack.current;
-    if (!track || servicePointerActive.current) return;
-    const slideWidth = track.clientWidth || 1;
-    if (track.scrollLeft < slideWidth * serviceSlides.length - 1) return;
-    if (serviceLoopFallbackTimer.current !== null) {
-      window.clearTimeout(serviceLoopFallbackTimer.current);
-      serviceLoopFallbackTimer.current = null;
-    }
-    serviceProgrammaticTarget.current = null;
-    serviceResetInstantly.current = true;
-    track.scrollTo({ left: 0, behavior: 'auto' });
-    setServiceIndex(0);
-  }, []);
-
   const scheduleServiceLoopFallback = useCallback(() => {
-    if (servicePointerActive.current) return;
+    if (servicePointerActive.current || !serviceLoopActive.current) return;
     const track = serviceTrack.current;
     if (
       reducedMotion &&
       track &&
       track.scrollLeft >= (track.clientWidth || 1) * serviceSlides.length - 1
     ) {
-      finishServiceLoop();
+      serviceLoopCheck.current();
       return;
     }
-    if (serviceLoopFallbackTimer.current !== null)
+    if (serviceLoopFallbackTimer.current !== null) {
       window.clearTimeout(serviceLoopFallbackTimer.current);
-    serviceLoopFallbackTimer.current = window.setTimeout(finishServiceLoop, 160);
-  }, [finishServiceLoop, reducedMotion]);
+      serviceLoopFallbackTimer.current = null;
+    }
+    serviceLoopFallbackTimer.current = window.setTimeout(() => {
+      serviceLoopFallbackTimer.current = null;
+      serviceLoopCheck.current();
+    }, 160);
+  }, [reducedMotion]);
+
+  const finishServiceLoop = useCallback(() => {
+    const track = serviceTrack.current;
+    if (!track || !serviceLoopActive.current || servicePointerActive.current) return;
+    const clonePosition = (track.clientWidth || 1) * serviceSlides.length;
+    if (track.scrollLeft < clonePosition - 1) {
+      const currentPosition = track.scrollLeft;
+      if (
+        serviceLoopLastPosition.current !== null &&
+        Math.abs(currentPosition - serviceLoopLastPosition.current) < 0.5
+      ) {
+        serviceLoopStableChecks.current += 1;
+      } else {
+        serviceLoopStableChecks.current = 0;
+      }
+      serviceLoopLastPosition.current = currentPosition;
+
+      if (serviceLoopStableChecks.current < 2) {
+        scheduleServiceLoopFallback();
+        return;
+      }
+
+      // The smooth scroll stopped short. Complete the last leg instantly, then reset in this task.
+      serviceProgrammaticTarget.current = serviceSlides.length;
+      track.scrollTo({ left: clonePosition, behavior: 'auto' });
+      if (track.scrollLeft < clonePosition - 1) track.scrollLeft = clonePosition;
+    }
+
+    if (serviceLoopFallbackTimer.current !== null) {
+      window.clearTimeout(serviceLoopFallbackTimer.current);
+      serviceLoopFallbackTimer.current = null;
+    }
+    serviceLoopActive.current = false;
+    serviceLoopLastPosition.current = null;
+    serviceLoopStableChecks.current = 0;
+    serviceProgrammaticTarget.current = 0;
+    serviceResetInstantly.current = true;
+    track.scrollTo({ left: 0, behavior: 'auto' });
+    setServiceIndex(0);
+  }, [scheduleServiceLoopFallback]);
+  serviceLoopCheck.current = finishServiceLoop;
 
   useEffect(() => {
     const track = serviceTrack.current;
@@ -396,6 +431,13 @@ export default function ConfessionsFeed({ initialQuery, promotions }: Props) {
   const lastResult = data ? Math.min(data.page * data.limit, data.total) : 0;
 
   const selectService = (index: number) => {
+    serviceLoopActive.current = false;
+    serviceLoopLastPosition.current = null;
+    serviceLoopStableChecks.current = 0;
+    if (serviceLoopFallbackTimer.current !== null) {
+      window.clearTimeout(serviceLoopFallbackTimer.current);
+      serviceLoopFallbackTimer.current = null;
+    }
     setServiceIndex(index % serviceSlides.length);
   };
 
@@ -404,13 +446,27 @@ export default function ConfessionsFeed({ initialQuery, promotions }: Props) {
   useEffect(() => {
     const track = serviceTrack.current;
     if (!track) return;
+    if (serviceIndex === serviceSlides.length) {
+      serviceLoopActive.current = true;
+      serviceLoopLastPosition.current = track.scrollLeft;
+      serviceLoopStableChecks.current = 0;
+    } else {
+      serviceLoopActive.current = false;
+      serviceLoopLastPosition.current = null;
+      serviceLoopStableChecks.current = 0;
+      if (serviceLoopFallbackTimer.current !== null) {
+        window.clearTimeout(serviceLoopFallbackTimer.current);
+        serviceLoopFallbackTimer.current = null;
+      }
+    }
     serviceProgrammaticTarget.current = serviceIndex;
     track.scrollTo({
       left: serviceIndex * (track.clientWidth || 1),
       behavior: reducedMotion || serviceResetInstantly.current ? 'auto' : 'smooth',
     });
     serviceResetInstantly.current = false;
-  }, [reducedMotion, serviceIndex]);
+    if (serviceIndex === serviceSlides.length) scheduleServiceLoopFallback();
+  }, [reducedMotion, scheduleServiceLoopFallback, serviceIndex]);
 
   return (
     <main className="site-shell">
@@ -490,9 +546,19 @@ export default function ConfessionsFeed({ initialQuery, promotions }: Props) {
               else return;
             }
             if (nextIndex >= serviceSlides.length) {
+              serviceLoopActive.current = true;
+              serviceLoopLastPosition.current = track.scrollLeft;
+              serviceLoopStableChecks.current = 0;
               setServiceIndex(serviceSlides.length);
               scheduleServiceLoopFallback();
               return;
+            }
+            serviceLoopActive.current = false;
+            serviceLoopLastPosition.current = null;
+            serviceLoopStableChecks.current = 0;
+            if (serviceLoopFallbackTimer.current !== null) {
+              window.clearTimeout(serviceLoopFallbackTimer.current);
+              serviceLoopFallbackTimer.current = null;
             }
             if (nextIndex !== serviceIndex) setServiceIndex(nextIndex);
           }}
@@ -503,6 +569,8 @@ export default function ConfessionsFeed({ initialQuery, promotions }: Props) {
               window.clearTimeout(serviceLoopFallbackTimer.current);
               serviceLoopFallbackTimer.current = null;
             }
+            serviceLoopLastPosition.current = event.currentTarget.scrollLeft;
+            serviceLoopStableChecks.current = 0;
             pointerStart.current = event.clientX;
             serviceDragged.current = false;
             setServiceInteracting(true);

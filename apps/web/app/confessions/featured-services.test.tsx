@@ -158,6 +158,83 @@ describe('Featured Services carousel', () => {
     expect(scrollTo).toHaveBeenLastCalledWith({ left: 100, behavior: 'smooth' });
   });
 
+  it('retries when the clone fallback runs early and scrollend is omitted', async () => {
+    render(<ConfessionsFeed initialQuery={initialQuery} promotions={[]} />);
+    await act(async () => Promise.resolve());
+    const track = screen.getByRole('group', { name: 'Featured services' });
+    const scrollTo = makeScrollable(track);
+    scrollTo.mockClear();
+    scrollTo.mockImplementation((options) => {
+      const { left = 0, behavior = 'auto' } = options as unknown as ScrollToOptions;
+      if (left === 400 && behavior === 'smooth') {
+        track.scrollLeft = 350;
+        track.dispatchEvent(new Event('scroll'));
+        window.setTimeout(() => {
+          track.scrollLeft = 400;
+        }, 300);
+        return;
+      }
+      track.scrollLeft = left;
+      track.dispatchEvent(new Event('scroll'));
+    });
+
+    for (let step = 0; step < 4; step += 1) {
+      await act(async () => vi.advanceTimersByTime(3000));
+    }
+    expect(scrollTo).toHaveBeenLastCalledWith({ left: 400, behavior: 'smooth' });
+    await act(async () => vi.advanceTimersByTime(160));
+    expect(track.scrollLeft).toBe(350);
+    expect(scrollTo).not.toHaveBeenCalledWith({ left: 0, behavior: 'auto' });
+
+    await act(async () => vi.advanceTimersByTime(140));
+    expect(track.scrollLeft).toBe(400);
+    await act(async () => vi.advanceTimersByTime(20));
+    expect(scrollTo).toHaveBeenLastCalledWith({ left: 0, behavior: 'auto' });
+    expect(activeDot()?.getAttribute('aria-label')).toBe('Show VibeMatch');
+    const instantResetCount = scrollTo.mock.calls.filter(
+      ([options]) =>
+        (options as unknown as ScrollToOptions).left === 0 &&
+        (options as unknown as ScrollToOptions).behavior === 'auto',
+    ).length;
+    await act(async () => vi.advanceTimersByTime(180));
+    act(() => track.dispatchEvent(new Event('scrollend')));
+    expect(
+      scrollTo.mock.calls.filter(
+        ([options]) =>
+          (options as unknown as ScrollToOptions).left === 0 &&
+          (options as unknown as ScrollToOptions).behavior === 'auto',
+      ),
+    ).toHaveLength(instantResetCount);
+    await act(async () => vi.advanceTimersByTime(2820));
+    expect(activeDot()?.getAttribute('aria-label')).toBe('Show BawalBox');
+  });
+
+  it('force-completes an interrupted clone scroll and resumes after the position stabilizes', async () => {
+    render(<ConfessionsFeed initialQuery={initialQuery} promotions={[]} />);
+    const track = screen.getByRole('group', { name: 'Featured services' });
+    const scrollTo = makeScrollable(track);
+    scrollTo.mockClear();
+    scrollTo.mockImplementation((options) => {
+      const { left = 0, behavior = 'auto' } = options as unknown as ScrollToOptions;
+      track.scrollLeft = behavior === 'smooth' && left === 400 ? 350 : left;
+      track.dispatchEvent(new Event('scroll'));
+    });
+
+    for (let step = 0; step < 4; step += 1) {
+      await act(async () => vi.advanceTimersByTime(3000));
+    }
+    expect(track.scrollLeft).toBe(350);
+    await act(async () => vi.advanceTimersByTime(160));
+    expect(track.scrollLeft).toBe(350);
+    await act(async () => vi.advanceTimersByTime(160));
+    expect(scrollTo).toHaveBeenCalledWith({ left: 400, behavior: 'auto' });
+    expect(scrollTo).toHaveBeenCalledWith({ left: 0, behavior: 'auto' });
+    expect(track.scrollLeft).toBe(0);
+    expect(activeDot()?.getAttribute('aria-label')).toBe('Show VibeMatch');
+    await act(async () => vi.advanceTimersByTime(3000));
+    expect(activeDot()?.getAttribute('aria-label')).toBe('Show BawalBox');
+  });
+
   it('never animates backward when autoplay wraps forward through the clone', async () => {
     render(<ConfessionsFeed initialQuery={initialQuery} promotions={[]} />);
     const track = screen.getByRole('group', { name: 'Featured services' });
@@ -178,7 +255,7 @@ describe('Featured Services carousel', () => {
     ).toBe(false);
   });
 
-  it('completes 20 forward autoplay transitions across five rounds without stopping', async () => {
+  it('completes 100 forward autoplay transitions across 25 rounds without scrollend', async () => {
     render(<ConfessionsFeed initialQuery={initialQuery} promotions={[]} />);
     const track = screen.getByRole('group', { name: 'Featured services' });
     const scrollTo = makeScrollable(track);
@@ -186,7 +263,7 @@ describe('Featured Services carousel', () => {
     const labels = ['Show BawalBox', 'Show Campus Garba', 'Show Rentals & Finds', 'Show VibeMatch'];
     const smoothTargets: number[] = [];
 
-    for (let transition = 1; transition <= 20; transition += 1) {
+    for (let transition = 1; transition <= 100; transition += 1) {
       await act(async () => vi.advanceTimersByTime(3000));
       const isWrap = transition % 4 === 0;
       const expectedLabel = labels[(transition - 1) % labels.length];
@@ -204,16 +281,13 @@ describe('Featured Services carousel', () => {
       smoothTargets.push(expectedPosition);
 
       if (isWrap) {
-        act(() => track.dispatchEvent(new Event('scrollend')));
+        await act(async () => vi.advanceTimersByTime(160));
         expect(scrollTo).toHaveBeenLastCalledWith({ left: 0, behavior: 'auto' });
         expect(activeDot()?.getAttribute('aria-label')).toBe('Show VibeMatch');
       }
     }
 
-    expect(smoothTargets).toEqual([
-      100, 200, 300, 400, 100, 200, 300, 400, 100, 200, 300, 400, 100, 200, 300, 400, 100, 200, 300,
-      400,
-    ]);
+    expect(smoothTargets).toEqual(Array.from({ length: 25 }, () => [100, 200, 300, 400]).flat());
     const smoothCalls = scrollTo.mock.calls.filter(
       ([options]) => (options as unknown as ScrollToOptions | undefined)?.behavior === 'smooth',
     );
@@ -223,7 +297,7 @@ describe('Featured Services carousel', () => {
     const instantResets = scrollTo.mock.calls.filter(
       ([options]) => (options as unknown as ScrollToOptions | undefined)?.behavior === 'auto',
     );
-    expect(instantResets.length).toBeGreaterThanOrEqual(5);
+    expect(instantResets.length).toBeGreaterThanOrEqual(25);
     expect(
       instantResets.every(([options]) => (options as unknown as ScrollToOptions).left === 0),
     ).toBe(true);
@@ -237,15 +311,15 @@ describe('Featured Services carousel', () => {
       for (let step = 0; step < 4; step += 1) {
         await act(async () => vi.advanceTimersByTime(3000));
       }
-      expect(scrollTo).toHaveBeenLastCalledWith({ left: 400, behavior: 'smooth' });
+      expect(scrollTo).toHaveBeenCalledWith({ left: 400, behavior: 'smooth' });
       expect(activeDot()?.getAttribute('aria-label')).toBe('Show VibeMatch');
-      act(() => track.dispatchEvent(new Event('scrollend')));
-      expect(scrollTo).toHaveBeenLastCalledWith({ left: 0, behavior: 'auto' });
       expect(
         screen.getByRole('group', { name: 'Choose a featured service' }).querySelectorAll('button'),
       ).toHaveLength(4);
-      await act(async () => vi.advanceTimersByTime(3000));
+      await act(async () => vi.advanceTimersByTime(160));
+      expect(scrollTo).toHaveBeenLastCalledWith({ left: 0, behavior: 'auto' });
     }
+    await act(async () => vi.advanceTimersByTime(3000));
     expect(activeDot()?.getAttribute('aria-label')).toBe('Show BawalBox');
   });
 
@@ -380,6 +454,21 @@ describe('Featured Services carousel', () => {
     expect(activeDot()?.getAttribute('aria-label')).toBe('Show BawalBox');
   });
 
+  it('recovers a clone transition after touch pointer capture is lost', async () => {
+    render(<ConfessionsFeed initialQuery={initialQuery} promotions={[]} />);
+    const track = screen.getByRole('group', { name: 'Featured services' });
+    const scrollTo = makeScrollable(track);
+    for (let step = 0; step < 4; step += 1) {
+      await act(async () => vi.advanceTimersByTime(3000));
+    }
+    fireEvent.pointerDown(track, { pointerType: 'touch' });
+    fireEvent.lostPointerCapture(track, { pointerType: 'touch' });
+    await act(async () => vi.advanceTimersByTime(160));
+    expect(scrollTo).toHaveBeenLastCalledWith({ left: 0, behavior: 'auto' });
+    await act(async () => vi.advanceTimersByTime(3000));
+    expect(activeDot()?.getAttribute('aria-label')).toBe('Show BawalBox');
+  });
+
   it('ignores touch-generated mouse-enter without requiring a matching mouse-leave', async () => {
     setMediaPreferences({ hover: false });
     render(<ConfessionsFeed initialQuery={initialQuery} promotions={[]} />);
@@ -428,6 +517,28 @@ describe('Featured Services carousel', () => {
     expect(activeDot()?.getAttribute('aria-label')).toBe('Show VibeMatch');
     Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
     act(() => document.dispatchEvent(new Event('visibilitychange')));
+    await act(async () => vi.advanceTimersByTime(3000));
+    expect(activeDot()?.getAttribute('aria-label')).toBe('Show BawalBox');
+  });
+
+  it('finishes a pending clone reset while hidden/offscreen and resumes on return', async () => {
+    render(<ConfessionsFeed initialQuery={initialQuery} promotions={[]} />);
+    const track = screen.getByRole('group', { name: 'Featured services' });
+    const scrollTo = makeScrollable(track);
+    for (let step = 0; step < 4; step += 1) {
+      await act(async () => vi.advanceTimersByTime(3000));
+    }
+    expect(scrollTo).toHaveBeenCalledWith({ left: 400, behavior: 'smooth' });
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+    act(() => document.dispatchEvent(new Event('visibilitychange')));
+    emitIntersection(false, 0);
+    await act(async () => vi.advanceTimersByTime(160));
+    expect(scrollTo).toHaveBeenLastCalledWith({ left: 0, behavior: 'auto' });
+    await act(async () => vi.advanceTimersByTime(10_000));
+    expect(activeDot()?.getAttribute('aria-label')).toBe('Show VibeMatch');
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+    act(() => document.dispatchEvent(new Event('visibilitychange')));
+    emitIntersection(true, 0.5);
     await act(async () => vi.advanceTimersByTime(3000));
     expect(activeDot()?.getAttribute('aria-label')).toBe('Show BawalBox');
   });
