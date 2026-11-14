@@ -1,6 +1,7 @@
 import type { ButtonHTMLAttributes, PropsWithChildren } from 'react';
 export { ConfessionCard } from './ConfessionCard';
 export { GarbaCard } from './GarbaCard';
+export { HomepagePromotionBanner } from './HomepagePromotionBanner';
 
 export function Button({
   children,

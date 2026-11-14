@@ -116,3 +116,4 @@ export type VibeSession = {
   status: VibeSessionStatus;
   seed: number;
 };
+export * from './homepage-promotion';

@@ -1,3 +1,4 @@
+@import '@ggv/ui/src/HomepagePromotionBanner.css';
 @import './feed-discovery.css';
 @import '../app/bawalbox/bawalbox.css';
 
@@ -798,7 +799,7 @@ a:hover .confession-card {
   font:
     600 1.5rem var(--font-space-grotesk),
     sans-serif;
-  margin: 0 0 12px;
+  margin: 0;
 }
 .legal-content p,
 .legal-content li {
@@ -3427,7 +3428,7 @@ body:has(.college-profile-page) .public-header {
 .reply-context {
   color: #c8d0df;
   font-size: 0.8rem;
-  margin-bottom: 8px;
+  margin-bottom: 0;
 }
 .reply-context button {
   border: 0;
@@ -4726,136 +4727,13 @@ body:has(.home-shell) .footer-nav-group a:hover {
   position: relative;
   touch-action: pan-y;
 }
-.homepage-promotion-card {
+/* Shared banner markup, theme tokens, typography, artwork crop, and responsive layout live in @ggv/ui. */
+.homepage-promotions {
+  grid-area: banner;
+  width: 100%;
+  min-width: 0;
   position: relative;
-  overflow: hidden;
-  isolation: isolate;
-  width: 100%;
-  aspect-ratio: 16 / 6;
-  min-height: 250px;
-  border: 1px solid rgba(206, 190, 255, 0.2);
-  border-radius: 24px;
-  background: linear-gradient(135deg, #171b38, #301b50 55%, #631f61);
-  box-shadow: 0 24px 70px rgba(14, 8, 34, 0.36);
-}
-.homepage-promotion-media,
-.homepage-promotion-media img,
-.homepage-promotion-media picture,
-.homepage-promotion-shade {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-}
-.homepage-promotion-media img {
-  display: block;
-  object-fit: cover;
-  object-position: center;
-}
-.homepage-promotion-media picture {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-.promotion-background--aurora {
-  background:
-    radial-gradient(circle at 78% 18%, #b8f1ff 0 7%, transparent 28%),
-    linear-gradient(120deg, #171b38, #5266c5 48%, #ef6fc4);
-}
-.promotion-background--sunset {
-  background:
-    radial-gradient(circle at 80% 14%, #ffd36e, transparent 28%),
-    linear-gradient(125deg, #54203e, #e45b68 48%, #ffb35c);
-}
-.promotion-background--ocean {
-  background:
-    radial-gradient(circle at 78% 18%, #7ef7dc, transparent 26%),
-    linear-gradient(125deg, #052b50, #087da9 54%, #4ed4d1);
-}
-.promotion-background--midnight {
-  background:
-    radial-gradient(circle at 75% 20%, #c36cff, transparent 22%),
-    linear-gradient(125deg, #090c21, #211447 52%, #5d275c);
-}
-.homepage-promotion-shade {
-  z-index: 1;
-  pointer-events: none;
-  background:
-    linear-gradient(
-      90deg,
-      rgba(7, 8, 21, 0.8) 0%,
-      rgba(12, 11, 28, 0.49) 43%,
-      rgba(12, 11, 28, 0.04) 100%
-    ),
-    linear-gradient(0deg, rgba(7, 8, 21, 0.42), transparent 52%);
-}
-.homepage-promotion-copy {
-  position: absolute;
-  z-index: 2;
-  inset: auto auto 32px 36px;
-  width: min(62%, 620px);
-  color: #fff;
-  animation: promotion-copy-in 300ms ease both;
-}
-.homepage-promotion-badge {
-  width: fit-content;
-  max-width: 100%;
-  margin: 0 0 12px;
-  padding: 7px 11px;
-  border: 1px solid rgba(255, 255, 255, 0.34);
-  border-radius: 999px;
-  background: rgba(28, 19, 53, 0.5);
-  color: #f7c7ff;
-  font-size: 0.66rem;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  line-height: 1.2;
-  text-transform: uppercase;
-  overflow-wrap: anywhere;
-}
-.homepage-promotion-copy h2 {
-  max-width: 18ch;
-  margin: 0;
-  color: #fff;
-  font-family: var(--font-space-grotesk), sans-serif;
-  font-size: clamp(1.8rem, 4vw, 3.5rem);
-  letter-spacing: -0.045em;
-  line-height: 0.98;
-  overflow-wrap: anywhere;
-}
-.homepage-promotion-description {
-  max-width: 54ch;
-  margin: 11px 0 0;
-  color: rgba(255, 255, 255, 0.88);
-  font-size: clamp(0.85rem, 1.25vw, 1rem);
-  line-height: 1.45;
-  overflow-wrap: anywhere;
-}
-.homepage-promotion-cta {
-  min-height: 44px;
-  width: fit-content;
-  max-width: 100%;
-  margin-top: 18px;
-  padding: 11px 16px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 9px;
-  border: 1px solid rgba(255, 255, 255, 0.78);
-  border-radius: 999px;
-  background: linear-gradient(115deg, #ec358d, #7a56da);
-  color: #fff;
-  font-size: 0.86rem;
-  font-weight: 800;
-  text-align: center;
-  box-shadow: 0 8px 24px rgba(7, 5, 19, 0.24);
-  transition:
-    transform 180ms ease,
-    filter 180ms ease;
-}
-.homepage-promotion-cta:hover {
-  transform: translateY(-2px);
-  filter: brightness(1.08);
+  touch-action: pan-y;
 }
 .homepage-promotion-controls {
   position: absolute;
@@ -4911,41 +4789,12 @@ body:has(.home-shell) .footer-nav-group a:hover {
   width: 30px;
   background: #df75e9;
 }
-@keyframes promotion-copy-in {
-  from {
-    opacity: 0.72;
-    transform: translateY(5px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
 @media (max-width: 820px) {
   .home-hero {
     padding: 48px 0 42px;
-    grid-template-areas:
-      'copy'
-      'banner'
-      'aside';
+    grid-template-areas: 'copy' 'banner' 'aside';
     grid-template-columns: minmax(0, 1fr);
     gap: 28px;
-  }
-  .homepage-promotion-card {
-    min-height: 0;
-    aspect-ratio: 5 / 4;
-    border-radius: 20px;
-  }
-  .homepage-promotion-copy {
-    inset: auto 20px 20px;
-    width: min(88%, 520px);
-  }
-  .homepage-promotion-copy h2 {
-    font-size: clamp(1.65rem, 6vw, 2.8rem);
-  }
-  .homepage-promotion-description {
-    max-width: 42ch;
-    font-size: 0.88rem;
   }
   .homepage-promotion-controls {
     right: 12px;
@@ -4974,40 +4823,6 @@ body:has(.home-shell) .footer-nav-group a:hover {
   .home-trust {
     margin-top: 18px;
   }
-  .homepage-promotion-card {
-    aspect-ratio: 5 / 4;
-    border-radius: 18px;
-  }
-  .homepage-promotion-shade {
-    background: linear-gradient(
-      0deg,
-      rgba(7, 8, 21, 0.88) 0%,
-      rgba(12, 11, 28, 0.54) 46%,
-      rgba(12, 11, 28, 0.02) 100%
-    );
-  }
-  .homepage-promotion-copy {
-    inset: auto 16px 16px;
-    width: calc(100% - 32px);
-  }
-  .homepage-promotion-badge {
-    margin-bottom: 8px;
-    padding: 6px 9px;
-    font-size: 0.59rem;
-  }
-  .homepage-promotion-copy h2 {
-    font-size: clamp(1.5rem, 8vw, 2.25rem);
-  }
-  .homepage-promotion-description {
-    margin-top: 8px;
-    font-size: 0.82rem;
-  }
-  .homepage-promotion-cta {
-    min-height: 44px;
-    margin-top: 12px;
-    padding-inline: 14px;
-    font-size: 0.81rem;
-  }
   .homepage-promotion-controls {
     right: 9px;
     top: 9px;
@@ -5024,8 +4839,6 @@ body:has(.home-shell) .footer-nav-group a:hover {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .homepage-promotion-copy,
-  .homepage-promotion-cta,
   .homepage-promotion-dots button {
     animation: none;
     transition: none;

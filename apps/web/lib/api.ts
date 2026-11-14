@@ -3,6 +3,7 @@ import type {
   PublicConfessionPage,
   ReadLiveConfessionButtonConfig,
   SubmissionResult,
+  PublicHomepagePromotion,
 } from '@ggv/types';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
@@ -17,18 +18,7 @@ export class ApiRequestError extends Error {
   }
 }
 
-export type PublicHomepagePromotion = {
-  id: string;
-  title: string;
-  description: string | null;
-  badgeText: string | null;
-  desktopImageUrl: string | null;
-  backgroundPreset: string;
-  mobileImageUrl: string | null;
-  imageAlt: string | null;
-  ctaLabel: string | null;
-  destinationUrl: string | null;
-};
+export type { PublicHomepagePromotion } from '@ggv/types';
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${apiUrl}${path}`, {

@@ -22,6 +22,8 @@ export class CreateHomepagePromotionDto {
   @IsOptional() @IsString() @MaxLength(500) description?: string | null;
   @IsOptional() @IsString() @MaxLength(80) badgeText?: string | null;
   @IsOptional() @IsString() @MaxLength(32) backgroundPreset?: string | null;
+  @IsOptional() @IsString() @MaxLength(120) themeId?: string | null;
+  @IsOptional() layoutSettings?: Record<string, unknown> | null;
   @IsOptional() @IsString() @MaxLength(2048) mobileImageUrl?: string | null;
   @IsOptional() @IsString() @MaxLength(512) mobileImageKey?: string | null;
   @IsOptional() @IsString() @MaxLength(300) imageAlt?: string | null;
@@ -38,6 +40,8 @@ export class UpdateHomepagePromotionDto {
   @IsOptional() @IsString() @MaxLength(500) description?: string | null;
   @IsOptional() @IsString() @MaxLength(80) badgeText?: string | null;
   @IsOptional() @IsString() @MaxLength(32) backgroundPreset?: string | null;
+  @IsOptional() @IsString() @MaxLength(120) themeId?: string | null;
+  @IsOptional() layoutSettings?: Record<string, unknown> | null;
   @IsOptional() @IsString() @MaxLength(2048) desktopImageUrl?: string | null;
   @IsOptional() @IsString() @MaxLength(512) desktopImageKey?: string | null;
   @IsOptional() @IsString() @MaxLength(2048) mobileImageUrl?: string | null;

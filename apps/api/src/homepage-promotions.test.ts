@@ -9,6 +9,9 @@ import {
 } from './homepage-promotions.module';
 import {
   derivePromotionState,
+  isSupportedBuiltinThemeId,
+  normalizePromotionLayout,
+  promotionThemeAvailability,
   safePromotionDestination,
   HomepagePromotionsService,
 } from './homepage-promotions.service';
@@ -17,6 +20,96 @@ import { prisma, setPrismaForTests } from './admin-auth';
 
 function memoryDatabase() {
   const rows = new Map<string, Record<string, any>>();
+  const themes = new Map<string, Record<string, any>>([
+    [
+      'published-theme',
+      {
+        id: 'published-theme',
+        status: 'PUBLISHED',
+        startAt: null,
+        endAt: null,
+        slug: 'published-theme',
+        name: 'Published Theme',
+        background: '#101828',
+        gradient: 'linear-gradient(#101828,#344054)',
+        textColor: '#fff',
+        accentColor: '#c8ff00',
+        fontFamily: 'Inter',
+        radius: 24,
+        borderStyle: 'solid',
+        logoVisibility: true,
+        handleVisibility: true,
+        layoutVariant: 'classic',
+        tokens: {},
+      },
+    ],
+    [
+      'draft-theme',
+      {
+        id: 'draft-theme',
+        status: 'DRAFT',
+        startAt: null,
+        endAt: null,
+        slug: 'draft-theme',
+        name: 'Draft Theme',
+        background: '#101828',
+        gradient: 'linear-gradient(#101828,#344054)',
+        textColor: '#fff',
+        accentColor: '#c8ff00',
+        fontFamily: 'Inter',
+        radius: 24,
+        borderStyle: 'solid',
+        logoVisibility: true,
+        handleVisibility: true,
+        layoutVariant: 'classic',
+        tokens: {},
+      },
+    ],
+    [
+      'expired-theme',
+      {
+        id: 'expired-theme',
+        status: 'PUBLISHED',
+        startAt: null,
+        endAt: new Date(Date.now() - 60_000),
+        slug: 'expired-theme',
+        name: 'Expired Theme',
+        background: '#101828',
+        gradient: 'linear-gradient(#101828,#344054)',
+        textColor: '#fff',
+        accentColor: '#c8ff00',
+        fontFamily: 'Inter',
+        radius: 24,
+        borderStyle: 'solid',
+        logoVisibility: true,
+        handleVisibility: true,
+        layoutVariant: 'classic',
+        tokens: {},
+      },
+    ],
+    [
+      'scheduled-theme',
+      {
+        id: 'scheduled-theme',
+        status: 'SCHEDULED',
+        startAt: new Date(Date.now() + 60_000),
+        endAt: null,
+        slug: 'scheduled-theme',
+        name: 'Scheduled Theme',
+        background: '#101828',
+        gradient: 'linear-gradient(#101828,#344054)',
+        textColor: '#fff',
+        accentColor: '#c8ff00',
+        fontFamily: 'Inter',
+        radius: 24,
+        borderStyle: 'solid',
+        logoVisibility: true,
+        handleVisibility: true,
+        layoutVariant: 'classic',
+        tokens: {},
+      },
+    ],
+  ]);
   const audits: Record<string, any>[] = [];
   let sequence = 0;
   const orderRows = (items: Record<string, any>[], orderBy: Record<string, string>[]) =>
@@ -92,6 +185,18 @@ function memoryDatabase() {
         return current;
       },
     },
+    theme: {
+      findUnique: async ({
+        where,
+        select,
+      }: {
+        where: { id: string };
+        select?: Record<string, boolean>;
+      }) => {
+        const theme = themes.get(where.id) ?? null;
+        return theme && select ? project(theme, select) : theme;
+      },
+    },
     auditLog: {
       create: async ({ data }: { data: Record<string, any> }) => {
         audits.push(data);
@@ -100,7 +205,7 @@ function memoryDatabase() {
     },
     $transaction: async (operations: Promise<unknown>[]) => Promise.all(operations),
   };
-  return { client: fake, rows, audits };
+  return { client: fake, rows, audits, themes };
 }
 
 async function serviceMutationTests() {
@@ -129,6 +234,32 @@ async function serviceMutationTests() {
     );
     assert.equal(backgroundOnly.desktopImageUrl, null);
     assert.equal(backgroundOnly.backgroundPreset, 'ocean');
+    const themed = await service.create(
+      { title: 'Published theme campaign', themeId: 'db:published-theme' },
+      'admin-1',
+    );
+    assert.equal(themed.themeId, 'db:published-theme');
+    await assert.rejects(
+      () =>
+        service.create(
+          { title: 'Unknown built-in', themeId: 'builtin:not-a-real-theme' },
+          'admin-1',
+        ),
+      (error) => error instanceof BadRequestException,
+    );
+    await assert.rejects(
+      () =>
+        service.create({ title: 'Missing database theme', themeId: 'db:missing-theme' }, 'admin-1'),
+      (error) => error instanceof BadRequestException,
+    );
+    const draftThemeCampaign = await service.create(
+      { title: 'Draft theme campaign', themeId: 'db:draft-theme' },
+      'admin-1',
+    );
+    await assert.rejects(
+      () => service.publish(draftThemeCampaign.id, 'admin-1'),
+      (error) => error instanceof BadRequestException,
+    );
     await assert.rejects(
       () => service.create({ title: 'Unknown preset', backgroundPreset: 'neon' }, 'admin-1'),
       (error) => error instanceof BadRequestException,
@@ -145,11 +276,35 @@ async function serviceMutationTests() {
       },
       'admin-1',
     );
+    const publishedThemeCampaign = await service.create(
+      {
+        title: 'Published theme update guard',
+        themeId: 'db:published-theme',
+        status: HomepagePromotionStatus.PUBLISHED,
+      },
+      'admin-1',
+    );
+    for (const themeId of [
+      'db:draft-theme',
+      'db:expired-theme',
+      'db:scheduled-theme',
+      'db:missing-theme',
+    ]) {
+      await assert.rejects(
+        () => service.update(publishedThemeCampaign.id, { themeId }, 'admin-1'),
+        (error) => error instanceof BadRequestException,
+        `published promotion should reject ${themeId} when status is omitted`,
+      );
+    }
+    assert.equal(
+      (await service.update(publishedThemeCampaign.id, { title: 'Still live' }, 'admin-1')).status,
+      HomepagePromotionStatus.PUBLISHED,
+    );
     assert.equal(first.state, 'SCHEDULED');
     const publicItems = await service.publicPromotions();
     assert.deepEqual(
       publicItems.map((item) => item.title),
-      ['Active campus event'],
+      ['Active campus event', 'Still live'],
     );
     for (const field of [
       'desktopImageKey',
@@ -163,6 +318,16 @@ async function serviceMutationTests() {
     ]) {
       assert.equal(field in publicItems[0], false);
     }
+    assert.deepEqual(Object.keys(publicItems[0].theme).sort(), [
+      'accentColor',
+      'background',
+      'fontFamily',
+      'gradient',
+      'id',
+      'name',
+      'radius',
+      'textColor',
+    ]);
 
     const edited = await service.update(
       second.id,
@@ -174,7 +339,7 @@ async function serviceMutationTests() {
     );
     assert.equal(edited.title, 'Updated campus event');
     assert.equal((await service.get(second.id)).description, 'Open to all students.');
-    assert.equal((await service.list()).items.length, 3);
+    assert.equal((await service.list()).items.length, 6);
 
     const draft = await service.create(
       {
@@ -208,7 +373,21 @@ async function serviceMutationTests() {
       'admin-1',
     );
     assert.equal(expired.state, 'EXPIRED');
-    assert.equal((await service.publicPromotions()).length, 0);
+    assert.deepEqual(
+      (await service.publicPromotions()).map((item) => item.title),
+      ['Still live'],
+    );
+    const fallbackCampaign = await service.create(
+      {
+        title: 'Fallback campaign',
+        themeId: 'db:published-theme',
+        status: HomepagePromotionStatus.PUBLISHED,
+      },
+      'admin-1',
+    );
+    memory.themes.delete('published-theme');
+    const fallbackItems = await service.publicPromotions();
+    assert.equal(fallbackItems.find((item) => item.id === fallbackCampaign.id)?.theme.id, 'aurora');
     await assert.rejects(
       () =>
         service.create(
@@ -237,7 +416,7 @@ async function serviceMutationTests() {
     );
     assert.equal((await service.delete(draft.id, 'admin-1')).deleted, true);
     assert.equal(memory.rows.has(draft.id), false);
-    assert.equal(memory.audits.length, 10);
+    assert.equal(memory.audits.length, 15);
   } finally {
     setPrismaForTests(realPrisma);
     if (previousBlobToken === undefined) delete process.env.BLOB_READ_WRITE_TOKEN;
@@ -248,6 +427,50 @@ async function serviceMutationTests() {
 async function main() {
   await serviceMutationTests();
   const now = new Date('2026-11-07T00:00:00.000Z');
+  assert.equal(isSupportedBuiltinThemeId('midnight'), true);
+  assert.equal(isSupportedBuiltinThemeId('not-a-real-theme'), false);
+  assert.equal(promotionThemeAvailability({ status: 'DRAFT' }, now), 'DRAFT');
+  assert.equal(
+    promotionThemeAvailability(
+      {
+        status: 'SCHEDULED',
+        startAt: new Date('2026-11-08T00:00:00.000Z'),
+        endAt: new Date('2026-11-09T00:00:00.000Z'),
+      },
+      now,
+    ),
+    'SCHEDULED',
+  );
+  assert.equal(
+    promotionThemeAvailability(
+      {
+        status: 'SCHEDULED',
+        startAt: new Date('2026-11-06T00:00:00.000Z'),
+        endAt: new Date('2026-11-09T00:00:00.000Z'),
+      },
+      now,
+    ),
+    'AVAILABLE',
+  );
+  assert.equal(
+    promotionThemeAvailability(
+      { status: 'PUBLISHED', startAt: null, endAt: new Date('2026-11-06T00:00:00.000Z') },
+      now,
+    ),
+    'EXPIRED',
+  );
+  assert.throws(
+    () => normalizePromotionLayout({ alignment: 'diagonal' }),
+    (error) => error instanceof BadRequestException,
+  );
+  assert.throws(
+    () => normalizePromotionLayout({ headingSize: 5.6 }),
+    (error) => error instanceof BadRequestException,
+  );
+  assert.throws(
+    () => normalizePromotionLayout('malformed'),
+    (error) => error instanceof BadRequestException,
+  );
   assert.equal(
     derivePromotionState(
       { status: HomepagePromotionStatus.DRAFT, startAt: null, endAt: null },
