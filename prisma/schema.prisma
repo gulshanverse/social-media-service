@@ -168,6 +168,7 @@ model Theme {
   updatedAt        DateTime        @updatedAt
   confessions      Confession[]
   favorites        ThemeFavorite[]
+  homepagePromotions HomepagePromotion[] @relation("HomepagePromotionTheme")
 
   @@index([status, startAt, endAt])
   @@index([mode, layoutVariant])
@@ -401,6 +402,8 @@ model HomepagePromotion {
   mobileImageUrl    String?
   mobileImageKey    String?
   backgroundPreset  String    @default("aurora")
+  themeId           String?
+  layoutSettings    Json?
   imageAlt          String?
   ctaLabel          String?
   destinationUrl    String?
@@ -414,9 +417,11 @@ model HomepagePromotion {
   updatedById       String?
   createdBy         AdminUser?               @relation("HomepagePromotionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   updatedBy         AdminUser?               @relation("HomepagePromotionUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  theme             Theme?                   @relation("HomepagePromotionTheme", fields: [themeId], references: [id], onDelete: SetNull)
 
   @@index([status, startAt, endAt, priority])
   @@index([priority, createdAt])
+  @@index([themeId])
 }
 
 model BawalBoxSettings {
