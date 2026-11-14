@@ -150,12 +150,51 @@ export default function ConfessionsFeed({ initialQuery, promotions }: Props) {
   const [sortOpen, setSortOpen] = useState(false);
   const [draft, setDraft] = useState({ ...defaultQuery, ...initialQuery });
   const [serviceIndex, setServiceIndex] = useState(0);
+  const [servicePaused, setServicePaused] = useState(false);
+  const [serviceVisible, setServiceVisible] = useState(true);
+  const [documentVisible, setDocumentVisible] = useState(true);
+  const [reducedMotion, setReducedMotion] = useState(false);
   const requestId = useRef(0);
   const serviceTrack = useRef<HTMLDivElement>(null);
+  const serviceCarousel = useRef<HTMLElement>(null);
   const feedToolbar = useRef<HTMLDivElement>(null);
   const paginationScrollPending = useRef(false);
   const pointerStart = useRef<number | null>(null);
   const serviceDragged = useRef(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const updatePreference = () => setReducedMotion(mediaQuery.matches);
+    updatePreference();
+    mediaQuery.addEventListener?.('change', updatePreference);
+    return () => mediaQuery.removeEventListener?.('change', updatePreference);
+  }, []);
+
+  useEffect(() => {
+    const updateVisibility = () => setDocumentVisible(document.visibilityState === 'visible');
+    updateVisibility();
+    document.addEventListener('visibilitychange', updateVisibility);
+    return () => document.removeEventListener('visibilitychange', updateVisibility);
+  }, []);
+
+  useEffect(() => {
+    const node = serviceCarousel.current;
+    if (!node || !('IntersectionObserver' in window)) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setServiceVisible(entry.isIntersecting && entry.intersectionRatio >= 0.2),
+      { threshold: [0, 0.2, 0.5] },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (servicePaused || !serviceVisible || !documentVisible || reducedMotion) return;
+    const timer = window.setTimeout(() => {
+      setServiceIndex((index) => (index + 1) % serviceSlides.length);
+    }, 5000);
+    return () => window.clearTimeout(timer);
+  }, [documentVisible, reducedMotion, serviceIndex, servicePaused, serviceVisible]);
 
   const navigate = useCallback(
     (nextQuery: ConfessionFeedQuery, mode: HistoryMode = 'push') => {
@@ -284,11 +323,14 @@ export default function ConfessionsFeed({ initialQuery, promotions }: Props) {
 
   const selectService = (index: number) => {
     setServiceIndex(index);
-    serviceTrack.current?.scrollTo({
-      left: index * (serviceTrack.current.clientWidth || 1),
-      behavior: 'smooth',
-    });
   };
+
+  useEffect(() => {
+    serviceTrack.current?.scrollTo({
+      left: serviceIndex * (serviceTrack.current.clientWidth || 1),
+      behavior: reducedMotion ? 'auto' : 'smooth',
+    });
+  }, [reducedMotion, serviceIndex]);
 
   return (
     <main className="site-shell">
@@ -310,10 +352,40 @@ export default function ConfessionsFeed({ initialQuery, promotions }: Props) {
         </div>
       )}
 
-      <section className="featured-services" aria-label="Featured campus services">
+      <section
+        className="featured-services"
+        aria-label="Featured campus services"
+        aria-roledescription="carousel"
+        ref={serviceCarousel}
+        onMouseEnter={() => setServicePaused(true)}
+        onMouseLeave={() => setServicePaused(false)}
+        onFocus={() => setServicePaused(true)}
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null))
+            setServicePaused(false);
+        }}
+      >
         <div
           className="featured-services__track"
           ref={serviceTrack}
+          role="group"
+          aria-label="Featured services"
+          tabIndex={0}
+          onKeyDown={(event) => {
+            if (event.key === 'ArrowRight') {
+              event.preventDefault();
+              selectService((serviceIndex + 1) % serviceSlides.length);
+            } else if (event.key === 'ArrowLeft') {
+              event.preventDefault();
+              selectService((serviceIndex - 1 + serviceSlides.length) % serviceSlides.length);
+            } else if (event.key === 'Home') {
+              event.preventDefault();
+              selectService(0);
+            } else if (event.key === 'End') {
+              event.preventDefault();
+              selectService(serviceSlides.length - 1);
+            }
+          }}
           onScroll={(event) => {
             const track = event.currentTarget;
             const nextIndex = Math.round(track.scrollLeft / Math.max(track.clientWidth, 1));
@@ -322,6 +394,7 @@ export default function ConfessionsFeed({ initialQuery, promotions }: Props) {
           onPointerDown={(event) => {
             pointerStart.current = event.clientX;
             serviceDragged.current = false;
+            setServicePaused(true);
           }}
           onPointerMove={(event) => {
             if (pointerStart.current !== null && Math.abs(event.clientX - pointerStart.current) > 8)
@@ -329,12 +402,14 @@ export default function ConfessionsFeed({ initialQuery, promotions }: Props) {
           }}
           onPointerUp={() => {
             pointerStart.current = null;
+            setServicePaused(false);
           }}
           onPointerCancel={() => {
             pointerStart.current = null;
+            setServicePaused(false);
           }}
         >
-          {serviceSlides.map((slide) => {
+          {serviceSlides.map((slide, index) => {
             const content = (
               <>
                 <span className="featured-service__icon" aria-hidden="true">
@@ -352,11 +427,17 @@ export default function ConfessionsFeed({ initialQuery, promotions }: Props) {
                 )}
               </>
             );
+            const slideAttributes = {
+              role: 'group' as const,
+              'aria-roledescription': 'slide',
+              'aria-label': `${index + 1} of ${serviceSlides.length}: ${slide.title}`,
+            };
             return slide.href ? (
               <Link
                 className={`featured-service featured-service--${slide.accent}`}
                 href={slide.href}
                 key={slide.id}
+                {...slideAttributes}
                 onClick={(event) => {
                   if (serviceDragged.current) event.preventDefault();
                 }}
@@ -364,13 +445,21 @@ export default function ConfessionsFeed({ initialQuery, promotions }: Props) {
                 {content}
               </Link>
             ) : (
-              <div className={`featured-service featured-service--${slide.accent}`} key={slide.id}>
+              <div
+                className={`featured-service featured-service--${slide.accent}`}
+                key={slide.id}
+                {...slideAttributes}
+              >
                 {content}
               </div>
             );
           })}
         </div>
-        <div className="featured-services__dots" aria-label="Featured service slides">
+        <div
+          className="featured-services__dots"
+          role="group"
+          aria-label="Choose a featured service"
+        >
           {serviceSlides.map((slide, index) => (
             <button
               type="button"
@@ -382,6 +471,9 @@ export default function ConfessionsFeed({ initialQuery, promotions }: Props) {
             />
           ))}
         </div>
+        <span className="sr-only" aria-live="off">
+          {serviceIndex + 1} of {serviceSlides.length}
+        </span>
       </section>
 
       <section className="discovery-controls" aria-label="Find confessions">
