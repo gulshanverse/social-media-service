@@ -222,7 +222,7 @@ export default function ConfessionsFeed({ initialQuery, promotions }: Props) {
       setServiceIndex((index) =>
         index === serviceSlides.length - 1 ? serviceSlides.length : index + 1,
       );
-    }, 4000);
+    }, 3000);
     return () => window.clearTimeout(timer);
   }, [documentVisible, reducedMotion, serviceIndex, servicePaused, serviceVisible]);
 
