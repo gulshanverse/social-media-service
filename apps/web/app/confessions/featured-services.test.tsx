@@ -34,6 +34,13 @@ function activeDot() {
   return document.querySelector('.featured-services__dots [aria-current="true"]');
 }
 
+function makeScrollable(track: HTMLElement) {
+  Object.defineProperty(track, 'clientWidth', { configurable: true, value: 100 });
+  return vi.spyOn(track, 'scrollTo').mockImplementation((options) => {
+    track.scrollLeft = (options as unknown as ScrollToOptions).left ?? 0;
+  });
+}
+
 function emitIntersection(isIntersecting: boolean, intersectionRatio: number) {
   if (!observerCallback) throw new Error('IntersectionObserver callback was not registered.');
   act(() => {
@@ -115,6 +122,129 @@ describe('Featured Services carousel', () => {
       await act(async () => vi.advanceTimersByTime(5000));
     }
     expect(activeDot()?.getAttribute('aria-label')).toBe('Show VibeMatch');
+  });
+
+  it('moves forward through real slides, then smoothly reaches the hidden clone before an instant reset', async () => {
+    render(<ConfessionsFeed initialQuery={initialQuery} promotions={[]} />);
+    const track = screen.getByRole('group', { name: 'Featured services' });
+    const scrollTo = makeScrollable(track);
+    expect(track.querySelectorAll('.featured-service')).toHaveLength(5);
+    expect(
+      screen.getByRole('group', { name: 'Choose a featured service' }).querySelectorAll('button'),
+    ).toHaveLength(4);
+    expect(
+      track.querySelector('.featured-service[aria-hidden="true"]')?.getAttribute('tabindex'),
+    ).toBe('-1');
+    expect(track.querySelectorAll('a')).toHaveLength(3);
+
+    for (const [index, label] of [
+      'Show BawalBox',
+      'Show Campus Garba',
+      'Show Rentals & Finds',
+    ].entries()) {
+      await act(async () => vi.advanceTimersByTime(5000));
+      expect(activeDot()?.getAttribute('aria-label')).toBe(label);
+      expect(scrollTo).toHaveBeenLastCalledWith({ left: (index + 1) * 100, behavior: 'smooth' });
+    }
+    await act(async () => vi.advanceTimersByTime(5000));
+    expect(scrollTo).toHaveBeenLastCalledWith({ left: 400, behavior: 'smooth' });
+    expect(activeDot()?.getAttribute('aria-label')).toBe('Show VibeMatch');
+
+    act(() => track.dispatchEvent(new Event('scrollend')));
+    expect(scrollTo).toHaveBeenLastCalledWith({ left: 0, behavior: 'auto' });
+    expect(activeDot()?.getAttribute('aria-label')).toBe('Show VibeMatch');
+    await act(async () => vi.advanceTimersByTime(5000));
+    expect(activeDot()?.getAttribute('aria-label')).toBe('Show BawalBox');
+    expect(scrollTo).toHaveBeenLastCalledWith({ left: 100, behavior: 'smooth' });
+  });
+
+  it('never animates backward when autoplay wraps forward through the clone', async () => {
+    render(<ConfessionsFeed initialQuery={initialQuery} promotions={[]} />);
+    const track = screen.getByRole('group', { name: 'Featured services' });
+    const scrollTo = makeScrollable(track);
+    for (let step = 0; step < 4; step += 1) {
+      await act(async () => vi.advanceTimersByTime(5000));
+    }
+    expect(scrollTo).toHaveBeenLastCalledWith({ left: 400, behavior: 'smooth' });
+    const cloneTransitionIndex = scrollTo.mock.calls.length - 1;
+    act(() => track.dispatchEvent(new Event('scrollend')));
+    expect(scrollTo).toHaveBeenLastCalledWith({ left: 0, behavior: 'auto' });
+    expect(
+      scrollTo.mock.calls
+        .slice(cloneTransitionIndex + 1)
+        .some(
+          ([options]) => (options as unknown as ScrollToOptions | undefined)?.behavior === 'smooth',
+        ),
+    ).toBe(false);
+  });
+
+  it('repeats the forward clone loop without adding a fifth logical dot', async () => {
+    render(<ConfessionsFeed initialQuery={initialQuery} promotions={[]} />);
+    const track = screen.getByRole('group', { name: 'Featured services' });
+    const scrollTo = makeScrollable(track);
+    for (let loop = 0; loop < 2; loop += 1) {
+      for (let step = 0; step < 4; step += 1) {
+        await act(async () => vi.advanceTimersByTime(5000));
+      }
+      expect(scrollTo).toHaveBeenLastCalledWith({ left: 400, behavior: 'smooth' });
+      expect(activeDot()?.getAttribute('aria-label')).toBe('Show VibeMatch');
+      act(() => track.dispatchEvent(new Event('scrollend')));
+      expect(scrollTo).toHaveBeenLastCalledWith({ left: 0, behavior: 'auto' });
+      expect(
+        screen.getByRole('group', { name: 'Choose a featured service' }).querySelectorAll('button'),
+      ).toHaveLength(4);
+      await act(async () => vi.advanceTimersByTime(5000));
+    }
+    expect(activeDot()?.getAttribute('aria-label')).toBe('Show BawalBox');
+  });
+
+  it('resets a manual swipe across the last-to-first boundary without a reverse animation', async () => {
+    render(<ConfessionsFeed initialQuery={initialQuery} promotions={[]} />);
+    const track = screen.getByRole('group', { name: 'Featured services' });
+    const scrollTo = makeScrollable(track);
+    fireEvent.pointerDown(track, { pointerType: 'touch', clientX: 120 });
+    track.scrollLeft = 400;
+    fireEvent.scroll(track);
+    expect(activeDot()?.getAttribute('aria-label')).toBe('Show VibeMatch');
+    fireEvent.pointerUp(track, { pointerType: 'touch', clientX: 10 });
+    await act(async () => vi.advanceTimersByTime(160));
+    expect(scrollTo).toHaveBeenLastCalledWith({ left: 0, behavior: 'auto' });
+  });
+
+  it('wraps keyboard navigation at both boundaries and preserves Home and End', async () => {
+    render(<ConfessionsFeed initialQuery={initialQuery} promotions={[]} />);
+    await act(async () => Promise.resolve());
+    const track = screen.getByRole('group', { name: 'Featured services' });
+    const scrollTo = makeScrollable(track);
+    act(() => fireEvent.keyDown(track, { key: 'ArrowLeft' }));
+    expect(activeDot()?.getAttribute('aria-label')).toBe('Show Rentals & Finds');
+    expect(scrollTo).toHaveBeenLastCalledWith({ left: 300, behavior: 'smooth' });
+    act(() => fireEvent.keyDown(track, { key: 'ArrowRight' }));
+    expect(activeDot()?.getAttribute('aria-label')).toBe('Show VibeMatch');
+    expect(scrollTo).toHaveBeenLastCalledWith({ left: 0, behavior: 'smooth' });
+    act(() => fireEvent.keyDown(track, { key: 'End' }));
+    expect(activeDot()?.getAttribute('aria-label')).toBe('Show Rentals & Finds');
+    act(() => fireEvent.keyDown(track, { key: 'Home' }));
+    expect(activeDot()?.getAttribute('aria-label')).toBe('Show VibeMatch');
+  });
+
+  it('resets a reduced-motion swipe across the clone immediately without smooth scrolling', async () => {
+    setMediaPreferences({ reducedMotion: true });
+    render(<ConfessionsFeed initialQuery={initialQuery} promotions={[]} />);
+    await act(async () => Promise.resolve());
+    const track = screen.getByRole('group', { name: 'Featured services' });
+    const scrollTo = makeScrollable(track);
+    scrollTo.mockClear();
+    fireEvent.pointerDown(track, { pointerType: 'touch', clientX: 120 });
+    track.scrollLeft = 400;
+    fireEvent.scroll(track);
+    fireEvent.pointerUp(track, { pointerType: 'touch', clientX: 10 });
+    expect(scrollTo).toHaveBeenLastCalledWith({ left: 0, behavior: 'auto' });
+    expect(
+      scrollTo.mock.calls.some(
+        ([options]) => (options as unknown as ScrollToOptions | undefined)?.behavior === 'smooth',
+      ),
+    ).toBe(false);
   });
 
   it('resets autoplay after dot navigation and supports keyboard slide navigation', async () => {
