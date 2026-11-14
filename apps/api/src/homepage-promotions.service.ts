@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { HomepagePromotionStatus, Prisma } from '@prisma/client';
+import { HomepagePromotionStatus, Prisma, ThemeStatus } from '@prisma/client';
 import { del } from '@vercel/blob';
 import { garbaThemes, normalizeImportedTheme, normalizeTheme, themePresets, themes } from '@ggv/themes';
 import type { PromotionLayoutSettings } from '@ggv/types';
@@ -46,8 +46,11 @@ const LAYOUT_ENUMS = {
   horizontalPosition: ['left', 'center', 'right'], verticalPosition: ['top', 'center', 'bottom'], contentWidth: ['narrow', 'standard', 'wide'], padding: ['compact', 'comfortable', 'airy'], spacing: ['compact', 'comfortable', 'airy'],
 } as const;
 export function normalizePromotionLayout(input: unknown): PromotionLayoutSettings {
-  const source = input && typeof input === 'object' && !Array.isArray(input) ? input as Record<string, unknown> : {};
+  if (input !== undefined && input !== null && (typeof input !== 'object' || Array.isArray(input)))
+    throw new BadRequestException('Promotion layout must be an object.');
+  const source = input && typeof input === 'object' ? input as Record<string, unknown> : {};
   const result = { ...DEFAULT_PROMOTION_LAYOUT } as Record<string, unknown>;
+  for (const key of Object.keys(source)) if (!(key in DEFAULT_PROMOTION_LAYOUT)) throw new BadRequestException(`Invalid promotion layout ${key}.`);
   for (const [key, value] of Object.entries(source)) if (value !== undefined) result[key] = value;
   if (result.version !== 1) throw new BadRequestException('Unsupported promotion layout version.');
   for (const [key, values] of Object.entries(LAYOUT_ENUMS)) if (!(values as readonly unknown[]).includes(result[key])) throw new BadRequestException(`Invalid promotion layout ${key}.`);
@@ -63,6 +66,29 @@ function registryTheme(id: string) {
   const preset = themePresets.find((theme) => theme.slug === id);
   if (preset) return normalizeImportedTheme(preset).normalized;
   return LEGACY_THEMES.midnight;
+}
+const SUPPORTED_BUILTIN_THEME_IDS = new Set<string>([
+  ...HOMEPAGE_PROMOTION_PRESETS,
+  ...themes.map((theme) => theme.id),
+  ...garbaThemes.map((theme) => theme.id),
+  ...themePresets.map((theme) => theme.slug),
+]);
+export function isSupportedBuiltinThemeId(id: string) {
+  return SUPPORTED_BUILTIN_THEME_IDS.has(id);
+}
+export type PromotionThemeAvailability = 'AVAILABLE' | 'DRAFT' | 'SCHEDULED' | 'EXPIRED' | 'MISSING';
+export function promotionThemeAvailability(
+  theme: { status: ThemeStatus | string; startAt?: Date | null; endAt?: Date | null } | null,
+  now = new Date(),
+): PromotionThemeAvailability {
+  if (!theme) return 'MISSING';
+  if (theme.status === ThemeStatus.DRAFT) return 'DRAFT';
+  if (theme.endAt && theme.endAt <= now) return 'EXPIRED';
+  if (theme.startAt && theme.startAt > now) return 'SCHEDULED';
+  if (theme.status === ThemeStatus.SCHEDULED) return theme.startAt ? 'AVAILABLE' : 'SCHEDULED';
+  return theme.status === ThemeStatus.ACTIVE || theme.status === ThemeStatus.PUBLISHED
+    ? 'AVAILABLE'
+    : 'MISSING';
 }
 function publicTheme(theme: any) {
   const normalized = normalizeTheme({ ...theme, slug: theme.id ?? theme.slug, tokens: theme.tokens ?? undefined });
@@ -213,6 +239,7 @@ export class HomepagePromotionsService {
     if (!title) throw new BadRequestException('Enter a promotion title.');
     validateArtwork(body.desktopImageUrl, body.desktopImageKey, body.backgroundPreset);
     const themeId = await this.validateThemeId(body.themeId);
+    if (body.status === HomepagePromotionStatus.PUBLISHED) await this.assertThemeEligible(themeId);
     const layoutSettings = normalizePromotionLayout(body.layoutSettings);
     if (body.mobileImageUrl || body.mobileImageKey) {
       if (!body.mobileImageUrl || !body.mobileImageKey)
@@ -303,6 +330,9 @@ export class HomepagePromotionsService {
     const endAt =
       body.endAt === undefined ? current.endAt : body.endAt ? new Date(body.endAt) : null;
     validateDateRange(startAt, endAt);
+    if (body.status === HomepagePromotionStatus.PUBLISHED) {
+      await this.assertThemeEligible((data.themeId as string | null | undefined) ?? current.themeId);
+    }
     if (body.startAt !== undefined) data.startAt = startAt;
     if (body.endAt !== undefined) data.endAt = endAt;
 
@@ -328,6 +358,7 @@ export class HomepagePromotionsService {
   private async setStatus(id: string, status: HomepagePromotionStatus, actorId: string) {
     const current = await prisma.homepagePromotion.findUnique({ where: { id } });
     if (!current) throw new NotFoundException('Homepage promotion not found.');
+    if (status === HomepagePromotionStatus.PUBLISHED) await this.assertThemeEligible(current.themeId);
     const item = await prisma.homepagePromotion.update({
       where: { id },
       data: { status, updatedById: actorId },
@@ -432,13 +463,30 @@ export class HomepagePromotionsService {
     if (!value) return null;
     if (value.startsWith('builtin:')) {
       const id = value.slice('builtin:'.length);
-      if (!registryTheme(id) || id === 'midnight' && !LEGACY_THEMES.midnight) throw new BadRequestException('Invalid promotion theme.');
+      if (!isSupportedBuiltinThemeId(id)) throw new BadRequestException('Invalid built-in promotion theme.');
       return value;
     }
+    if (value.includes(':') && !value.startsWith('db:')) throw new BadRequestException('Invalid promotion theme reference.');
     const id = value.startsWith('db:') ? value.slice(3) : value;
+    if (!id) throw new BadRequestException('Invalid database promotion theme.');
     const theme = await prisma.theme.findUnique({ where: { id }, select: { id: true } });
     if (!theme) throw new BadRequestException('Invalid promotion theme.');
     return `db:${theme.id}`;
+  }
+
+  private async assertThemeEligible(themeId: string | null | undefined, now = new Date()) {
+    if (!themeId) return;
+    if (themeId.startsWith('builtin:')) {
+      if (!isSupportedBuiltinThemeId(themeId.slice('builtin:'.length))) throw new BadRequestException('Selected built-in theme is unavailable.');
+      return;
+    }
+    const id = themeId.startsWith('db:') ? themeId.slice(3) : themeId;
+    const theme = await prisma.theme.findUnique({ where: { id }, select: { status: true, startAt: true, endAt: true } });
+    const availability = promotionThemeAvailability(theme, now);
+    if (availability !== 'AVAILABLE') {
+      const message = { DRAFT: 'Draft themes must be published before a promotion can go live.', SCHEDULED: 'The selected theme is not active yet or is outside its schedule.', EXPIRED: 'The selected theme has expired.', MISSING: 'The selected theme is unavailable.' }[availability];
+      throw new BadRequestException(message);
+    }
   }
 
   private async resolveTheme(themeId: string | null | undefined, backgroundPreset: string, now: Date) {
@@ -447,8 +495,7 @@ export class HomepagePromotionsService {
       if (themeId) {
         const id = themeId.startsWith('db:') ? themeId.slice(3) : themeId;
         const theme = await prisma.theme.findUnique({ where: { id } });
-        if (theme && ['ACTIVE', 'PUBLISHED'].includes(String(theme.status))) return publicTheme(theme);
-        if (theme?.status === 'SCHEDULED' && theme.startAt && theme.startAt <= now && (!theme.endAt || theme.endAt > now)) return publicTheme(theme);
+        if (promotionThemeAvailability(theme, now) === 'AVAILABLE') return publicTheme(theme);
       }
       return publicTheme(registryTheme(HOMEPAGE_PROMOTION_PRESETS.includes(backgroundPreset as HomepagePromotionPreset) ? backgroundPreset : 'midnight'));
     } catch {
