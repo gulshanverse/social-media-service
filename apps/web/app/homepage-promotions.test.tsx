@@ -76,6 +76,36 @@ describe('HomepagePromotionCarousel', () => {
     ).toBe('https://events.example/clubs');
   });
 
+  it('renders desktop-only artwork', () => {
+    const { container } = render(
+      <HomepagePromotionCarousel promotions={[{ ...promotions[0], mobileImageUrl: null }]} />,
+    );
+    expect(container.querySelector('img')?.getAttribute('src')).toBe(
+      'https://assets.example/desktop.webp',
+    );
+  });
+
+  it('renders mobile-only artwork with the mobile image as the fallback source', () => {
+    const { container } = render(
+      <HomepagePromotionCarousel promotions={[{ ...promotions[0], desktopImageUrl: null }]} />,
+    );
+    expect(container.querySelector('img')?.getAttribute('src')).toBe(
+      'https://assets.example/mobile.webp',
+    );
+    expect(container.querySelector('source')?.getAttribute('srcset')).toBe(
+      'https://assets.example/mobile.webp',
+    );
+  });
+
+  it('falls back to Aurora for an invalid background preset', () => {
+    const { container } = render(
+      <HomepagePromotionCarousel
+        promotions={[{ ...promotions[0], backgroundPreset: 'invalid' }]}
+      />,
+    );
+    expect(container.querySelector('.promotion-background--aurora')).toBeTruthy();
+  });
+
   it('renders a CSS background when a campaign has no uploaded artwork', () => {
     const { container } = render(
       <HomepagePromotionCarousel

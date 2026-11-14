@@ -88,14 +88,14 @@ export default function HomepagePromotionCarousel({ promotions }: Props) {
     >
       <div className="homepage-promotion-card" key={active.id}>
         <div className={`homepage-promotion-media ${backgroundClass(active.backgroundPreset)}`}>
-          {active.desktopImageUrl && (
+          {(active.desktopImageUrl || active.mobileImageUrl) && (
             <picture>
               {active.mobileImageUrl && (
                 <source media="(max-width: 600px)" srcSet={active.mobileImageUrl} />
               )}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={active.desktopImageUrl}
+                src={active.desktopImageUrl || active.mobileImageUrl || ''}
                 alt={active.imageAlt || active.title}
                 width={1200}
                 height={450}

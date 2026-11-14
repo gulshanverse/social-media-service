@@ -147,6 +147,7 @@ export default function HomepagePromotions({ api, uploadFile }: Props) {
   const [desktopPreview, setDesktopPreview] = useState('');
   const [mobilePreview, setMobilePreview] = useState('');
   const [previewViewport, setPreviewViewport] = useState<'desktop' | 'mobile'>('desktop');
+  const [artworkMode, setArtworkMode] = useState<'background' | 'upload'>('background');
 
   const load = useCallback(
     async (requestedPage = page) => {
@@ -186,7 +187,6 @@ export default function HomepagePromotions({ api, uploadFile }: Props) {
   }, [desktopPreview, mobilePreview]);
 
   const editing = mode === 'edit' && Boolean(selectedId);
-  const artworkMode = form.desktopImageUrl ? 'upload' : 'background';
   const backgroundClass = `promotion-background--${form.backgroundPreset}`;
 
   const imageForPreview = useMemo(() => {
@@ -204,6 +204,7 @@ export default function HomepagePromotions({ api, uploadFile }: Props) {
     setDesktopProgress(null);
     setMobileProgress(null);
     setError('');
+    setArtworkMode('background');
   }
 
   function openCreate() {
@@ -211,6 +212,7 @@ export default function HomepagePromotions({ api, uploadFile }: Props) {
     setSelectedId(null);
     setDesktopPreview('');
     setMobilePreview('');
+    setArtworkMode('background');
     setMode('create');
     setError('');
     setMessage('');
@@ -218,6 +220,7 @@ export default function HomepagePromotions({ api, uploadFile }: Props) {
 
   function openEdit(item: Promotion, nextMode: EditorMode = 'edit') {
     setForm(fromPromotion(item));
+    setArtworkMode(item.desktopImageUrl || item.mobileImageUrl ? 'upload' : 'background');
     setSelectedId(item.id);
     setDesktopPreview('');
     setMobilePreview('');
@@ -579,20 +582,14 @@ export default function HomepagePromotions({ api, uploadFile }: Props) {
                     placeholder="Describe the poster for screen readers"
                   />
                 </label>
-                <label className="promotion-form-wide">
-                  Artwork mode
+                <label className="promotion-form-wide" htmlFor="artwork-mode">
+                  <span>Artwork mode</span>
                   <select
+                    id="artwork-mode"
                     value={artworkMode}
-                    onChange={(event) => {
-                      if (event.target.value === 'background') {
-                        updateField('desktopImageUrl', '');
-                        updateField('desktopImageKey', '');
-                        updateField('mobileImageUrl', '');
-                        updateField('mobileImageKey', '');
-                        setDesktopPreview('');
-                        setMobilePreview('');
-                      }
-                    }}
+                    onChange={(event) =>
+                      setArtworkMode(event.target.value as 'background' | 'upload')
+                    }
                   >
                     <option value="background">Built-in background</option>
                     <option value="upload">Upload poster</option>
