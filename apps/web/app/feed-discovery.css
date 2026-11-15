@@ -679,14 +679,26 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  flex: 0 0 auto;
 }
 .layout-select-wrap {
   position: relative;
   display: inline-flex;
 }
+.layout-select-wrap::after {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  content: '⌄';
+  transform: translateY(-54%);
+  pointer-events: none;
+  color: #8793aa;
+  font-size: 0.9rem;
+  line-height: 1;
+}
 .layout-select {
   min-height: 34px;
-  padding: 5px 28px 5px 10px;
+  padding: 5px 23px 5px 9px;
   border: 1px solid #33415d;
   border-radius: 10px;
   background: #101522;
@@ -694,6 +706,7 @@
   font-size: 0.78rem;
   font-weight: 700;
   cursor: pointer;
+  appearance: none;
 }
 .layout-select:focus-visible,
 .carousel-control:focus-visible,
@@ -775,13 +788,21 @@
   }
 }
 @media (max-width: 600px) {
+  .feed-toolbar {
+    flex-wrap: wrap;
+  }
   .feed-toolbar__controls {
-    gap: 5px;
+    gap: 6px;
+    max-width: 100%;
   }
   .layout-select {
     min-height: 32px;
-    padding-inline: 8px 24px;
+    padding: 4px 21px 4px 8px;
     font-size: 0.72rem;
+  }
+  .layout-select-wrap::after {
+    right: 7px;
+    font-size: 0.82rem;
   }
   .confession-carousel {
     padding: 14px 16px 64px;
@@ -807,5 +828,22 @@
   .layout-select {
     scroll-behavior: auto;
     transition: none;
+  }
+}
+@media (max-width: 340px) {
+  .feed-toolbar__controls {
+    width: 100%;
+    margin-top: 8px;
+  }
+  .feed-toolbar__controls .layout-select-wrap,
+  .feed-toolbar__controls .sort-wrap,
+  .feed-toolbar__controls .sort-button,
+  .feed-toolbar__controls .layout-select {
+    flex: 1 1 auto;
+  }
+  .feed-toolbar__controls .layout-select,
+  .feed-toolbar__controls .sort-button {
+    justify-content: center;
+    width: 100%;
   }
 }
