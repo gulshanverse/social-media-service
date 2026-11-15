@@ -1,25 +1,25 @@
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import type { Metadata } from 'next';
-import { DM_Sans, Space_Grotesk } from 'next/font/google';
+import localFont from 'next/font/local';
 import '@ggv/ui/src/styles.css';
 import './globals.css';
 import { SiteFooter } from '../components/SiteFooter';
 import { PublicHeader } from '../components/PublicHeader';
 import { SITE_ORIGIN } from '../lib/seo-routes';
 
-const dmSans = DM_Sans({
+const dmSans = localFont({
   variable: '--font-dm-sans',
-  subsets: ['latin'],
+  src: './fonts/dm-sans-latin.woff2',
   display: 'swap',
-  weight: ['400', '500', '700'],
+  weight: '400 700',
 });
 
-const spaceGrotesk = Space_Grotesk({
+const spaceGrotesk = localFont({
   variable: '--font-space-grotesk',
-  subsets: ['latin'],
+  src: './fonts/space-grotesk-latin.woff2',
   display: 'swap',
-  weight: ['500', '600', '700'],
+  weight: '500 700',
 });
 
 export const metadata: Metadata = {
