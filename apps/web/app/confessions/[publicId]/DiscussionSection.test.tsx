@@ -117,7 +117,8 @@ describe('College Confession engagement redesign', () => {
   it('renders the complete engagement toolbar and opens the full reply composer', async () => {
     render(<DiscussionSection publicId="conf-1" confession={confession} />);
 
-    expect(await screen.findByRole('group', { name: 'Confession engagement' })).toBeInTheDocument();
+    const toolbar = await screen.findByRole('group', { name: 'Confession engagement' });
+    expect(toolbar.children).toHaveLength(6);
     expect(screen.getByLabelText('7.4K views')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /reactions\. Jump to reactions/i })).toHaveAttribute(
       'href',
@@ -129,6 +130,15 @@ describe('College Confession engagement redesign', () => {
     expect(screen.getByRole('button', { name: 'Save confession' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Share' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Report confession' })).toBeInTheDocument();
+    expect(within(toolbar).queryByText('Views')).not.toBeInTheDocument();
+    expect(within(toolbar).queryByText('Reactions')).not.toBeInTheDocument();
+    expect(within(toolbar).queryByText('Replies')).not.toBeInTheDocument();
+    expect(within(toolbar).queryByText('Save')).not.toBeInTheDocument();
+    expect(within(toolbar).getByText('Share')).toHaveClass('visually-hidden');
+    expect(within(toolbar).queryByText('Report')).not.toBeInTheDocument();
+    expect(screen.queryByText('How does this confession feel?')).not.toBeInTheDocument();
+    expect(screen.queryByText('3 reactions')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add a reaction' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /replies\. Open reply composer/i }));
     expect(screen.getByRole('dialog', { name: 'Write a reply' })).toBeInTheDocument();

@@ -1,36 +1,30 @@
-# College Confession Engagement Redesign
+# College Confession Minimal X Refinement
 
 ## Approved direction
 
-Implement the supplied “College Confession 2.0 — Clean Social + Animated Reaction Interactions” reference around the existing confession detail view. The confession card itself is a protected surface: its dimensions, typography, green gradient, padding, metadata, category/date presentation, and theme-engine integration remain unchanged. All new work belongs to the engagement and discussion surfaces below it.
+Refine the existing College Confession detail experience using the user's supplied mobile screenshot as the surrounding-UI reference. Keep the existing confession card strictly locked: do not alter its dimensions, gradient, typography, content, padding, metadata, date, category, or theme integration. Do not substitute mocks for existing API-backed replies and reactions.
 
 ## Design
 
-- **Design movement:** polished mobile-first social conversation UI with restrained neon utility accents.
-- **Core principles:** readable hierarchy, tactile controls, quiet dark surfaces, and motion that confirms intent without distracting from the confession.
-- **Color philosophy:** retain the dark campus-night canvas and use neon lime as the owned interaction color; borders and surfaces stay blue-black so reactions and actions feel earned rather than over-glowed.
-- **Layout paradigm:** one narrow conversation rail on desktop that becomes a full-width vertical thread on mobile, with the quick reply docked to the viewport only at small widths.
-- **Signature elements:** compact engagement-stat rail, horizontal emoji reaction tiles with a floating emoji response, and anonymous avatar/comment cards with a visible reply spine.
-- **Interaction philosophy:** every tap gives immediate local feedback, then reconciles with the server; errors restore the prior state and explain what happened.
-- **Animation:** 160–240ms scale/pop and restrained floating emoji; all motion is disabled or minimized under `prefers-reduced-motion`.
-- **Typography:** preserve the project’s DM Sans body and Space Grotesk display pairing; use compact uppercase eyebrow labels and generous line-height for user content.
-- **Brand essence:** a safer, warmer campus conversation layer for anonymous thoughts; calm, tactile, inclusive.
-- **Brand voice:** “Keep it kind, specific, and safe.” and “Your reply will be reviewed before it appears publicly.”
-- **Signature brand color:** `#c8ff00` neon lime.
+- **Design movement:** Minimal X-inspired campus conversation UI.
+- **Core principles:** compact controls, clear conversation hierarchy, quiet separators, and accessible touch targets.
+- **Color philosophy:** retain the existing dark canvas and use the existing lime accent for active/selected states.
+- **Layout paradigm:** one horizontal six-item engagement toolbar, a light reaction strip, divider-based replies, and a compact composer that respects safe-area insets.
+- **Signature elements:** icon-and-count engagement row, emoji counts beneath reactions, and an understated Popular/Latest discussion header.
+- **Interaction philosophy:** preserve current server-backed actions, optimistic feedback/rollback, anonymous identity/registration, reporting/moderation, and threaded-reply behavior.
+- **Animation:** retain existing reaction animation and reduced-motion support; add no decorative motion.
+- **Typography:** inherit current application typography and preserve the confession-card typography exactly.
+- **Brand essence:** a low-friction anonymous campus conversation surface; calm, inclusive, and direct.
+- **Brand voice:** retain existing reply and moderation guidance.
+- **Signature brand color:** existing lime `#c8ff00`.
 
 ## Implementation
 
-- Extend the public confession projection with `viewCount` so the detail UI can show actual views.
-- Add an additive `ConfessionCommentReaction` table and API route using the same actor/session hashing and emoji normalization rules as confession reactions.
-- Extend the existing discussion payload with per-comment reaction counts and selected reactions; do not create a duplicate reaction system.
-- Rewrite only the discussion client presentation: optimistic confession/comment reactions, selected state, animation, action bar, latest/popular sorting, nested reply collapse/expand, loading/empty/error/pending states, and quick/full reply composers.
-- Keep existing registration, moderation, reporting, session cookie, and attachment behavior unchanged; no unsupported attachment controls are added.
+Make a focused frontend-only change to the existing detail experience. Use the current `DiscussionSection` state and API functions; do not create mock data, a second reaction system, a database migration, or production configuration changes. Keep new visual rules scoped to `.detail-page` and below the protected card. Preserve current reaction options, the custom-reaction control, selected state, animation, save persistence, share destinations, report routes, comment sorting, nested-reply collapse/expand, guest registration, validation, and moderation messages.
 
 ## Project structure
 
-- `apps/web/app/confessions/[publicId]/ConfessionDetailClient.tsx` owns the detail shell and passes the protected confession card into the engagement section.
-- `apps/web/app/confessions/[publicId]/DiscussionSection.tsx` owns engagement state, composers, reaction interactions, comment sorting, and threaded comment rendering.
-- `apps/web/app/globals.css` owns the reference-aligned engagement surfaces without changing confession-card rules.
-- `apps/api/src/confessions/*` owns public counts, comment reaction routes, and response shaping.
-- `prisma/schema.prisma` and the additive migration own comment-reaction persistence.
-- Focused web/API tests cover optimistic updates, rollback, sorting, nested reply visibility, composer submission, and comment reaction toggling.
+- `apps/web/app/confessions/[publicId]/DiscussionSection.tsx` owns the engagement toolbar, reactions, reply sorting/thread controls, and compact reply composer.
+- `apps/web/app/confessions/[publicId]/DiscussionSection.test.tsx` protects toolbar semantics and existing interaction behavior.
+- `apps/web/app/globals.css` contains scoped detail-page styling; confession-card selectors and source remain unchanged.
+- `apps/web/components/ConfessionCard.tsx` and `packages/ui/src/ConfessionCard.tsx` are protected from modification.
