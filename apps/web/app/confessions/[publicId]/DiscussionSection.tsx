@@ -1,16 +1,21 @@
 'use client';
+
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import type { PublicConfession } from '@ggv/types';
 import {
   ApiRequestError,
   CommenterProfile,
   DiscussionComment,
   DiscussionPage,
+  ReactionState,
   getCommenterIdentity,
   getConfessionReactions,
   getDiscussion,
   postDiscussionComment,
+  reactToComment,
   reactToConfession,
   registerCommenter,
+  reportDiscussionComment,
 } from '../../../lib/api';
 
 const commonEmoji = [
@@ -35,6 +40,12 @@ const commonEmoji = [
   '💔',
   '🌻',
 ];
+const commentEmoji = ['❤️', '😂', '👍'];
+
+type SortOrder = 'popular' | 'latest';
+type FloatingReaction = { id: number; emoji: string };
+type CommentReactionSummary = { counts: Record<string, number>; selected: string[] };
+
 function initials(name: string) {
   return name
     .trim()
@@ -44,6 +55,7 @@ function initials(name: string) {
     .join('')
     .toUpperCase();
 }
+
 function relative(date: string) {
   const seconds = Math.max(1, Math.floor((Date.now() - new Date(date).getTime()) / 1000));
   if (seconds < 60) return `${seconds}s ago`;
@@ -52,59 +64,210 @@ function relative(date: string) {
   return `${Math.floor(seconds / 86400)}d ago`;
 }
 
-export default function DiscussionSection({ publicId }: { publicId: string }) {
-  const [reactions, setReactions] = useState<{
-    options: string[];
-    counts: Record<string, number>;
-    customReactions: { emoji: string; count: number }[];
-    selected: string[];
-  } | null>(null);
+function compactCount(value: number) {
+  if (value >= 1000) return `${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}K`;
+  return String(value);
+}
+
+function totalReactionCount(state: ReactionState | null) {
+  return state ? Object.values(state.counts).reduce((total, count) => total + count, 0) : 0;
+}
+
+function commentReactionCount(comment: DiscussionComment) {
+  return Object.values(comment.reactionCounts ?? {}).reduce((total, count) => total + count, 0);
+}
+
+function updateCommentReaction(
+  items: DiscussionComment[],
+  commentId: string,
+  summary: CommentReactionSummary,
+): DiscussionComment[] {
+  return items.map((comment) => ({
+    ...comment,
+    ...(comment.id === commentId
+      ? { reactionCounts: summary.counts, selectedReactions: summary.selected }
+      : {}),
+    replies: updateCommentReaction(comment.replies, commentId, summary),
+  }));
+}
+
+function updateCommentReactionOptimistically(
+  items: DiscussionComment[],
+  commentId: string,
+  emoji: string,
+): DiscussionComment[] {
+  return items.map((comment) => {
+    if (comment.id === commentId) {
+      const selectedReactions = comment.selectedReactions ?? [];
+      const reactionCounts = comment.reactionCounts ?? {};
+      const selected = selectedReactions.includes(emoji);
+      const nextCounts = { ...reactionCounts, [emoji]: reactionCounts[emoji] ?? 0 };
+      nextCounts[emoji] = Math.max(0, nextCounts[emoji] + (selected ? -1 : 1));
+      return {
+        ...comment,
+        reactionCounts: nextCounts,
+        selectedReactions: selected
+          ? selectedReactions.filter((item) => item !== emoji)
+          : [...selectedReactions, emoji],
+      };
+    }
+    return {
+      ...comment,
+      replies: updateCommentReactionOptimistically(comment.replies, commentId, emoji),
+    };
+  });
+}
+
+export default function DiscussionSection({
+  publicId,
+  confession,
+}: {
+  publicId: string;
+  confession: PublicConfession;
+}) {
+  const [reactions, setReactions] = useState<ReactionState | null>(null);
   const [discussion, setDiscussion] = useState<DiscussionPage | null>(null);
   const [profile, setProfile] = useState<CommenterProfile | null>(null);
   const [content, setContent] = useState('');
   const [replyTo, setReplyTo] = useState<DiscussionComment | null>(null);
   const [registrationOpen, setRegistrationOpen] = useState(false);
+  const [composerOpen, setComposerOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [instagramUsername, setInstagramUsername] = useState('');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('popular');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
+  const [pendingReactions, setPendingReactions] = useState<string[]>([]);
+  const [pendingCommentReactions, setPendingCommentReactions] = useState<string[]>([]);
+  const [floatingReactions, setFloatingReactions] = useState<FloatingReaction[]>([]);
+  const [saved, setSaved] = useState(false);
+  const floatingId = useRef(0);
   const submittingRef = useRef(false);
   const filteredEmoji = useMemo(
     () => commonEmoji.filter((emoji) => !search || emoji.includes(search)),
     [search],
   );
+
   useEffect(() => {
+    let active = true;
     Promise.all([getConfessionReactions(publicId), getDiscussion(publicId), getCommenterIdentity()])
       .then(([reactionData, comments, identity]) => {
+        if (!active) return;
         setReactions(reactionData);
         setDiscussion(comments);
         setProfile(identity);
       })
-      .catch(() => setError('We could not load the conversation yet.'));
+      .catch(() => {
+        if (active) setError('We could not load the conversation yet.');
+      });
+    return () => {
+      active = false;
+    };
   }, [publicId]);
+
+  useEffect(() => {
+    try {
+      setSaved(window.localStorage.getItem(`saved-confession:${publicId}`) === 'true');
+    } catch {
+      // Local bookmarks are an enhancement; private browsing may deny storage access.
+    }
+  }, [publicId]);
+
+  const sortedComments = useMemo(() => {
+    if (!discussion) return [];
+    return [...discussion.items].sort((a, b) => {
+      if (sortOrder === 'latest')
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      return (
+        commentReactionCount(b) + b.replyCount - (commentReactionCount(a) + a.replyCount) ||
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      );
+    });
+  }, [discussion, sortOrder]);
+
+  function addFloatingReaction(emoji: string) {
+    const id = floatingId.current++;
+    setFloatingReactions((current) => [...current, { id, emoji }]);
+    window.setTimeout(
+      () => setFloatingReactions((current) => current.filter((item) => item.id !== id)),
+      900,
+    );
+  }
+
+  function setPending(setter: typeof setPendingReactions, emoji: string, pending: boolean) {
+    setter((current) => (pending ? [...current, emoji] : current.filter((item) => item !== emoji)));
+  }
+
   async function chooseReaction(emoji: string) {
-    setBusy(true);
+    if (pendingReactions.includes(emoji) || !reactions) return;
+    const previous = reactions;
+    const selected = previous.selected.includes(emoji);
+    const counts = { ...previous.counts, [emoji]: previous.counts[emoji] ?? 0 };
+    counts[emoji] = Math.max(0, counts[emoji] + (selected ? -1 : 1));
+    setPending(setPendingReactions, emoji, true);
+    setReactions({
+      ...previous,
+      counts,
+      selected: selected
+        ? previous.selected.filter((item) => item !== emoji)
+        : [...previous.selected, emoji],
+    });
+    if (!selected) addFloatingReaction(emoji);
     setError('');
     try {
       setReactions(await reactToConfession(publicId, emoji));
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Reaction failed.');
+      setReactions(previous);
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : 'Reaction failed. Your previous state was restored.',
+      );
     } finally {
-      setBusy(false);
+      setPending(setPendingReactions, emoji, false);
     }
   }
+
+  async function chooseCommentReaction(comment: DiscussionComment, emoji: string) {
+    if (!discussion || pendingCommentReactions.includes(comment.id)) return;
+    const previous = discussion;
+    setPending(setPendingCommentReactions, comment.id, true);
+    setDiscussion({
+      ...discussion,
+      items: updateCommentReactionOptimistically(discussion.items, comment.id, emoji),
+    });
+    try {
+      const summary = await reactToComment(publicId, comment.id, emoji);
+      setDiscussion((current) =>
+        current
+          ? { ...current, items: updateCommentReaction(current.items, comment.id, summary) }
+          : current,
+      );
+    } catch (caught) {
+      setDiscussion(previous);
+      setError(caught instanceof Error ? caught.message : 'Comment reaction failed.');
+    } finally {
+      setPending(setPendingCommentReactions, comment.id, false);
+    }
+  }
+
   function beginSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!content.trim()) return;
+    if (!content.trim()) {
+      setError('Write something before posting.');
+      return;
+    }
     if (!profile) {
+      setComposerOpen(false);
       setRegistrationOpen(true);
       return;
     }
     void submitComment(content);
   }
+
   async function submitComment(pendingContent = content) {
     if (submittingRef.current || !pendingContent.trim()) return;
     submittingRef.current = true;
@@ -114,16 +277,20 @@ export default function DiscussionSection({ publicId }: { publicId: string }) {
       const result = await postDiscussionComment(publicId, pendingContent, replyTo?.id);
       setContent('');
       setReplyTo(null);
+      setComposerOpen(false);
       setNotice(result.message);
       setDiscussion(await getDiscussion(publicId));
     } catch (caught) {
-      if (caught instanceof ApiRequestError && caught.status === 401) setRegistrationOpen(true);
-      else setError(caught instanceof Error ? caught.message : 'Could not post your comment.');
+      if (caught instanceof ApiRequestError && caught.status === 401) {
+        setComposerOpen(false);
+        setRegistrationOpen(true);
+      } else setError(caught instanceof Error ? caught.message : 'Could not post your comment.');
     } finally {
       submittingRef.current = false;
       setBusy(false);
     }
   }
+
   async function register(event: FormEvent) {
     event.preventDefault();
     setBusy(true);
@@ -133,42 +300,106 @@ export default function DiscussionSection({ publicId }: { publicId: string }) {
       const result = await registerCommenter({ displayName, instagramUsername });
       setProfile(result.profile);
       setRegistrationOpen(false);
+      setComposerOpen(true);
       await submitComment(pendingContent);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not create your profile.');
       setBusy(false);
     }
   }
+
+  function openReply(comment: DiscussionComment) {
+    setReplyTo(comment);
+    setComposerOpen(true);
+  }
+
+  function toggleSaved() {
+    setSaved((current) => {
+      const next = !current;
+      try {
+        if (next) window.localStorage.setItem(`saved-confession:${publicId}`, 'true');
+        else window.localStorage.removeItem(`saved-confession:${publicId}`);
+      } catch {
+        // Keep the in-memory state usable if browser storage is unavailable.
+      }
+      return next;
+    });
+  }
+
   return (
     <section className="discussion-section" aria-labelledby="community-replies-heading">
+      <div className="engagement-stats" aria-label="Engagement statistics">
+        <div className="engagement-stat">
+          <span className="engagement-stat__icon" aria-hidden="true">
+            ◉
+          </span>
+          <strong>{compactCount(confession.viewCount)}</strong>
+          <span>Views</span>
+        </div>
+        <div className="engagement-stat">
+          <span className="engagement-stat__icon engagement-stat__icon--lime" aria-hidden="true">
+            ●
+          </span>
+          <strong>{compactCount(totalReactionCount(reactions))}</strong>
+          <span>Reactions</span>
+        </div>
+        <div className="engagement-stat">
+          <span className="engagement-stat__icon" aria-hidden="true">
+            ◌
+          </span>
+          <strong>{compactCount(discussion?.total ?? 0)}</strong>
+          <span>Replies</span>
+        </div>
+        <button
+          className={`engagement-stat__save ${saved ? 'is-saved' : ''}`}
+          aria-label={saved ? 'Remove confession from saved' : 'Save confession'}
+          aria-pressed={saved}
+          onClick={toggleSaved}
+        >
+          ♧ <span>{saved ? 'Saved' : 'Save'}</span>
+        </button>
+      </div>
+
       <div className="reaction-panel">
-        <div>
-          <p className="eyebrow">FEEL THE ROOM</p>
-          <h2>React to this confession</h2>
+        <div className="section-kicker-row">
+          <div>
+            <p className="eyebrow">REACTION INTERACTION</p>
+            <h2>How does this confession feel?</h2>
+          </div>
+          <span className="section-hint">Tap to react</span>
         </div>
         <div className="reaction-list" aria-label="Confession reactions">
-          {(reactions?.options ?? ['❤️', '😂', '🫶', '👍', '🔥', '💡']).map((emoji) => (
-            <button
-              key={emoji}
-              className={`reaction-chip ${reactions?.selected.includes(emoji) ? 'reaction-chip--selected' : ''}`}
-              aria-pressed={reactions?.selected.includes(emoji)}
-              disabled={busy}
-              onClick={() => void chooseReaction(emoji)}
-            >
-              <span>{emoji}</span>
-              <b>{reactions?.counts[emoji] ?? 0}</b>
-            </button>
-          ))}
+          {(reactions?.options ?? ['❤️', '😂', '🫶', '👍', '🔥', '💡']).map((emoji) => {
+            const selected = reactions?.selected.includes(emoji);
+            return (
+              <button
+                key={emoji}
+                className={`reaction-chip ${selected ? 'reaction-chip--selected' : ''}`}
+                aria-label={`${emoji} reaction, ${reactions?.counts[emoji] ?? 0}`}
+                aria-pressed={selected}
+                disabled={!reactions || pendingReactions.includes(emoji)}
+                onClick={() => void chooseReaction(emoji)}
+              >
+                <span className="reaction-chip__emoji" aria-hidden="true">
+                  {emoji}
+                </span>
+                <b>{compactCount(reactions?.counts[emoji] ?? 0)}</b>
+              </button>
+            );
+          })}
           {reactions?.customReactions.map(({ emoji, count }) => (
             <button
               key={emoji}
               className={`reaction-chip ${reactions.selected.includes(emoji) ? 'reaction-chip--selected' : ''}`}
+              aria-label={`${emoji} reaction, ${count}`}
               aria-pressed={reactions.selected.includes(emoji)}
-              disabled={busy}
+              disabled={pendingReactions.includes(emoji)}
               onClick={() => void chooseReaction(emoji)}
             >
-              <span>{emoji}</span>
-              <b>{count}</b>
+              <span className="reaction-chip__emoji" aria-hidden="true">
+                {emoji}
+              </span>
+              <b>{compactCount(count)}</b>
             </button>
           ))}
           <button
@@ -176,7 +407,7 @@ export default function DiscussionSection({ publicId }: { publicId: string }) {
             onClick={() => setPickerOpen((open) => !open)}
             aria-expanded={pickerOpen}
           >
-            ＋ React
+            ＋ <span>React</span>
           </button>
         </div>
         {pickerOpen && (
@@ -196,7 +427,7 @@ export default function DiscussionSection({ publicId }: { publicId: string }) {
               placeholder="Search emoji"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-            />{' '}
+            />
             <div className="emoji-grid">
               {filteredEmoji.map((emoji) => (
                 <button
@@ -213,13 +444,34 @@ export default function DiscussionSection({ publicId }: { publicId: string }) {
             </div>
           </div>
         )}
+        <div className="floating-reactions" aria-live="polite" aria-atomic="true">
+          {floatingReactions.map(({ id, emoji }) => (
+            <span key={id}>{emoji}</span>
+          ))}
+        </div>
       </div>
+
       <div className="community-heading">
         <div>
           <p className="eyebrow">THE CONVERSATION</p>
           <h2 id="community-replies-heading">Community replies</h2>
         </div>
-        <span>{discussion?.total ?? 0} published replies</span>
+        <div className="sort-toggle" role="group" aria-label="Sort replies">
+          <button
+            className={sortOrder === 'popular' ? 'is-active' : ''}
+            aria-pressed={sortOrder === 'popular'}
+            onClick={() => setSortOrder('popular')}
+          >
+            ✦ Popular
+          </button>
+          <button
+            className={sortOrder === 'latest' ? 'is-active' : ''}
+            aria-pressed={sortOrder === 'latest'}
+            onClick={() => setSortOrder('latest')}
+          >
+            ◷ Latest
+          </button>
+        </div>
       </div>
       <p className="community-guideline">
         Keep it kind, specific, and safe. Every reply is reviewed before it appears on the wall.
@@ -234,49 +486,42 @@ export default function DiscussionSection({ publicId }: { publicId: string }) {
           {error}
         </p>
       )}
-      <form className="comment-composer" onSubmit={beginSubmit}>
+
+      <div className="composer-launcher" onClick={() => setComposerOpen(true)}>
         <div className="avatar avatar--composer">
           {profile ? initials(profile.displayName) : '✦'}
         </div>
-        <div className="composer-body">
-          {replyTo && (
-            <div className="reply-context">
-              Replying to <b>{replyTo.profile.displayName}</b>
-              <button type="button" onClick={() => setReplyTo(null)}>
-                Cancel
-              </button>
-            </div>
-          )}
-          <textarea
-            value={content}
-            onChange={(event) => setContent(event.target.value.slice(0, 1000))}
-            placeholder={profile ? 'Add something thoughtful…' : 'Join the conversation to reply…'}
-            maxLength={1000}
-            aria-label="Your comment"
-          />
-          <div className="composer-footer">
-            <span>{content.length}/1000</span>
-            <button className="ggv-button" disabled={!content.trim() || busy}>
-              {busy ? 'Posting…' : 'Post comment'}
-            </button>
-          </div>
-        </div>
-      </form>
+        <input
+          value={content}
+          onChange={(event) => setContent(event.target.value.slice(0, 1000))}
+          onFocus={() => setComposerOpen(true)}
+          placeholder={profile ? 'Add a thoughtful reply…' : 'Join the conversation to reply…'}
+          maxLength={1000}
+          aria-label="Quick reply"
+        />
+        <button type="button" className="composer-send" aria-label="Open reply composer">
+          ➤
+        </button>
+      </div>
+
       <div className="comment-list">
         {!discussion ? (
-          <div className="discussion-loading">Loading replies…</div>
-        ) : discussion.items.length === 0 ? (
+          <div className="discussion-loading">
+            <span className="loading-dot" /> Loading replies…
+          </div>
+        ) : sortedComments.length === 0 ? (
           <div className="discussion-empty">
             <strong>Be the first to reply.</strong>
             <span>Your perspective can start the conversation.</span>
           </div>
         ) : (
-          discussion.items.map((comment) => (
+          sortedComments.map((comment) => (
             <CommentCard
               key={comment.id}
               comment={comment}
+              onReply={openReply}
+              onReact={chooseCommentReaction}
               publicId={publicId}
-              onReply={setReplyTo}
             />
           ))
         )}
@@ -293,6 +538,63 @@ export default function DiscussionSection({ publicId }: { publicId: string }) {
           Load more replies
         </button>
       )}
+
+      {composerOpen && (
+        <div
+          className="composer-modal-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.currentTarget === event.target) setComposerOpen(false);
+          }}
+        >
+          <form
+            className="composer-modal"
+            onSubmit={beginSubmit}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="reply-composer-title"
+          >
+            <div className="composer-modal__top">
+              <div>
+                <p className="eyebrow">{replyTo ? 'THREAD REPLY' : 'QUICK REPLY'}</p>
+                <h2 id="reply-composer-title">Write a reply</h2>
+              </div>
+              <button
+                type="button"
+                className="icon-button"
+                onClick={() => setComposerOpen(false)}
+                aria-label="Close reply composer"
+              >
+                ×
+              </button>
+            </div>
+            {replyTo && (
+              <div className="reply-context">
+                Replying to <b>{replyTo.profile.displayName}</b>
+                <button type="button" onClick={() => setReplyTo(null)}>
+                  Cancel
+                </button>
+              </div>
+            )}
+            <textarea
+              autoFocus
+              value={content}
+              onChange={(event) => setContent(event.target.value.slice(0, 1000))}
+              placeholder="Add your thoughts, opinion or experience…"
+              maxLength={1000}
+              aria-label="Your comment"
+            />
+            <div className="composer-guidance">
+              <span>Your reply will be reviewed before it appears publicly.</span>
+              <span>{content.length}/1000</span>
+            </div>
+            <button className="ggv-button composer-submit" disabled={!content.trim() || busy}>
+              {busy ? 'Posting…' : '➤  Post reply'}
+            </button>
+          </form>
+        </div>
+      )}
+
       {registrationOpen && (
         <div className="modal-backdrop" role="presentation">
           <form
@@ -344,16 +646,21 @@ export default function DiscussionSection({ publicId }: { publicId: string }) {
     </section>
   );
 }
+
 function CommentCard({
   comment,
   publicId,
   onReply,
+  onReact,
 }: {
   comment: DiscussionComment;
   publicId: string;
   onReply: (comment: DiscussionComment) => void;
+  onReact: (comment: DiscussionComment, emoji: string) => void;
 }) {
   const [reported, setReported] = useState(false);
+  const [repliesExpanded, setRepliesExpanded] = useState(comment.replies.length <= 2);
+  const visibleReplies = repliesExpanded ? comment.replies : comment.replies.slice(0, 2);
   return (
     <article className="comment-card">
       <div className="avatar">{initials(comment.profile.displayName)}</div>
@@ -369,23 +676,51 @@ function CommentCard({
         </div>
         <p>{comment.content}</p>
         <div className="comment-actions">
-          <button onClick={() => onReply(comment)}>Reply</button>
+          {commentEmoji.map((emoji) => {
+            const selected = (comment.selectedReactions ?? []).includes(emoji);
+            return (
+              <button
+                key={emoji}
+                className={`comment-reaction ${selected ? 'is-selected' : ''}`}
+                aria-label={`${emoji} reaction, ${comment.reactionCounts?.[emoji] ?? 0}`}
+                aria-pressed={selected}
+                onClick={() => onReact(comment, emoji)}
+              >
+                <span aria-hidden="true">{emoji}</span> {comment.reactionCounts?.[emoji] ?? 0}
+              </button>
+            );
+          })}
+          <button onClick={() => onReply(comment)}>↩ Reply</button>
           <button
             onClick={() => {
               setReported(true);
-              void import('../../../lib/api').then(({ reportDiscussionComment }) =>
-                reportDiscussionComment(publicId, comment.id),
-              );
+              void reportDiscussionComment(publicId, comment.id);
             }}
           >
             {reported ? 'Reported' : 'Report'}
           </button>
         </div>
-        {comment.replies?.length > 0 && (
-          <div className="reply-list">
-            {comment.replies.map((reply) => (
-              <CommentCard key={reply.id} comment={reply} publicId={publicId} onReply={onReply} />
+        {comment.replies.length > 0 && (
+          <div className="reply-thread">
+            {visibleReplies.map((reply) => (
+              <CommentCard
+                key={reply.id}
+                comment={reply}
+                publicId={publicId}
+                onReply={onReply}
+                onReact={onReact}
+              />
             ))}
+            {comment.replies.length > 2 && (
+              <button
+                className="thread-toggle"
+                onClick={() => setRepliesExpanded((expanded) => !expanded)}
+              >
+                {repliesExpanded
+                  ? 'Hide replies'
+                  : `View ${comment.replies.length - 2} more replies`}
+              </button>
+            )}
           </div>
         )}
       </div>

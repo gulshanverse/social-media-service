@@ -104,6 +104,8 @@ export type DiscussionComment = {
   profile: CommenterProfile;
   replyCount: number;
   replies: DiscussionComment[];
+  reactionCounts: Record<string, number>;
+  selectedReactions: string[];
 };
 export type DiscussionPage = {
   items: DiscussionComment[];
@@ -138,6 +140,11 @@ export const getDiscussion = (publicId: string, page = 1) =>
   request<DiscussionPage>(`/confessions/${encodeURIComponent(publicId)}/comments?page=${page}`, {
     cache: 'no-store',
   });
+export const reactToComment = (publicId: string, commentId: string, emoji: string) =>
+  request<{ counts: Record<string, number>; selected: string[] }>(
+    `/confessions/${encodeURIComponent(publicId)}/comments/${encodeURIComponent(commentId)}/reactions`,
+    { method: 'POST', body: JSON.stringify({ emoji }) },
+  );
 export const postDiscussionComment = (publicId: string, content: string, parentId?: string) =>
   request<{ status: string; message: string; comment: DiscussionComment }>(
     `/confessions/${encodeURIComponent(publicId)}/comments`,

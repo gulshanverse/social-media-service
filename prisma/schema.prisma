@@ -243,6 +243,7 @@ model CommenterProfile {
   sessions          CommenterSession[]
   comments          ConfessionComment[]
   reactions         ConfessionReaction[]
+  commentReactions  ConfessionCommentReaction[]
 
   @@index([instagramUsername])
 }
@@ -275,6 +276,7 @@ model ConfessionComment {
   createdAt    DateTime                @default(now())
   updatedAt    DateTime                @updatedAt
   reports      Report[]
+  reactions    ConfessionCommentReaction[]
 
   @@index([confessionId, status, parentId, createdAt])
   @@index([parentId, status, createdAt])
@@ -293,6 +295,20 @@ model ConfessionReaction {
 
   @@unique([confessionId, actorHash, emoji])
   @@index([confessionId, emoji])
+}
+
+model ConfessionCommentReaction {
+  id         String            @id @default(cuid())
+  commentId  String
+  comment    ConfessionComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  profileId  String?
+  profile    CommenterProfile? @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  actorHash  String
+  emoji      String
+  createdAt  DateTime          @default(now())
+
+  @@unique([commentId, actorHash, emoji])
+  @@index([commentId, emoji])
 }
 
 model AuditLog {

@@ -12,12 +12,12 @@ import { prisma } from '../admin-auth';
 import { SubmissionRateLimiter } from './rate-limit';
 import {
   CommentDto,
+  CommentReportDto,
   FIXED_REACTIONS,
   normalizeEmoji,
   normalizeInstagramUsername,
   ProfileDto,
   ReactionDto,
-  CommentReportDto,
 } from './discussion.dto';
 
 export const COMMENTER_COOKIE = 'campus_commenter';
@@ -37,6 +37,8 @@ function assertRate(key: string, limit: number, message: string) {
   if (!result.allowed) throw new HttpException(message, HttpStatus.TOO_MANY_REQUESTS);
 }
 
+type ReactionSummary = { counts: Record<string, number>; selected: string[] };
+
 @Injectable()
 export class DiscussionService {
   private async session(rawToken?: string) {
@@ -51,6 +53,9 @@ export class DiscussionService {
       data: { lastUsedAt: new Date() },
     });
     return session;
+  }
+  private actorHash(session: any, ip: string) {
+    return hash(session ? `profile:${session.profileId}` : `ip:${ip}`);
   }
   async identity(rawToken?: string) {
     const session = await this.session(rawToken);
@@ -90,7 +95,7 @@ export class DiscussionService {
     if (!record) throw new NotFoundException('This confession is unavailable.');
     return record;
   }
-  private safeComment(comment: any) {
+  private safeComment(comment: any, reactions: ReactionSummary = { counts: {}, selected: [] }) {
     return {
       id: comment.id,
       content: comment.content,
@@ -98,9 +103,33 @@ export class DiscussionService {
       createdAt: comment.createdAt,
       profile: publicProfile(comment.profile),
       replyCount: comment._count?.replies ?? 0,
+      reactionCounts: reactions.counts,
+      selectedReactions: reactions.selected,
     };
   }
-  async list(publicId: string, page = 1) {
+  private async reactionStates(commentIds: string[], actorHash: string) {
+    if (!commentIds.length) return new Map<string, ReactionSummary>();
+    const [rows, selectedRows] = await Promise.all([
+      (prisma as any).confessionCommentReaction.groupBy({
+        by: ['commentId', 'emoji'],
+        where: { commentId: { in: commentIds } },
+        _count: { _all: true },
+      }),
+      (prisma as any).confessionCommentReaction.findMany({
+        where: { commentId: { in: commentIds }, actorHash },
+        select: { commentId: true, emoji: true },
+      }),
+    ]);
+    const states = new Map<string, ReactionSummary>();
+    for (const id of commentIds) states.set(id, { counts: {}, selected: [] });
+    for (const row of rows) {
+      const state = states.get(row.commentId)!;
+      state.counts[row.emoji] = row._count._all;
+    }
+    for (const row of selectedRows) states.get(row.commentId)?.selected.push(row.emoji);
+    return states;
+  }
+  async list(publicId: string, page = 1, rawToken?: string, ip = 'anonymous') {
     const confession = await this.confession(publicId);
     const safePage = Math.min(100, Math.max(1, page));
     const take = 20;
@@ -109,7 +138,7 @@ export class DiscussionService {
       status: ConfessionCommentStatus.PUBLISHED,
       parentId: null,
     };
-    const [items, total] = await Promise.all([
+    const [items, total, session] = await Promise.all([
       (prisma as any).confessionComment.findMany({
         where,
         orderBy: { createdAt: 'asc' },
@@ -121,6 +150,7 @@ export class DiscussionService {
         },
       }),
       (prisma as any).confessionComment.count({ where }),
+      this.session(rawToken),
     ]);
     const replies = items.length
       ? await (prisma as any).confessionComment.findMany({
@@ -132,12 +162,17 @@ export class DiscussionService {
           include: { profile: true },
         })
       : [];
+    const allComments = [...items, ...replies];
+    const states = await this.reactionStates(
+      allComments.map((comment: any) => comment.id),
+      this.actorHash(session, ip),
+    );
     return {
       items: items.map((item: any) => ({
-        ...this.safeComment(item),
+        ...this.safeComment(item, states.get(item.id)),
         replies: replies
           .filter((reply: any) => reply.parentId === item.id)
-          .map((reply: any) => this.safeComment(reply)),
+          .map((reply: any) => this.safeComment(reply, states.get(reply.id))),
       })),
       page: safePage,
       limit: take,
@@ -184,6 +219,68 @@ export class DiscussionService {
       comment: this.safeComment(comment),
     };
   }
+  private async commentReactionState(commentId: string, actorHash: string, client: any = prisma) {
+    const [rows, selectedRows] = await Promise.all([
+      client.confessionCommentReaction.groupBy({
+        by: ['emoji'],
+        where: { commentId },
+        _count: { _all: true },
+      }),
+      client.confessionCommentReaction.findMany({
+        where: { commentId, actorHash },
+        select: { emoji: true },
+      }),
+    ]);
+    return {
+      counts: rows.reduce((counts: Record<string, number>, row: any) => {
+        counts[row.emoji] = row._count._all;
+        return counts;
+      }, {}),
+      selected: selectedRows.map((row: { emoji: string }) => row.emoji),
+    };
+  }
+  async reactToComment(
+    publicId: string,
+    commentId: string,
+    dto: ReactionDto,
+    rawToken: string | undefined,
+    ip: string,
+  ) {
+    assertRate(`comment-reaction:${ip}`, 120, 'Too many reactions. Please try again later.');
+    const confession = await this.confession(publicId);
+    const comment = await (prisma as any).confessionComment.findFirst({
+      where: {
+        id: commentId,
+        confessionId: confession.id,
+        status: ConfessionCommentStatus.PUBLISHED,
+      },
+      select: { id: true },
+    });
+    if (!comment) throw new NotFoundException('This comment is unavailable.');
+    let emoji: string;
+    try {
+      emoji = normalizeEmoji(dto.emoji);
+    } catch (error) {
+      throw new BadRequestException((error as Error).message);
+    }
+    const session = await this.session(rawToken);
+    const actorHash = this.actorHash(session, ip);
+    try {
+      await (prisma as any).$transaction(async (tx: any) => {
+        const existing = await tx.confessionCommentReaction.findUnique({
+          where: { commentId_actorHash_emoji: { commentId, actorHash, emoji } },
+        });
+        if (existing) await tx.confessionCommentReaction.delete({ where: { id: existing.id } });
+        else
+          await tx.confessionCommentReaction.create({
+            data: { commentId, actorHash, profileId: session?.profileId ?? null, emoji },
+          });
+      });
+    } catch (error) {
+      if ((error as { code?: string }).code !== 'P2002') throw error;
+    }
+    return this.commentReactionState(commentId, actorHash);
+  }
   private async reactionState(confessionId: string, actorHash: string, client: any = prisma) {
     const [rows, selectedRows] = await Promise.all([
       client.confessionReaction.groupBy({
@@ -200,14 +297,13 @@ export class DiscussionService {
       acc[item.emoji] = item._count._all;
       return acc;
     }, {});
-    const selected = selectedRows.map((row: { emoji: string }) => row.emoji);
     return {
       options: FIXED_REACTIONS,
       counts,
       customReactions: Object.entries(counts)
         .filter(([value]) => !fixedReactionSet.has(value))
         .map(([emoji, count]) => ({ emoji, count })),
-      selected,
+      selected: selectedRows.map((row: { emoji: string }) => row.emoji),
     };
   }
   async react(publicId: string, dto: ReactionDto, rawToken: string | undefined, ip: string) {
@@ -220,7 +316,7 @@ export class DiscussionService {
       throw new BadRequestException((error as Error).message);
     }
     const session = await this.session(rawToken);
-    const actorHash = hash(session ? `profile:${session.profileId}` : `ip:${ip}`);
+    const actorHash = this.actorHash(session, ip);
     try {
       await (prisma as any).$transaction(async (tx: any) => {
         const existing = await tx.confessionReaction.findUnique({
@@ -240,8 +336,6 @@ export class DiscussionService {
           });
       });
     } catch (error) {
-      // A concurrent first click may lose the unique-key race. The winning
-      // transaction already established the desired state, so return it.
       if ((error as { code?: string }).code !== 'P2002') throw error;
     }
     return this.reactionState(confession.id, actorHash);
@@ -249,8 +343,7 @@ export class DiscussionService {
   async reactions(publicId: string, rawToken: string | undefined, ip: string) {
     const confession = await this.confession(publicId);
     const session = await this.session(rawToken);
-    const actorHash = hash(session ? `profile:${session.profileId}` : `ip:${ip}`);
-    return this.reactionState(confession.id, actorHash);
+    return this.reactionState(confession.id, this.actorHash(session, ip));
   }
   async report(publicId: string, commentId: string, dto: CommentReportDto, ip: string) {
     assertRate(`comment-report:${ip}`, 5, 'Too many reports. Please wait before trying again.');
