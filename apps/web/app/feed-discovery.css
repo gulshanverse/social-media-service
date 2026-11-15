@@ -847,3 +847,78 @@
     width: 100%;
   }
 }
+
+/* Keep the Recent confessions heading and both compact selectors on one row. */
+.feed-toolbar {
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+.feed-toolbar > div:first-child {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.feed-toolbar h2 {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.feed-toolbar__controls {
+  flex-shrink: 0;
+}
+.layout-select,
+.sort-button {
+  white-space: nowrap;
+}
+@media (max-width: 600px) {
+  .feed-toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+  .feed-toolbar h2 {
+    font-size: clamp(0.84rem, 4.6vw, 1.08rem);
+  }
+  .feed-toolbar__controls {
+    gap: 4px;
+  }
+  .layout-select {
+    min-height: 32px;
+    padding: 4px 19px 4px 6px;
+    font-size: 0.7rem;
+  }
+  .layout-select-wrap::after {
+    right: 6px;
+    font-size: 0.78rem;
+  }
+  .sort-button {
+    min-height: 32px;
+    gap: 4px;
+    padding: 4px 6px;
+    font-size: 0.7rem;
+  }
+  .sort-button .sort-icon {
+    width: 13px;
+    height: 13px;
+  }
+  .sort-chevron {
+    font-size: 0.8rem;
+  }
+}
+@media (max-width: 340px) {
+  .feed-toolbar__controls {
+    width: auto;
+    margin-top: 0;
+  }
+  .feed-toolbar__controls .layout-select-wrap,
+  .feed-toolbar__controls .sort-wrap,
+  .feed-toolbar__controls .sort-button,
+  .feed-toolbar__controls .layout-select {
+    flex: 0 0 auto;
+    width: auto;
+  }
+  .feed-toolbar h2 {
+    font-size: 0.82rem;
+  }
+}
