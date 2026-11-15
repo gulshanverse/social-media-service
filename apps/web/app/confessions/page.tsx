@@ -38,6 +38,7 @@ export default async function ConfessionsPage({ searchParams }: ConfessionsPageP
           ? (sort as ConfessionFeedQuery['sort'])
           : 'newest',
       }}
+      initialLayout={value('layout') === 'horizontal' ? 'horizontal' : 'vertical'}
     />
   );
 }

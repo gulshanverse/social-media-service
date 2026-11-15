@@ -673,3 +673,139 @@
     transition: none;
   }
 }
+
+/* Confession browsing modes: the card component itself remains unchanged. */
+.feed-toolbar__controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.layout-select-wrap {
+  position: relative;
+  display: inline-flex;
+}
+.layout-select {
+  min-height: 34px;
+  padding: 5px 28px 5px 10px;
+  border: 1px solid #33415d;
+  border-radius: 10px;
+  background: #101522;
+  color: #dce3ef;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.layout-select:focus-visible,
+.carousel-control:focus-visible,
+.confession-carousel__track:focus-visible {
+  outline: 3px solid #c8ff00;
+  outline-offset: 3px;
+}
+.confession-carousel {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 22px 5vw 80px;
+}
+.confession-carousel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  max-width: 900px;
+  margin: 0 auto 12px;
+}
+.confession-carousel__header p {
+  margin: 0;
+  color: #a8afbf;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+.carousel-control {
+  min-height: 40px;
+  padding: 7px 12px;
+  border: 1px solid #33415d;
+  border-radius: 10px;
+  background: #151c2b;
+  color: #dce3ef;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 700;
+  transition:
+    border-color 180ms ease,
+    background 180ms ease,
+    opacity 180ms ease;
+}
+.carousel-control:hover:not(:disabled) {
+  border-color: #ff2d75;
+  background: #202b40;
+  color: #fff;
+}
+.carousel-control:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+.confession-carousel__track {
+  display: flex;
+  gap: 18px;
+  max-width: 900px;
+  margin: 0 auto;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-behavior: smooth;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: thin;
+  touch-action: pan-x;
+}
+.confession-carousel__slide {
+  flex: 0 0 min(100%, 430px);
+  scroll-snap-align: start;
+}
+.confession-carousel__slide > a {
+  display: block;
+}
+.confession-carousel__hint {
+  margin: 12px 0 0;
+  color: #778198;
+  text-align: center;
+  font-size: 0.72rem;
+}
+@media (min-width: 801px) {
+  .confession-carousel__slide {
+    flex-basis: calc((100% - 36px) / 3);
+  }
+}
+@media (max-width: 600px) {
+  .feed-toolbar__controls {
+    gap: 5px;
+  }
+  .layout-select {
+    min-height: 32px;
+    padding-inline: 8px 24px;
+    font-size: 0.72rem;
+  }
+  .confession-carousel {
+    padding: 14px 16px 64px;
+  }
+  .confession-carousel__track {
+    gap: 12px;
+    margin-inline: 0;
+  }
+  .confession-carousel__slide {
+    flex-basis: 100%;
+  }
+  .carousel-control {
+    min-width: 40px;
+    padding-inline: 9px;
+  }
+  .carousel-control span {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .confession-carousel__track,
+  .carousel-control,
+  .layout-select {
+    scroll-behavior: auto;
+    transition: none;
+  }
+}

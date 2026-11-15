@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { UIEvent } from 'react';
 import type { PublicConfessionPage } from '@ggv/types';
 import { allConfessionCategories } from '@ggv/types';
 import { ConfessionCard } from '../../components/ConfessionCard';
@@ -16,6 +17,7 @@ import {
 type Props = { initialQuery: ConfessionFeedQuery; promotions: PublicHomepagePromotion[] };
 type DateRange = NonNullable<ConfessionFeedQuery['dateRange']>;
 type HistoryMode = 'push' | 'replace';
+type BrowseLayout = 'vertical' | 'horizontal';
 type ServiceSlide = {
   id: string;
   title: string;
@@ -129,7 +131,11 @@ function pageItems(current: number, totalPages: number): PageItem[] {
   ]);
 }
 
-export default function ConfessionsFeed({ initialQuery, promotions }: Props) {
+export default function ConfessionsFeed({
+  initialQuery,
+  promotions,
+  initialLayout = 'vertical',
+}: Props & { initialLayout?: BrowseLayout }) {
   const router = useRouter();
   const pathname = usePathname();
   const {
@@ -148,6 +154,8 @@ export default function ConfessionsFeed({ initialQuery, promotions }: Props) {
   const [error, setError] = useState('');
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
+  const [browseLayout, setBrowseLayout] = useState<BrowseLayout>(initialLayout);
+  const [browseIndex, setBrowseIndex] = useState(0);
   const [draft, setDraft] = useState({ ...defaultQuery, ...initialQuery });
   const [serviceIndex, setServiceIndex] = useState(0);
   const [serviceHovered, setServiceHovered] = useState(false);
@@ -159,6 +167,7 @@ export default function ConfessionsFeed({ initialQuery, promotions }: Props) {
   const requestId = useRef(0);
   const serviceTrack = useRef<HTMLDivElement>(null);
   const serviceCarousel = useRef<HTMLElement>(null);
+  const confessionTrack = useRef<HTMLDivElement>(null);
   const feedToolbar = useRef<HTMLDivElement>(null);
   const paginationScrollPending = useRef(false);
   const keyboardNavigation = useRef(false);
@@ -361,6 +370,10 @@ export default function ConfessionsFeed({ initialQuery, promotions }: Props) {
   ]);
 
   useEffect(() => {
+    setBrowseLayout(initialLayout);
+  }, [initialLayout]);
+
+  useEffect(() => {
     const id = ++requestId.current;
     setData(null);
     setError('');
@@ -423,12 +436,67 @@ export default function ConfessionsFeed({ initialQuery, promotions }: Props) {
   const retry = () => setQuery((current) => ({ ...current }));
   const goToPage = (page: number) => {
     if (page === data?.page) return;
+    setBrowseIndex(0);
     paginationScrollPending.current = true;
     navigate({ ...query, page });
   };
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
   const firstResult = data && data.total > 0 ? (data.page - 1) * data.limit + 1 : 0;
   const lastResult = data ? Math.min(data.page * data.limit, data.total) : 0;
+  const currentResult = data
+    ? (data.page - 1) * data.limit + Math.min(browseIndex, Math.max(data.items.length - 1, 0)) + 1
+    : 0;
+
+  const scrollToConfession = useCallback(
+    (index: number, behavior: ScrollBehavior = reducedMotion ? 'auto' : 'smooth') => {
+      const track = confessionTrack.current;
+      if (!track || !data?.items.length) return;
+      const nextIndex = Math.max(0, Math.min(index, data.items.length - 1));
+      const slide = track.children[nextIndex] as HTMLElement | undefined;
+      setBrowseIndex(nextIndex);
+      slide?.scrollIntoView({ behavior, block: 'nearest', inline: 'start' });
+    },
+    [data?.items.length, reducedMotion],
+  );
+
+  const selectBrowseLayout = (nextLayout: BrowseLayout) => {
+    setBrowseLayout(nextLayout);
+    window.requestAnimationFrame(() => scrollToConfession(browseIndex, 'auto'));
+    const params = queryString(query);
+    const layoutQuery = nextLayout === 'horizontal' ? 'layout=horizontal' : '';
+    const href = [params, layoutQuery].filter(Boolean).join('&');
+    router.replace(href ? `${pathname}?${href}` : pathname, { scroll: false });
+  };
+
+  const handleConfessionTrackScroll = (event: UIEvent<HTMLDivElement>) => {
+    const track = event.currentTarget;
+    const slides = Array.from(track.children) as HTMLElement[];
+    if (!slides.length) return;
+    const nextIndex = slides.reduce(
+      (closest, slide, index) =>
+        Math.abs(slide.offsetLeft - track.scrollLeft) <
+        Math.abs(slides[closest].offsetLeft - track.scrollLeft)
+          ? index
+          : closest,
+      0,
+    );
+    if (nextIndex !== browseIndex) setBrowseIndex(nextIndex);
+  };
+
+  const goToConfession = (direction: -1 | 1) => {
+    const nextIndex = browseIndex + direction;
+    if (nextIndex >= 0 && nextIndex < (data?.items.length ?? 0)) {
+      scrollToConfession(nextIndex);
+      return;
+    }
+    if (direction > 0 && data?.hasMore) {
+      paginationScrollPending.current = false;
+      goToPage(data.page + 1);
+    } else if (direction < 0 && data && data.page > 1) {
+      paginationScrollPending.current = false;
+      goToPage(data.page - 1);
+    }
+  };
 
   const selectService = (index: number) => {
     serviceLoopActive.current = false;
@@ -776,55 +844,69 @@ export default function ConfessionsFeed({ initialQuery, promotions }: Props) {
             </p>
           )}
         </div>
-        <div className="sort-wrap">
-          <button
-            type="button"
-            className="sort-button"
-            onClick={() => setSortOpen((open) => !open)}
-            aria-expanded={sortOpen}
-            aria-label={`Sort confessions: ${query.sort === 'oldest' ? 'Oldest' : query.sort === 'relevance' ? 'Relevance' : 'Newest'}`}
-          >
-            <svg className="sort-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-              <path d="M7 5v14M7 5 4.5 7.5M7 5l2.5 2.5M17 19V5m0 14 2.5-2.5M17 19l-2.5-2.5" />
-            </svg>
-            <span>
-              {query.sort === 'oldest'
-                ? 'Oldest'
-                : query.sort === 'relevance'
-                  ? 'Relevance'
-                  : 'Newest'}
-            </span>
-            <span className="sort-chevron" aria-hidden="true">
-              ⌄
-            </span>
-          </button>
-          {sortOpen && (
-            <div className="sort-popup" role="menu">
-              {(
-                ['newest', 'oldest', ...(query.search ? ['relevance'] : [])] as Array<
-                  NonNullable<ConfessionFeedQuery['sort']>
-                >
-              ).map((sort) => (
-                <button
-                  type="button"
-                  role="menuitemradio"
-                  aria-checked={query.sort === sort}
-                  key={sort}
-                  onClick={() => {
-                    navigate({ ...query, sort, page: 1 });
-                    setSortOpen(false);
-                  }}
-                >
-                  {sort === 'newest'
-                    ? 'Newest first'
-                    : sort === 'oldest'
-                      ? 'Oldest first'
-                      : 'Relevance'}
-                  {query.sort === sort && ' ✓'}
-                </button>
-              ))}
-            </div>
-          )}
+        <div className="feed-toolbar__controls">
+          <label className="layout-select-wrap">
+            <span className="sr-only">Browsing layout</span>
+            <select
+              className="layout-select"
+              value={browseLayout}
+              onChange={(event) => selectBrowseLayout(event.target.value as BrowseLayout)}
+              aria-label="Browsing layout"
+            >
+              <option value="vertical">Vertical</option>
+              <option value="horizontal">Horizontal</option>
+            </select>
+          </label>
+          <div className="sort-wrap">
+            <button
+              type="button"
+              className="sort-button"
+              onClick={() => setSortOpen((open) => !open)}
+              aria-expanded={sortOpen}
+              aria-label={`Sort confessions: ${query.sort === 'oldest' ? 'Oldest' : query.sort === 'relevance' ? 'Relevance' : 'Newest'}`}
+            >
+              <svg className="sort-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M7 5v14M7 5 4.5 7.5M7 5l2.5 2.5M17 19V5m0 14 2.5-2.5M17 19l-2.5-2.5" />
+              </svg>
+              <span>
+                {query.sort === 'oldest'
+                  ? 'Oldest'
+                  : query.sort === 'relevance'
+                    ? 'Relevance'
+                    : 'Newest'}
+              </span>
+              <span className="sort-chevron" aria-hidden="true">
+                ⌄
+              </span>
+            </button>
+            {sortOpen && (
+              <div className="sort-popup" role="menu">
+                {(
+                  ['newest', 'oldest', ...(query.search ? ['relevance'] : [])] as Array<
+                    NonNullable<ConfessionFeedQuery['sort']>
+                  >
+                ).map((sort) => (
+                  <button
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={query.sort === sort}
+                    key={sort}
+                    onClick={() => {
+                      navigate({ ...query, sort, page: 1 });
+                      setSortOpen(false);
+                    }}
+                  >
+                    {sort === 'newest'
+                      ? 'Newest first'
+                      : sort === 'oldest'
+                        ? 'Oldest first'
+                        : 'Relevance'}
+                    {query.sort === sort && ' ✓'}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -853,11 +935,80 @@ export default function ConfessionsFeed({ initialQuery, promotions }: Props) {
         </section>
       ) : (
         <>
-          <section className="card-grid">
-            {data.items.map((item) => (
-              <ConfessionCard key={item.publicId} confession={item} display={data.display} />
-            ))}
-          </section>
+          {browseLayout === 'horizontal' ? (
+            <section
+              className="confession-carousel"
+              aria-label="Horizontal confession browser"
+              aria-roledescription="carousel"
+            >
+              <div className="confession-carousel__header">
+                <button
+                  type="button"
+                  className="carousel-control"
+                  onClick={() => goToConfession(-1)}
+                  disabled={browseIndex === 0 && data.page <= 1}
+                  aria-label="Previous confession"
+                >
+                  ← <span>Previous</span>
+                </button>
+                <p aria-live="polite">
+                  {currentResult} / {data.total}
+                </p>
+                <button
+                  type="button"
+                  className="carousel-control"
+                  onClick={() => goToConfession(1)}
+                  disabled={browseIndex === data.items.length - 1 && !data.hasMore}
+                  aria-label="Next confession"
+                >
+                  <span>Next</span> →
+                </button>
+              </div>
+              <div
+                className="confession-carousel__track"
+                ref={confessionTrack}
+                tabIndex={0}
+                onScroll={handleConfessionTrackScroll}
+                onKeyDown={(event) => {
+                  if (event.key === 'ArrowLeft') {
+                    event.preventDefault();
+                    goToConfession(-1);
+                  } else if (event.key === 'ArrowRight') {
+                    event.preventDefault();
+                    goToConfession(1);
+                  } else if (event.key === 'Home') {
+                    event.preventDefault();
+                    scrollToConfession(0);
+                  } else if (event.key === 'End') {
+                    event.preventDefault();
+                    scrollToConfession(data.items.length - 1);
+                  }
+                }}
+                aria-label="Confessions"
+              >
+                {data.items.map((item, index) => (
+                  <div
+                    className="confession-carousel__slide"
+                    key={item.publicId}
+                    role="group"
+                    aria-roledescription="slide"
+                    aria-label={`${(data.page - 1) * data.limit + index + 1} of ${data.total}`}
+                  >
+                    <ConfessionCard confession={item} display={data.display} />
+                  </div>
+                ))}
+              </div>
+              <p className="confession-carousel__hint">
+                Swipe, scroll, or use the arrow keys to browse.
+              </p>
+            </section>
+          ) : (
+            <section className="card-grid">
+              {data.items.map((item) => (
+                <ConfessionCard key={item.publicId} confession={item} display={data.display} />
+              ))}
+            </section>
+          )}
           <nav className="feed-pagination" aria-label="Confession pages">
             <button
               type="button"
