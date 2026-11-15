@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import type { PublicConfession } from '@ggv/types';
 import { ConfessionCard } from '../../../components/ConfessionCard';
-import { ShareMenu } from '../../../components/ShareMenu';
 import { getConfession } from '../../../lib/api';
 import DiscussionSection from './DiscussionSection';
 
@@ -47,28 +46,6 @@ export default function ConfessionDetailClient({
             <p className="eyebrow">COLLEGE CONFESSION</p>
             <div className="detail-card">
               <ConfessionCard confession={confession} detailed />
-            </div>
-            <div className="detail-actions">
-              <span>
-                {(confession.category === 'CUSTOM'
-                  ? confession.customCategory || 'Custom'
-                  : confession.category?.replace('_', ' ')) ?? 'CAMPUS THOUGHT'}{' '}
-                · {new Date(confession.publishedAt).toLocaleDateString()}
-              </span>
-              <ShareMenu
-                url={
-                  typeof window === 'undefined'
-                    ? `https://www.confessions.live/confessions/${publicId}`
-                    : window.location.href
-                }
-                title="College Confession"
-              />
-              <Link
-                className="back-link"
-                href={`/report?confession=${encodeURIComponent(publicId)}`}
-              >
-                Report this
-              </Link>
             </div>
             <DiscussionSection publicId={publicId} confession={confession} />
             <div className="detail-cta">
