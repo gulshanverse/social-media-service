@@ -345,13 +345,11 @@ export default function DiscussionSection({
       <div className="engagement-stats" role="group" aria-label="Confession engagement">
         <div
           className="engagement-action engagement-metric"
+          role="img"
           aria-label={`${compactCount(confession.viewCount)} views`}
         >
           <EngagementIcon name="eye" />
-          <span>
-            <strong>{compactCount(confession.viewCount)}</strong>
-            <small>Views</small>
-          </span>
+          <strong>{compactCount(confession.viewCount)}</strong>
         </div>
         <a
           className="engagement-action engagement-metric engagement-reactions-link"
@@ -359,10 +357,7 @@ export default function DiscussionSection({
           aria-label={`${compactCount(totalReactionCount(reactions))} reactions. Jump to reactions.`}
         >
           <EngagementIcon name="heart" />
-          <span>
-            <strong>{compactCount(totalReactionCount(reactions))}</strong>
-            <small>Reactions</small>
-          </span>
+          <strong>{compactCount(totalReactionCount(reactions))}</strong>
         </a>
         <button
           className="engagement-action engagement-metric"
@@ -370,10 +365,7 @@ export default function DiscussionSection({
           onClick={() => setComposerOpen(true)}
         >
           <EngagementIcon name="message" />
-          <span>
-            <strong>{compactCount(discussion?.total ?? 0)}</strong>
-            <small>Replies</small>
-          </span>
+          <strong>{compactCount(discussion?.total ?? 0)}</strong>
         </button>
         <button
           className={`engagement-action engagement-save ${saved ? 'is-saved' : ''}`}
@@ -382,7 +374,6 @@ export default function DiscussionSection({
           onClick={toggleSaved}
         >
           <EngagementIcon name="bookmark" />
-          <span>{saved ? 'Saved' : 'Save'}</span>
         </button>
         <div className="engagement-share">
           <ShareMenu
@@ -396,7 +387,7 @@ export default function DiscussionSection({
             buttonContent={
               <>
                 <EngagementIcon name="send" />
-                <span>Share</span>
+                <span className="visually-hidden">Share</span>
               </>
             }
           />
@@ -407,20 +398,11 @@ export default function DiscussionSection({
           aria-label="Report confession"
         >
           <EngagementIcon name="flag" />
-          <span>Report</span>
         </Link>
       </div>
 
       <div className="reaction-panel" id="confession-reactions">
-        <div className="section-kicker-row">
-          <div>
-            <h2>How does this confession feel?</h2>
-          </div>
-          <span className="section-hint">
-            {compactCount(totalReactionCount(reactions))} reactions
-          </span>
-        </div>
-        <div className="reaction-list" aria-label="Confession reactions">
+        <div className="reaction-list" role="group" aria-label="Confession reactions">
           {(reactions?.options ?? ['❤️', '😂', '🫶', '👍', '🔥', '💡']).map((emoji) => {
             const selected = reactions?.selected.includes(emoji);
             return (
@@ -457,9 +439,10 @@ export default function DiscussionSection({
           <button
             className="reaction-chip reaction-chip--custom"
             onClick={() => setPickerOpen((open) => !open)}
+            aria-label="Add a reaction"
             aria-expanded={pickerOpen}
           >
-            ＋ <span>React</span>
+            <span aria-hidden="true">+</span>
           </button>
         </div>
         {pickerOpen && (
