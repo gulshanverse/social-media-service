@@ -1,11 +1,12 @@
-## Audit-fix pass
+# College Confession Engagement Redesign
 
-- [x] Shared banner CSS is centralized in `packages/ui` and imported by admin and web apps.
-- [x] Built-in theme IDs are explicitly validated independently from runtime fallback resolution.
-- [x] Database theme lifecycle and schedule windows are enforced at publication time.
-- [x] Admin theme cards show available, draft, scheduled, expired, and unpublished states.
-- [x] Shared alignment and nine-way position transforms are explicit and responsive-safe.
-- [x] API tests cover theme validation, lifecycle windows, invalid layouts, malformed payloads, fallback, and safe public projection.
-- [x] Audit changes are ready to commit and push on the existing feature branch.
-- [ ] Browser screenshot verification remains pending until a running authenticated app/database environment is available.
-- [ ] Pull request creation remains pending explicit user instruction; no open PR currently exists for the branch.
+- [ ] Preserve the existing confession card exactly, including dimensions, layout, typography, green gradient, padding, metadata, category/date presentation, and theme-engine integration.
+- [ ] Add accurate views, total reactions, and reply statistics using the existing confession and discussion data paths; preserve save/bookmark and sharing/report destinations.
+- [ ] Implement horizontal emoji reaction tiles using existing reaction types, actual counts, selected state, optimistic updates, server reconciliation, rollback on API failure, duplicate-click protection, and reduced-motion behavior.
+- [ ] Implement touch-friendly Reply, Share, and Report action surfaces without changing existing moderation or abuse-prevention flows.
+- [ ] Implement clean anonymous comment cards, popular/latest sorting, nested reply collapse/expand, comment reaction and reply actions, and loading, empty, error, and pending-moderation states.
+- [ ] Implement a sticky mobile quick-reply input and a keyboard-aware expanded composer with anonymous identity, moderation guidance, character counter, validation, and existing supported behavior only.
+- [ ] Add only the smallest additive persistence/API change needed for real comment reactions; do not change production data or apply migrations to production.
+- [ ] Add and run focused frontend/API tests plus typecheck, format, lint, build, and diff checks; fix all failures caused by this work.
+- [ ] Review the complete diff, commit to `feat/college-confession-engagement-redesign`, push the branch, and create a PR against `main` without merging.
+- [ ] Verify the Vercel Preview uses the staging API configuration, capture mobile and desktop screenshots, and record any backend-preview or authentication blocker without claiming success.

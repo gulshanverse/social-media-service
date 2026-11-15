@@ -22,6 +22,8 @@ assert.doesNotThrow(() =>
 );
 const schema = readFileSync(join(process.cwd(), '../../prisma/schema.prisma'), 'utf8');
 assert.match(schema, /@@unique\(\[confessionId, actorHash, emoji\]\)/);
+assert.match(schema, /model ConfessionCommentReaction/);
+assert.match(schema, /@@unique\(\[commentId, actorHash, emoji\]\)/);
 const reactionMigration = readFileSync(
   join(
     process.cwd(),
@@ -31,10 +33,20 @@ const reactionMigration = readFileSync(
 );
 assert.match(reactionMigration, /DROP INDEX "ConfessionReaction_confessionId_actorHash_key"/);
 assert.match(reactionMigration, /ConfessionReaction_confessionId_actorHash_emoji_key/);
+const commentReactionMigration = readFileSync(
+  join(
+    process.cwd(),
+    '../../prisma/migrations/20261116010000_confession_comment_reactions/migration.sql',
+  ),
+  'utf8',
+);
+assert.match(commentReactionMigration, /CREATE TABLE "ConfessionCommentReaction"/);
+assert.match(commentReactionMigration, /ConfessionCommentReaction_commentId_actorHash_emoji_key/);
 const registeredControllers = Reflect.getMetadata('controllers', ConfessionsModule) as unknown[];
 assert.ok(
   registeredControllers.indexOf(DiscussionController) <
     registeredControllers.indexOf(ConfessionsController),
   'fixed discussion routes must precede the dynamic confession identifier route',
 );
+assert.equal(typeof DiscussionController.prototype.reactToComment, 'function');
 console.log('confession discussion input validation tests passed');

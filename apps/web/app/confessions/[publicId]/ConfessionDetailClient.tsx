@@ -70,7 +70,7 @@ export default function ConfessionDetailClient({
                 Report this
               </Link>
             </div>
-            <DiscussionSection publicId={publicId} />
+            <DiscussionSection publicId={publicId} confession={confession} />
             <div className="detail-cta">
               <h2>Have something to say?</h2>
               <Link className="ggv-button" href="/send">

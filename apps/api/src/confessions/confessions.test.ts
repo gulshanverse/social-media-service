@@ -24,6 +24,7 @@ const publishedRecord = {
   content: 'A published thought',
   category: 'CRUSH',
   publishedAt: new Date('2026-09-19T12:00:00.000Z'),
+  viewCount: 42,
   theme,
 };
 

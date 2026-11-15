@@ -42,6 +42,7 @@ export type PublicConfession = {
   customCategory?: string | null;
   theme: PublicTheme | null;
   publishedAt: string;
+  viewCount: number;
 };
 export type PublicConfessionPage = {
   items: PublicConfession[];

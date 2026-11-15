@@ -48,6 +48,7 @@ type ConfessionRecord = {
   category: string | null;
   customCategory?: string | null;
   publishedAt: Date | null;
+  viewCount: number;
   theme: ThemeRecord | null;
 };
 type ConfessionWhere = {
@@ -162,6 +163,7 @@ function toPublicConfession(confession: ConfessionRecord): PublicConfession {
     customCategory: confession.customCategory,
     theme: confession.theme ? toPublicTheme(confession.theme) : null,
     publishedAt: confession.publishedAt?.toISOString() ?? new Date(0).toISOString(),
+    viewCount: confession.viewCount,
   };
 }
 
@@ -345,6 +347,7 @@ export class ConfessionsService {
       category: true,
       customCategory: true,
       publishedAt: true,
+      viewCount: true,
       theme: {
         select: {
           slug: true,
@@ -417,6 +420,7 @@ export class ConfessionsService {
         category: true,
         customCategory: true,
         publishedAt: true,
+        viewCount: true,
         theme: {
           select: {
             slug: true,

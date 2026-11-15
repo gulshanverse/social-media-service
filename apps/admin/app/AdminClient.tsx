@@ -240,6 +240,7 @@ function ThemePreview({
     category: 'COLLEGE_LIFE',
     theme: previewTheme,
     publishedAt: new Date(0).toISOString(),
+    viewCount: 0,
   };
   return <SharedConfessionCard confession={previewConfession} className="theme-preview" />;
 }
@@ -963,6 +964,7 @@ function ConfessionDetail({ admin }: { admin: Admin }) {
     customCategory: form.customCategory,
     theme: asPublicTheme(draftTheme),
     publishedAt: item.publishedAt || item.createdAt || new Date().toISOString(),
+    viewCount: item.viewCount ?? 0,
   };
   return (
     <section>
@@ -1716,6 +1718,7 @@ function ThemeWorkspacePreview({
               category: 'COLLEGE_LIFE',
               theme: publicTheme,
               publishedAt: new Date().toISOString(),
+              viewCount: 0,
             }}
             className="theme-preview"
           />

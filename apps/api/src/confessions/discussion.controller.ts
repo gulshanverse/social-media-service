@@ -83,9 +83,10 @@ export class DiscussionController {
   }
   @Get(':publicId/comments') list(
     @Param('publicId') publicId: string,
+    @Req() request: Request,
     @Query('page', new ParseIntPipe({ optional: true })) page?: number,
   ) {
-    return this.discussion.list(publicId, page ?? 1);
+    return this.discussion.list(publicId, page ?? 1, token(request), request.ip || 'anonymous');
   }
   @Post(':publicId/comments') create(
     @Param('publicId') publicId: string,
@@ -94,6 +95,21 @@ export class DiscussionController {
   ) {
     assertCommenterOrigin(request);
     return this.discussion.create(publicId, dto, token(request), request.ip || 'anonymous');
+  }
+  @Post(':publicId/comments/:commentId/reactions') reactToComment(
+    @Param('publicId') publicId: string,
+    @Param('commentId') commentId: string,
+    @Body() dto: ReactionDto,
+    @Req() request: Request,
+  ) {
+    assertCommenterOrigin(request);
+    return this.discussion.reactToComment(
+      publicId,
+      commentId,
+      dto,
+      token(request),
+      request.ip || 'anonymous',
+    );
   }
   @Post(':publicId/comments/:commentId/report') report(
     @Param('publicId') publicId: string,
