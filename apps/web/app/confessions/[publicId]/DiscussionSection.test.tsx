@@ -113,4 +113,24 @@ describe('College Confession engagement redesign', () => {
     expect(save).toHaveAttribute('aria-pressed', 'true');
     expect(window.localStorage.getItem('saved-confession:conf-1')).toBe('true');
   });
+
+  it('renders the complete engagement toolbar and opens the full reply composer', async () => {
+    render(<DiscussionSection publicId="conf-1" confession={confession} />);
+
+    expect(await screen.findByRole('group', { name: 'Confession engagement' })).toBeInTheDocument();
+    expect(screen.getByLabelText('7.4K views')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /reactions\. Jump to reactions/i })).toHaveAttribute(
+      'href',
+      '#confession-reactions',
+    );
+    expect(
+      screen.getByRole('button', { name: /replies\. Open reply composer/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save confession' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Share' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Report confession' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /replies\. Open reply composer/i }));
+    expect(screen.getByRole('dialog', { name: 'Write a reply' })).toBeInTheDocument();
+  });
 });

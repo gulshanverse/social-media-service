@@ -5513,3 +5513,161 @@ body:has(.home-shell) .footer-nav-group a:hover {
     font-size: 0.86rem;
   }
 }
+
+/* Final detail-page engagement controls: six labeled, accessible touch targets. */
+.detail-page .engagement-stats {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid #252a37;
+}
+.detail-page .engagement-action {
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  height: auto;
+  min-width: 0;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 7px 9px;
+  border: 1px solid #252d3c;
+  border-radius: 12px;
+  background: #101521;
+  color: #e9edf5;
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    border-color 0.16s ease,
+    background 0.16s ease,
+    color 0.16s ease;
+}
+.detail-page .engagement-action:hover,
+.detail-page .engagement-action:focus-visible {
+  border-color: #56613a;
+  background: #171d19;
+  color: #c8ff00;
+  outline: none;
+}
+.detail-page .engagement-action:focus-visible {
+  box-shadow: 0 0 0 2px #c8ff00;
+}
+.detail-page .engagement-action > svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+}
+.detail-page .engagement-metric {
+  border-right: 1px solid #252d3c;
+  font-size: 0.88rem;
+}
+.detail-page .engagement-metric > span {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.15;
+}
+.detail-page .engagement-metric strong {
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+.detail-page .engagement-metric small,
+.detail-page .engagement-action > span {
+  color: #aab2c0;
+  font-size: 0.72rem;
+  line-height: 1.15;
+}
+.detail-page .engagement-save.is-saved,
+.detail-page .engagement-save.is-saved > span {
+  color: #c8ff00;
+}
+.detail-page .engagement-share,
+.detail-page .engagement-share .share-menu {
+  display: flex;
+  min-width: 0;
+  width: 100%;
+  align-items: stretch;
+}
+.detail-page .engagement-share .share-menu > button {
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  height: auto;
+  margin: 0;
+  padding: 7px 9px;
+  border: 1px solid #252d3c;
+  border-radius: 12px;
+  background: #101521;
+  color: #e9edf5;
+  font-size: inherit;
+}
+.detail-page .engagement-share .share-menu > button:hover,
+.detail-page .engagement-share .share-menu > button:focus-visible {
+  border-color: #56613a;
+  background: #171d19;
+  color: #c8ff00;
+}
+.detail-page .engagement-share .share-menu > button::before {
+  content: none;
+}
+.detail-page .reaction-chip--selected {
+  border-color: #c8ff00;
+  background: #182015;
+  color: #c8ff00;
+  box-shadow: 0 0 0 1px #c8ff0040;
+}
+.detail-page .composer-launcher {
+  position: static;
+  bottom: auto;
+}
+.detail-page .composer-launcher.is-sticky-ready {
+  position: sticky;
+  bottom: max(8px, env(safe-area-inset-bottom));
+  z-index: 8;
+}
+@media (max-width: 560px) {
+  .detail-page .engagement-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px;
+    padding: 10px 0;
+  }
+  .detail-page .engagement-action,
+  .detail-page .engagement-share .share-menu > button {
+    min-height: 48px;
+    padding: 6px 5px;
+    gap: 5px;
+    border-radius: 11px;
+  }
+  .detail-page .engagement-action > svg {
+    width: 17px;
+    height: 17px;
+    flex-basis: 17px;
+  }
+  .detail-page .engagement-metric {
+    grid-template-columns: none;
+    column-gap: 0;
+    border-right: 0;
+  }
+  .detail-page .engagement-metric strong {
+    font-size: 0.84rem;
+  }
+  .detail-page .engagement-metric small,
+  .detail-page .engagement-action > span {
+    font-size: 0.67rem;
+  }
+  .detail-page .engagement-share .share-popover {
+    right: 0;
+  }
+  .detail-page .composer-launcher {
+    position: static;
+    bottom: auto;
+  }
+  .detail-page .comment-list {
+    padding-bottom: 72px;
+  }
+}

@@ -48,12 +48,6 @@ export default function ConfessionDetailClient({
               <ConfessionCard confession={confession} detailed />
             </div>
             <DiscussionSection publicId={publicId} confession={confession} />
-            <div className="detail-cta">
-              <h2>Have something to say?</h2>
-              <Link className="ggv-button" href="/send">
-                Share your own anonymous confession
-              </Link>
-            </div>
           </>
         )}
       </section>
