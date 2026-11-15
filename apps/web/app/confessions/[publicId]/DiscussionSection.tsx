@@ -19,6 +19,7 @@ import {
   registerCommenter,
   reportDiscussionComment,
 } from '../../../lib/api';
+import { EngagementIcon } from './EngagementIcon';
 
 const commonEmoji = [
   '❤️',
@@ -146,6 +147,7 @@ export default function DiscussionSection({
   const [pendingCommentReactions, setPendingCommentReactions] = useState<string[]>([]);
   const [floatingReactions, setFloatingReactions] = useState<FloatingReaction[]>([]);
   const [saved, setSaved] = useState(false);
+  const [composerStickyReady, setComposerStickyReady] = useState(false);
   const floatingId = useRef(0);
   const submittingRef = useRef(false);
   const filteredEmoji = useMemo(
@@ -176,6 +178,16 @@ export default function DiscussionSection({
     } catch {
       // Local bookmarks are an enhancement; private browsing may deny storage access.
     }
+  }, [publicId]);
+
+  useEffect(() => {
+    const heading = document.getElementById('community-replies-heading');
+    if (!heading || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(([entry]) => {
+      setComposerStickyReady(!entry.isIntersecting && entry.boundingClientRect.top < 0);
+    });
+    observer.observe(heading);
+    return () => observer.disconnect();
   }, [publicId]);
 
   const sortedComments = useMemo(() => {
@@ -330,40 +342,47 @@ export default function DiscussionSection({
 
   return (
     <section className="discussion-section" aria-labelledby="community-replies-heading">
-      <div className="engagement-stats" aria-label="Engagement statistics">
-        <div className="engagement-stat" aria-label={`${compactCount(confession.viewCount)} views`}>
-          <span className="engagement-stat__icon" aria-hidden="true">
-            ◉
-          </span>
-          <strong>{compactCount(confession.viewCount)}</strong>
-        </div>
+      <div className="engagement-stats" role="group" aria-label="Confession engagement">
         <div
-          className="engagement-stat"
-          aria-label={`${compactCount(totalReactionCount(reactions))} reactions`}
+          className="engagement-action engagement-metric"
+          aria-label={`${compactCount(confession.viewCount)} views`}
         >
-          <span className="engagement-stat__icon engagement-stat__icon--lime" aria-hidden="true">
-            ♥
+          <EngagementIcon name="eye" />
+          <span>
+            <strong>{compactCount(confession.viewCount)}</strong>
+            <small>Views</small>
           </span>
-          <strong>{compactCount(totalReactionCount(reactions))}</strong>
         </div>
-        <div
-          className="engagement-stat"
-          aria-label={`${compactCount(discussion?.total ?? 0)} replies`}
+        <a
+          className="engagement-action engagement-metric engagement-reactions-link"
+          href="#confession-reactions"
+          aria-label={`${compactCount(totalReactionCount(reactions))} reactions. Jump to reactions.`}
         >
-          <span className="engagement-stat__icon" aria-hidden="true">
-            ◯
+          <EngagementIcon name="heart" />
+          <span>
+            <strong>{compactCount(totalReactionCount(reactions))}</strong>
+            <small>Reactions</small>
           </span>
-          <strong>{compactCount(discussion?.total ?? 0)}</strong>
-        </div>
-        <span className="engagement-divider" aria-hidden="true" />
+        </a>
         <button
-          className={`engagement-stat__save ${saved ? 'is-saved' : ''}`}
+          className="engagement-action engagement-metric"
+          aria-label={`${compactCount(discussion?.total ?? 0)} replies. Open reply composer.`}
+          onClick={() => setComposerOpen(true)}
+        >
+          <EngagementIcon name="message" />
+          <span>
+            <strong>{compactCount(discussion?.total ?? 0)}</strong>
+            <small>Replies</small>
+          </span>
+        </button>
+        <button
+          className={`engagement-action engagement-save ${saved ? 'is-saved' : ''}`}
           aria-label={saved ? 'Remove confession from saved' : 'Save confession'}
           aria-pressed={saved}
           onClick={toggleSaved}
         >
-          <span aria-hidden="true">♧</span>
-          <span className="visually-hidden">{saved ? 'Saved' : 'Save'}</span>
+          <EngagementIcon name="bookmark" />
+          <span>{saved ? 'Saved' : 'Save'}</span>
         </button>
         <div className="engagement-share">
           <ShareMenu
@@ -373,18 +392,26 @@ export default function DiscussionSection({
                 : window.location.href
             }
             title="College Confession"
+            buttonClassName="engagement-action engagement-share-button"
+            buttonContent={
+              <>
+                <EngagementIcon name="send" />
+                <span>Share</span>
+              </>
+            }
           />
         </div>
         <Link
-          className="engagement-report"
+          className="engagement-action engagement-report"
           href={`/report?confession=${encodeURIComponent(publicId)}`}
           aria-label="Report confession"
         >
-          <span aria-hidden="true">⚑</span>
+          <EngagementIcon name="flag" />
+          <span>Report</span>
         </Link>
       </div>
 
-      <div className="reaction-panel">
+      <div className="reaction-panel" id="confession-reactions">
         <div className="section-kicker-row">
           <div>
             <h2>How does this confession feel?</h2>
@@ -547,9 +574,9 @@ export default function DiscussionSection({
           Load more replies
         </button>
       )}
-      <div className="composer-launcher" onClick={() => setComposerOpen(true)}>
+      <div className={`composer-launcher ${composerStickyReady ? 'is-sticky-ready' : ''}`}>
         <div className="avatar avatar--composer">
-          {profile ? initials(profile.displayName) : '✦'}
+          {profile ? initials(profile.displayName) : <EngagementIcon name="user" />}
         </div>
         <input
           value={content}
@@ -559,8 +586,13 @@ export default function DiscussionSection({
           maxLength={1000}
           aria-label="Quick reply"
         />
-        <button type="button" className="composer-send" aria-label="Open reply composer">
-          ➤
+        <button
+          type="button"
+          className="composer-send"
+          aria-label="Open reply composer"
+          onClick={() => setComposerOpen(true)}
+        >
+          <EngagementIcon name="send" />
         </button>
       </div>
 

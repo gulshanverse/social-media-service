@@ -1,8 +1,19 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { useState } from 'react';
 
-export function ShareMenu({ url, title }: { url: string; title: string }) {
+export function ShareMenu({
+  url,
+  title,
+  buttonContent,
+  buttonClassName,
+}: {
+  url: string;
+  title: string;
+  buttonContent?: ReactNode;
+  buttonClassName?: string;
+}) {
   const [open, setOpen] = useState(false);
   const [feedback, setFeedback] = useState('');
   async function copy() {
@@ -31,12 +42,12 @@ export function ShareMenu({ url, title }: { url: string; title: string }) {
   return (
     <div className="share-menu">
       <button
-        className="ghost-button"
+        className={buttonClassName ?? 'ghost-button'}
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
         aria-haspopup="menu"
       >
-        Share
+        {buttonContent ?? 'Share'}
       </button>
       {feedback && (
         <span className="share-feedback" role="status">
