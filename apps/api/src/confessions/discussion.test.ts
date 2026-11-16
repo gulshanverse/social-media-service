@@ -20,6 +20,13 @@ assert.throws(
 assert.doesNotThrow(() =>
   assertCommenterOrigin({ headers: { origin: 'http://localhost:3000' } } as any),
 );
+const originalWebOrigin = process.env.WEB_ORIGIN;
+process.env.WEB_ORIGIN = 'https://web.example.com/';
+assert.doesNotThrow(() =>
+  assertCommenterOrigin({ headers: { origin: 'https://web.example.com' } } as any),
+);
+if (originalWebOrigin === undefined) delete process.env.WEB_ORIGIN;
+else process.env.WEB_ORIGIN = originalWebOrigin;
 const schema = readFileSync(join(process.cwd(), '../../prisma/schema.prisma'), 'utf8');
 assert.match(schema, /@@unique\(\[confessionId, actorHash, emoji\]\)/);
 assert.match(schema, /model ConfessionCommentReaction/);

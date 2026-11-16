@@ -21,6 +21,21 @@ vi.mock('next/link', () => ({
   ),
 }));
 
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn() }),
+}));
+
+vi.mock('../../../lib/api', () => ({
+  getConfessions: vi.fn().mockResolvedValue({
+    items: [],
+    page: 1,
+    limit: 12,
+    total: 0,
+    hasMore: false,
+  }),
+  getConfession: vi.fn(),
+}));
+
 vi.mock('../../../components/ConfessionCard', () => ({
   ConfessionCard: ({ confession }: { confession: PublicConfession }) => (
     <article data-testid="confession-card">{confession.content}</article>
@@ -47,6 +62,8 @@ describe('ConfessionDetailClient', () => {
 
     expect(screen.getByTestId('confession-card')).toHaveTextContent(confession.content);
     expect(screen.getByTestId('discussion-section')).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Confession navigation' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Related confessions' })).toBeInTheDocument();
     expect(screen.queryByText('Have something to say?')).not.toBeInTheDocument();
     expect(screen.queryByText('Share your own anonymous confession')).not.toBeInTheDocument();
   });

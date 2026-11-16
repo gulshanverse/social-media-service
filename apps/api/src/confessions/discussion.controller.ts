@@ -33,7 +33,13 @@ function setCookie(response: Response, value: string) {
 }
 export function assertCommenterOrigin(request: Request) {
   const trustedOrigin = process.env.WEB_ORIGIN ?? 'http://localhost:3000';
-  if (!request.headers.origin || request.headers.origin !== trustedOrigin) {
+  let normalizedTrustedOrigin: string;
+  try {
+    normalizedTrustedOrigin = new URL(trustedOrigin).origin;
+  } catch {
+    throw new ForbiddenException('A trusted browser origin is required.');
+  }
+  if (!request.headers.origin || request.headers.origin !== normalizedTrustedOrigin) {
     throw new ForbiddenException('A trusted browser origin is required.');
   }
 }
