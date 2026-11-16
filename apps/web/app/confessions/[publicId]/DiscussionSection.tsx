@@ -141,6 +141,7 @@ export default function DiscussionSection({
   const [instagramUsername, setInstagramUsername] = useState('');
   const [sortOrder, setSortOrder] = useState<SortOrder>('popular');
   const [error, setError] = useState('');
+  const [discussionLoadError, setDiscussionLoadError] = useState('');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const [pendingReactions, setPendingReactions] = useState<string[]>([]);
@@ -162,10 +163,15 @@ export default function DiscussionSection({
         if (!active) return;
         setReactions(reactionData);
         setDiscussion(comments);
+        setDiscussionLoadError('');
         setProfile(identity);
       })
-      .catch(() => {
-        if (active) setError('We could not load the conversation yet.');
+      .catch((caught) => {
+        if (active) {
+          setDiscussionLoadError(
+            caught instanceof Error ? caught.message : 'We could not load the conversation yet.',
+          );
+        }
       });
     return () => {
       active = false;
@@ -524,7 +530,12 @@ export default function DiscussionSection({
       )}
 
       <div className="comment-list">
-        {!discussion ? (
+        {discussionLoadError ? (
+          <div className="discussion-empty discussion-empty--error" role="alert">
+            <strong>Replies are temporarily unavailable.</strong>
+            <span>{discussionLoadError}</span>
+          </div>
+        ) : !discussion ? (
           <div className="discussion-loading">
             <span className="loading-dot" /> Loading replies…
           </div>

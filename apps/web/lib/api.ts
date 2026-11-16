@@ -46,6 +46,7 @@ export const createConfession = (payload: {
 }) => request<SubmissionResult>('/confessions', { method: 'POST', body: JSON.stringify(payload) });
 export type ConfessionFeedQuery = {
   page?: number;
+  limit?: number;
   search?: string;
   category?: string;
   customCategory?: string;
@@ -56,7 +57,10 @@ export type ConfessionFeedQuery = {
 };
 export const getConfessions = (input: ConfessionFeedQuery | number = {}) => {
   const query = typeof input === 'number' ? { page: input } : input;
-  const params = new URLSearchParams({ page: String(query.page ?? 1), limit: '12' });
+  const params = new URLSearchParams({
+    page: String(query.page ?? 1),
+    limit: String(query.limit ?? 12),
+  });
   for (const [key, value] of Object.entries(query)) {
     if (key !== 'page' && value) params.set(key, String(value));
   }

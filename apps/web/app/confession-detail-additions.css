@@ -1,0 +1,135 @@
+.detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.15rem;
+}
+
+.detail-header__context {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: rgba(255, 255, 255, 0.52);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.detail-header__context .eyebrow {
+  margin: 0;
+}
+
+.detail-browse {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0 auto 1rem;
+  max-width: 760px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.82rem;
+}
+
+.detail-browse button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.35rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.035);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.detail-browse button:hover:not(:disabled),
+.detail-browse button:focus-visible:not(:disabled) {
+  border-color: rgba(200, 255, 0, 0.6);
+  color: #c8ff00;
+}
+
+.detail-browse button:disabled {
+  cursor: not-allowed;
+  opacity: 0.34;
+}
+.detail-browse button span {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+.detail-browse__error {
+  margin: -0.35rem auto 1rem;
+  max-width: 760px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.8rem;
+}
+
+.related-confessions {
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.related-confessions__heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.related-confessions__heading .eyebrow {
+  margin: 0 0 0.35rem;
+}
+.related-confessions__heading h2 {
+  margin: 0;
+  font-size: clamp(1.25rem, 2vw, 1.65rem);
+}
+.related-confessions__heading a {
+  color: #c8ff00;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+.related-confessions__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+.related-confessions__state {
+  padding: 1.25rem;
+  border: 1px dashed rgba(255, 255, 255, 0.13);
+  border-radius: 1rem;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 700px) {
+  .detail-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+  .detail-header__context {
+    padding-left: 0.1rem;
+  }
+  .detail-browse {
+    margin-bottom: 0.8rem;
+  }
+  .detail-browse button {
+    padding-inline: 0.55rem;
+    font-size: 0.75rem;
+  }
+  .related-confessions {
+    margin-top: 2.25rem;
+    padding-top: 1.5rem;
+  }
+  .related-confessions__heading {
+    align-items: flex-start;
+  }
+  .related-confessions__grid {
+    grid-template-columns: 1fr;
+  }
+}
