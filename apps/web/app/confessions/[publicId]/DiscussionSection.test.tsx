@@ -143,4 +143,60 @@ describe('College Confession engagement redesign', () => {
     fireEvent.click(screen.getByRole('button', { name: /replies\. Open reply composer/i }));
     expect(screen.getByRole('dialog', { name: 'Write a reply' })).toBeInTheDocument();
   });
+
+  it('renders public comments when commenter identity loading fails', async () => {
+    discussionApi.getCommenterIdentity.mockRejectedValue(new Error('Identity unavailable'));
+
+    render(<DiscussionSection publicId="conf-1" confession={confession} />);
+
+    expect(await screen.findByText('Relatable and kind.')).toBeInTheDocument();
+    expect(screen.queryByText('Replies are temporarily unavailable.')).not.toBeInTheDocument();
+  });
+
+  it('renders public comments when confession reaction loading fails', async () => {
+    discussionApi.getConfessionReactions.mockRejectedValue(new Error('Reactions unavailable'));
+
+    render(<DiscussionSection publicId="conf-1" confession={confession} />);
+
+    expect(await screen.findByText('Relatable and kind.')).toBeInTheDocument();
+    expect(screen.queryByText('Replies are temporarily unavailable.')).not.toBeInTheDocument();
+  });
+
+  it('shows the discussion error only when the discussion request fails', async () => {
+    discussionApi.getDiscussion.mockRejectedValue(new Error('Discussion unavailable'));
+
+    render(<DiscussionSection publicId="conf-1" confession={confession} />);
+
+    expect(await screen.findByText('Replies are temporarily unavailable.')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('Discussion unavailable');
+  });
+
+  it('does not replace the current discussion with a stale confession response', async () => {
+    let resolveFirst: (value: unknown) => void = () => undefined;
+    const firstDiscussion = new Promise((resolve) => {
+      resolveFirst = resolve;
+    });
+    discussionApi.getDiscussion.mockReturnValueOnce(firstDiscussion).mockResolvedValueOnce({
+      items: [{ ...comment, id: 'comment-2', content: 'Current confession comment.' }],
+      page: 1,
+      limit: 20,
+      total: 1,
+      hasMore: false,
+    });
+
+    const { rerender } = render(<DiscussionSection publicId="conf-1" confession={confession} />);
+    rerender(
+      <DiscussionSection publicId="conf-2" confession={{ ...confession, publicId: 'conf-2' }} />,
+    );
+
+    expect(await screen.findByText('Current confession comment.')).toBeInTheDocument();
+    resolveFirst({
+      items: [comment],
+      page: 1,
+      limit: 20,
+      total: 1,
+      hasMore: false,
+    });
+    await waitFor(() => expect(screen.queryByText('Relatable and kind.')).not.toBeInTheDocument());
+  });
 });
