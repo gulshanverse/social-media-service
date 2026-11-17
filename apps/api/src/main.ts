@@ -34,6 +34,14 @@ export function configureTrustedProxy(app: {
   return hops;
 }
 
+export function getCorsOptions(env: NodeJS.ProcessEnv = process.env) {
+  const allowedOrigins = [
+    env.WEB_ORIGIN ?? (env.NODE_ENV === 'production' ? undefined : 'http://localhost:3000'),
+    env.ADMIN_ORIGIN ?? (env.NODE_ENV === 'production' ? undefined : 'http://localhost:3001'),
+  ].filter((origin): origin is string => Boolean(origin));
+  return { origin: allowedOrigins, credentials: true };
+}
+
 export async function createApp() {
   validateProductionEnvironment();
   const app = await NestFactory.create(AppModule, { bodyParser: false });
@@ -42,13 +50,7 @@ export async function createApp() {
   configureTrustedProxy(app);
   app.use(helmet());
   app.useGlobalFilters(new SafeApiExceptionFilter());
-  const allowedOrigins = [
-    process.env.WEB_ORIGIN ??
-      (process.env.NODE_ENV === 'production' ? undefined : 'http://localhost:3000'),
-    process.env.ADMIN_ORIGIN ??
-      (process.env.NODE_ENV === 'production' ? undefined : 'http://localhost:3001'),
-  ].filter((origin): origin is string => Boolean(origin));
-  app.enableCors({ origin: allowedOrigins, credentials: true });
+  app.enableCors(getCorsOptions());
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
   );
