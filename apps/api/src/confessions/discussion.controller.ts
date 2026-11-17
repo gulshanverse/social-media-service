@@ -23,13 +23,18 @@ function token(request: Request) {
     ?.slice(COMMENTER_COOKIE.length + 1);
 }
 function setCookie(response: Response, value: string) {
-  response.cookie(COMMENTER_COOKIE, value, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-    path: '/',
-    maxAge: 180 * 86400000,
-  });
+  const secure = process.env.NODE_ENV === 'production';
+  response.setHeader(
+    'Set-Cookie',
+    `${COMMENTER_COOKIE}=${encodeURIComponent(value)}; Max-Age=${180 * 86400}; Path=/; HttpOnly; SameSite=${secure ? 'None' : 'Lax'}${secure ? '; Secure' : ''}`,
+  );
+}
+function clearCookie(response: Response) {
+  const secure = process.env.NODE_ENV === 'production';
+  response.setHeader(
+    'Set-Cookie',
+    `${COMMENTER_COOKIE}=; Max-Age=0; Path=/; HttpOnly; SameSite=${secure ? 'None' : 'Lax'}${secure ? '; Secure' : ''}`,
+  );
 }
 export function assertCommenterOrigin(request: Request) {
   const trustedOrigin = process.env.WEB_ORIGIN ?? 'http://localhost:3000';
@@ -65,12 +70,7 @@ export class DiscussionController {
   ) {
     assertCommenterOrigin(request);
     const result = await this.discussion.revoke(token(request));
-    response.clearCookie(COMMENTER_COOKIE, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      path: '/',
-    });
+    clearCookie(response);
     return result;
   }
   @Get(':publicId/reactions') reactions(
