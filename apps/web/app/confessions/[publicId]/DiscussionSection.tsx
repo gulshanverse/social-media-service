@@ -151,6 +151,7 @@ export default function DiscussionSection({
   const [composerStickyReady, setComposerStickyReady] = useState(false);
   const floatingId = useRef(0);
   const submittingRef = useRef(false);
+  const discussionRequestRef = useRef(0);
   const filteredEmoji = useMemo(
     () => commonEmoji.filter((emoji) => !search || emoji.includes(search)),
     [search],
@@ -158,21 +159,44 @@ export default function DiscussionSection({
 
   useEffect(() => {
     let active = true;
-    Promise.all([getConfessionReactions(publicId), getDiscussion(publicId), getCommenterIdentity()])
-      .then(([reactionData, comments, identity]) => {
-        if (!active) return;
-        setReactions(reactionData);
+    const requestId = discussionRequestRef.current + 1;
+    discussionRequestRef.current = requestId;
+
+    // Reset confession-scoped data immediately so a previous confession cannot flash
+    // while the new one is loading. Optional requests must not control discussion rendering.
+    setDiscussion(null);
+    setDiscussionLoadError('');
+    setReactions(null);
+    setProfile(null);
+
+    getDiscussion(publicId)
+      .then((comments) => {
+        if (!active || discussionRequestRef.current !== requestId) return;
         setDiscussion(comments);
-        setDiscussionLoadError('');
-        setProfile(identity);
       })
       .catch((caught) => {
-        if (active) {
-          setDiscussionLoadError(
-            caught instanceof Error ? caught.message : 'We could not load the conversation yet.',
-          );
-        }
+        if (!active || discussionRequestRef.current !== requestId) return;
+        setDiscussionLoadError(
+          caught instanceof Error ? caught.message : 'We could not load the conversation yet.',
+        );
       });
+
+    getConfessionReactions(publicId)
+      .then((reactionData) => {
+        if (active && discussionRequestRef.current === requestId) setReactions(reactionData);
+      })
+      .catch(() => {
+        // Reactions are an enhancement. A failure here must never hide public comments.
+      });
+
+    getCommenterIdentity()
+      .then((identity) => {
+        if (active && discussionRequestRef.current === requestId) setProfile(identity);
+      })
+      .catch(() => {
+        // Identity is only needed for posting. Anonymous visitors can still read comments.
+      });
+
     return () => {
       active = false;
     };
@@ -290,6 +314,7 @@ export default function DiscussionSection({
 
   async function submitComment(pendingContent = content) {
     if (submittingRef.current || !pendingContent.trim()) return;
+    const requestId = discussionRequestRef.current;
     submittingRef.current = true;
     setBusy(true);
     setError('');
@@ -299,7 +324,8 @@ export default function DiscussionSection({
       setReplyTo(null);
       setComposerOpen(false);
       setNotice(result.message);
-      setDiscussion(await getDiscussion(publicId));
+      const nextDiscussion = await getDiscussion(publicId);
+      if (discussionRequestRef.current === requestId) setDiscussion(nextDiscussion);
     } catch (caught) {
       if (caught instanceof ApiRequestError && caught.status === 401) {
         setComposerOpen(false);
@@ -559,11 +585,14 @@ export default function DiscussionSection({
       {discussion?.hasMore && (
         <button
           className="ghost-button load-comments"
-          onClick={() =>
-            getDiscussion(publicId, discussion.page + 1).then((next) =>
-              setDiscussion({ ...next, items: [...discussion.items, ...next.items] }),
-            )
-          }
+          onClick={() => {
+            const requestId = discussionRequestRef.current;
+            const currentDiscussion = discussion;
+            getDiscussion(publicId, currentDiscussion.page + 1).then((next) => {
+              if (discussionRequestRef.current !== requestId) return;
+              setDiscussion({ ...next, items: [...currentDiscussion.items, ...next.items] });
+            });
+          }}
         >
           Load more replies
         </button>
