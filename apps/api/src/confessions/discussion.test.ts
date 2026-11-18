@@ -49,6 +49,20 @@ const commentReactionMigration = readFileSync(
 );
 assert.match(commentReactionMigration, /CREATE TABLE "ConfessionCommentReaction"/);
 assert.match(commentReactionMigration, /ConfessionCommentReaction_commentId_actorHash_emoji_key/);
+const commentReactionRepairMigration = readFileSync(
+  join(
+    process.cwd(),
+    '../../prisma/migrations/20261119030000_repair_confession_comment_reactions/migration.sql',
+  ),
+  'utf8',
+);
+assert.match(
+  commentReactionRepairMigration,
+  /CREATE TABLE IF NOT EXISTS "ConfessionCommentReaction"/,
+);
+assert.match(commentReactionRepairMigration, /CREATE UNIQUE INDEX IF NOT EXISTS/);
+assert.match(commentReactionRepairMigration, /ConfessionCommentReaction_commentId_fkey/);
+assert.match(commentReactionRepairMigration, /ConfessionCommentReaction_profileId_fkey/);
 const registeredControllers = Reflect.getMetadata('controllers', ConfessionsModule) as unknown[];
 assert.ok(
   registeredControllers.indexOf(DiscussionController) <
