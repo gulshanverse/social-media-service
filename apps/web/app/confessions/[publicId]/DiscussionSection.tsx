@@ -542,7 +542,8 @@ export default function DiscussionSection({
         </div>
       </div>
       <p className="community-guideline">
-        Keep it kind, specific, and safe. Every reply is reviewed before it appears on the wall.
+        Comments appear immediately. Keep it kind, specific, and safe; you can report comments that
+        concern you.
       </p>
       {notice && (
         <p className="discussion-notice" role="status">
@@ -665,7 +666,7 @@ export default function DiscussionSection({
               aria-label="Your comment"
             />
             <div className="composer-guidance">
-              <span>Your reply will be reviewed before it appears publicly.</span>
+              <span>Your reply appears immediately and can still be reported.</span>
               <span>{content.length}/1000</span>
             </div>
             <button className="ggv-button composer-submit" disabled={!content.trim() || busy}>

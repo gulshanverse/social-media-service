@@ -1,0 +1,124 @@
+import assert from 'node:assert/strict';
+import { ConfessionCommentStatus, ConfessionStatus } from '@prisma/client';
+import { prisma, setPrismaForTests } from '../admin-auth';
+import { DiscussionService } from './discussion.service';
+
+const realPrisma = prisma;
+const now = new Date();
+const profile = {
+  id: 'profile-test',
+  displayName: 'Test User',
+  instagramUsername: 'test.user',
+};
+const session = {
+  id: 'session-test',
+  profileId: profile.id,
+  profile,
+  revokedAt: null,
+  expiresAt: new Date(Date.now() + 60_000),
+};
+const confession = { id: 'confession-test', commentsLocked: false };
+const comment = {
+  id: 'comment-test',
+  confessionId: confession.id,
+  parentId: null,
+  content: 'Visible immediately',
+  createdAt: now,
+  profile,
+  _count: { replies: 0 },
+};
+
+async function testCreatePublishesImmediately() {
+  let createArgs: any;
+  setPrismaForTests({
+    commenterSession: {
+      findUnique: async () => session,
+      update: async () => ({}),
+    },
+    confession: {
+      findFirst: async (args: any) => {
+        assert.equal(args.where.status, ConfessionStatus.PUBLISHED);
+        return confession;
+      },
+    },
+    confessionComment: {
+      create: async (args: any) => {
+        createArgs = args;
+        return comment;
+      },
+    },
+  } as any);
+  const result = await new DiscussionService().create(
+    'public-test',
+    { content: ' Visible immediately ' } as any,
+    'valid-session-token',
+    'create-test-ip',
+  );
+  assert.equal(createArgs.data.status, ConfessionCommentStatus.PUBLISHED);
+  assert.equal(result.status, 'PUBLISHED');
+  assert.match(result.message, /now visible/i);
+  assert.equal(result.comment.content, 'Visible immediately');
+}
+
+async function testListSurvivesReactionFailure() {
+  setPrismaForTests({
+    commenterSession: { findUnique: async () => null },
+    confession: { findFirst: async () => confession },
+    confessionComment: {
+      findMany: async (args: any) => (args.where.parentId === null ? [comment] : []),
+      count: async () => 1,
+    },
+    confessionCommentReaction: {
+      groupBy: async () => {
+        throw new Error('relation "ConfessionCommentReaction" does not exist');
+      },
+      findMany: async () => [],
+    },
+  } as any);
+  const result = await new DiscussionService().list('public-test', 1, undefined, 'list-test-ip');
+  assert.equal(result.total, 1);
+  assert.equal(result.items.length, 1);
+  assert.equal(result.items[0].content, 'Visible immediately');
+  assert.deepEqual(result.items[0].reactionCounts, {});
+  assert.deepEqual(result.items[0].selectedReactions, []);
+  assert.deepEqual(result.items[0].replies, []);
+}
+
+async function testCoreFailuresStillPropagate() {
+  setPrismaForTests({
+    commenterSession: { findUnique: async () => null },
+    confession: { findFirst: async () => confession },
+    confessionComment: {
+      findMany: async () => {
+        throw new Error('comment query failed');
+      },
+      count: async () => 0,
+    },
+  } as any);
+  await assert.rejects(() => new DiscussionService().list('public-test'), /comment query failed/);
+
+  setPrismaForTests({
+    confession: {
+      findFirst: async () => {
+        throw new Error('confession lookup failed');
+      },
+    },
+  } as any);
+  await assert.rejects(
+    () => new DiscussionService().list('public-test'),
+    /confession lookup failed/,
+  );
+}
+
+async function main() {
+  try {
+    await testCreatePublishesImmediately();
+    await testListSurvivesReactionFailure();
+    await testCoreFailuresStillPropagate();
+    console.log('discussion service publication and reaction fallback tests passed');
+  } finally {
+    setPrismaForTests(realPrisma);
+  }
+}
+
+void main();
