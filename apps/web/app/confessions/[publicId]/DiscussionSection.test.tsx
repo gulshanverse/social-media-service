@@ -254,4 +254,77 @@ describe('College Confession engagement redesign', () => {
     });
     await waitFor(() => expect(screen.queryByText('Relatable and kind.')).not.toBeInTheDocument());
   });
+
+  it('links a valid commenter display name and leaves an unavailable handle as text', async () => {
+    discussionApi.getDiscussion.mockResolvedValueOnce({
+      items: [
+        comment,
+        {
+          ...comment,
+          id: 'comment-invalid-handle',
+          profile: {
+            ...comment.profile,
+            displayName: 'No Link',
+            instagramUsername: null,
+            instagramUrl: null,
+          },
+        },
+      ],
+      page: 1,
+      limit: 20,
+      total: 2,
+      hasMore: false,
+    });
+
+    render(<DiscussionSection publicId="conf-1" confession={confession} />);
+
+    const validName = await screen.findByRole('link', { name: 'Anonymous' });
+    expect(validName).toHaveAttribute('href', 'https://www.instagram.com/anonymous/');
+    expect(validName).toHaveAttribute('target', '_blank');
+    expect(validName).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(screen.getByText('No Link').closest('a')).toBeNull();
+  });
+
+  it('posts a reply against the selected nested comment', async () => {
+    const nested = {
+      ...comment,
+      id: 'nested-reply',
+      parentId: 'comment-1',
+      content: 'Nested reply',
+    };
+    discussionApi.getCommenterIdentity.mockResolvedValue({
+      id: 'profile-1',
+      displayName: 'Anonymous',
+      instagramUsername: 'anonymous',
+      instagramUrl: 'https://www.instagram.com/anonymous/',
+    });
+    discussionApi.getDiscussion.mockResolvedValue({
+      items: [{ ...comment, replyCount: 1, replies: [nested] }],
+      page: 1,
+      limit: 20,
+      total: 1,
+      hasMore: false,
+    });
+    discussionApi.postDiscussionComment.mockResolvedValue({
+      status: 'PUBLISHED',
+      message: 'Your comment is now visible.',
+      comment: nested,
+    });
+
+    render(<DiscussionSection publicId="conf-1" confession={confession} />);
+    const replyButtons = await screen.findAllByRole('button', { name: '↩ Reply' });
+    fireEvent.click(replyButtons[replyButtons.length - 1]);
+    fireEvent.change(await screen.findByRole('textbox', { name: 'Your comment' }), {
+      target: { value: 'Reply to nested' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Post reply/i }));
+
+    await waitFor(() =>
+      expect(discussionApi.postDiscussionComment).toHaveBeenCalledWith(
+        'conf-1',
+        'Reply to nested',
+        'nested-reply',
+      ),
+    );
+  });
 });

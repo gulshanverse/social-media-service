@@ -26,12 +26,24 @@ const limiter = new SubmissionRateLimiter();
 const fixedReactionSet = new Set<string>(FIXED_REACTIONS);
 const hash = (value: string) => createHash('sha256').update(value).digest('hex');
 const tokenHash = (value: string) => hash(value);
-const publicProfile = (profile: any) => ({
-  id: profile.id,
-  displayName: profile.displayName,
-  instagramUsername: profile.instagramUsername,
-  instagramUrl: `https://www.instagram.com/${encodeURIComponent(profile.instagramUsername)}/`,
-});
+const publicProfile = (profile: any) => {
+  let instagramUsername: string | null = null;
+  if (typeof profile.instagramUsername === 'string') {
+    try {
+      instagramUsername = normalizeInstagramUsername(profile.instagramUsername);
+    } catch {
+      // Existing profiles may contain a legacy or unavailable handle.
+    }
+  }
+  return {
+    id: profile.id,
+    displayName: profile.displayName,
+    instagramUsername,
+    instagramUrl: instagramUsername
+      ? `https://www.instagram.com/${encodeURIComponent(instagramUsername)}/`
+      : null,
+  };
+};
 function assertRate(key: string, limit: number, message: string) {
   const result = limiter.check(key, limit, 3600);
   if (!result.allowed) throw new HttpException(message, HttpStatus.TOO_MANY_REQUESTS);
@@ -138,31 +150,32 @@ export class DiscussionService {
       status: ConfessionCommentStatus.PUBLISHED,
       parentId: null,
     };
-    const [items, total, session] = await Promise.all([
+    const [topLevel, total, session] = await Promise.all([
       (prisma as any).confessionComment.findMany({
         where,
         orderBy: { createdAt: 'asc' },
         skip: (safePage - 1) * take,
         take,
-        include: {
-          profile: true,
-          _count: { select: { replies: { where: { status: ConfessionCommentStatus.PUBLISHED } } } },
-        },
+        include: { profile: true },
       }),
       (prisma as any).confessionComment.count({ where }),
       this.session(rawToken),
     ]);
-    const replies = items.length
-      ? await (prisma as any).confessionComment.findMany({
-          where: {
-            parentId: { in: items.map((item: any) => item.id) },
-            status: ConfessionCommentStatus.PUBLISHED,
-          },
-          orderBy: { createdAt: 'asc' },
-          include: { profile: true },
-        })
-      : [];
-    const allComments = [...items, ...replies];
+    const allComments = [...topLevel];
+    let frontier = topLevel.map((comment: any) => comment.id);
+    while (frontier.length) {
+      const replies = await (prisma as any).confessionComment.findMany({
+        where: {
+          confessionId: confession.id,
+          status: ConfessionCommentStatus.PUBLISHED,
+          parentId: { in: frontier },
+        },
+        orderBy: { createdAt: 'asc' },
+        include: { profile: true },
+      });
+      allComments.push(...replies);
+      frontier = replies.map((reply: any) => reply.id);
+    }
     let states: Map<string, ReactionSummary>;
     try {
       states = await this.reactionStates(
@@ -173,16 +186,19 @@ export class DiscussionService {
       states = new Map();
     }
     return {
-      items: items.map((item: any) => ({
-        ...this.safeComment(item, states.get(item.id)),
-        replies: replies
-          .filter((reply: any) => reply.parentId === item.id)
-          .map((reply: any) => this.safeComment(reply, states.get(reply.id))),
-      })),
+      items: topLevel.map((item: any) => this.commentTree(item, allComments, states)),
       page: safePage,
       limit: take,
       total,
       hasMore: safePage * take < total,
+    };
+  }
+  private commentTree(comment: any, allComments: any[], states: Map<string, ReactionSummary>): any {
+    const replies = allComments.filter((candidate) => candidate.parentId === comment.id);
+    return {
+      ...this.safeComment(comment, states.get(comment.id)),
+      replyCount: replies.length,
+      replies: replies.map((reply) => this.commentTree(reply, allComments, states)),
     };
   }
   async create(publicId: string, dto: CommentDto, rawToken: string | undefined, ip: string) {
@@ -200,7 +216,6 @@ export class DiscussionService {
         where: {
           id: dto.parentId,
           confessionId: confession.id,
-          parentId: null,
           status: ConfessionCommentStatus.PUBLISHED,
         },
         select: { id: true },
