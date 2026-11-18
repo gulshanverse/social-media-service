@@ -91,6 +91,23 @@ describe('College Confession engagement redesign', () => {
     expect(discussionApi.reactToConfession).toHaveBeenCalledWith('conf-1', '❤️');
   });
 
+  it('keeps a successful confession reaction reconciled with the API response', async () => {
+    discussionApi.reactToConfession.mockResolvedValue({
+      options: ['❤️', '😂', '🫶', '👍', '🔥', '💡'],
+      counts: { '❤️': 3, '😂': 1, '🫶': 0, '👍': 0, '🔥': 0, '💡': 0 },
+      customReactions: [],
+      selected: ['❤️'],
+    });
+    render(<DiscussionSection publicId="conf-1" confession={confession} />);
+
+    const reaction = await screen.findByRole('button', { name: '❤️ reaction, 2' });
+    fireEvent.click(reaction);
+
+    await waitFor(() => expect(reaction).toHaveAttribute('aria-pressed', 'true'));
+    expect(reaction).toHaveAccessibleName('❤️ reaction, 3');
+    expect(discussionApi.reactToConfession).toHaveBeenCalledWith('conf-1', '❤️');
+  });
+
   it('reconciles comment reaction state and persists a local bookmark toggle', async () => {
     discussionApi.reactToConfession.mockResolvedValue({
       options: ['❤️', '😂', '🫶', '👍', '🔥', '💡'],
@@ -208,6 +225,43 @@ describe('College Confession engagement redesign', () => {
     expect(discussionApi.getDiscussion).toHaveBeenCalledTimes(2);
   });
 
+  it('does not report a published comment as failed when the refresh fails', async () => {
+    discussionApi.getCommenterIdentity.mockResolvedValue({
+      id: 'profile-1',
+      displayName: 'Anonymous',
+      instagramUsername: 'anonymous',
+      instagramUrl: 'https://www.instagram.com/anonymous/',
+    });
+    discussionApi.postDiscussionComment.mockResolvedValue({
+      status: 'PUBLISHED',
+      message: 'Your comment is now visible.',
+      comment,
+    });
+    discussionApi.getDiscussion.mockResolvedValueOnce({
+      items: [],
+      page: 1,
+      limit: 20,
+      total: 0,
+      hasMore: false,
+    });
+    discussionApi.getDiscussion.mockRejectedValueOnce(new Error('Refresh unavailable'));
+
+    render(<DiscussionSection publicId="conf-1" confession={confession} />);
+    await screen.findByPlaceholderText('Add a thoughtful reply…');
+    fireEvent.click(await screen.findByRole('button', { name: /replies\. Open reply composer/i }));
+    fireEvent.change(await screen.findByRole('textbox', { name: 'Your comment' }), {
+      target: { value: 'Published despite refresh trouble' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Post reply/i }));
+
+    await waitFor(() =>
+      expect(screen.getByRole('status')).toHaveTextContent(
+        /Your comment is now visible.*Refresh the page/i,
+      ),
+    );
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
   it('explains that comments appear immediately and remain reportable', async () => {
     render(<DiscussionSection publicId="conf-1" confession={confession} />);
     expect(screen.getByText(/Comments appear immediately.*report comments/i)).toBeInTheDocument();
@@ -269,6 +323,16 @@ describe('College Confession engagement redesign', () => {
             instagramUrl: null,
           },
         },
+        {
+          ...comment,
+          id: 'comment-invalid-username',
+          profile: {
+            ...comment.profile,
+            displayName: 'Invalid Link',
+            instagramUsername: 'bad username',
+            instagramUrl: 'https://example.com/not-instagram',
+          },
+        },
       ],
       page: 1,
       limit: 20,
@@ -283,6 +347,7 @@ describe('College Confession engagement redesign', () => {
     expect(validName).toHaveAttribute('target', '_blank');
     expect(validName).toHaveAttribute('rel', 'noopener noreferrer');
     expect(screen.getByText('No Link').closest('a')).toBeNull();
+    expect(screen.getByText('Invalid Link').closest('a')).toBeNull();
   });
 
   it('posts a reply against the selected nested comment', async () => {
@@ -298,13 +363,15 @@ describe('College Confession engagement redesign', () => {
       instagramUsername: 'anonymous',
       instagramUrl: 'https://www.instagram.com/anonymous/',
     });
-    discussionApi.getDiscussion.mockResolvedValue({
+    const discussionWithNestedReply = {
       items: [{ ...comment, replyCount: 1, replies: [nested] }],
       page: 1,
       limit: 20,
       total: 1,
       hasMore: false,
-    });
+    };
+    discussionApi.getDiscussion.mockResolvedValueOnce(discussionWithNestedReply);
+    discussionApi.getDiscussion.mockResolvedValueOnce(discussionWithNestedReply);
     discussionApi.postDiscussionComment.mockResolvedValue({
       status: 'PUBLISHED',
       message: 'Your comment is now visible.',
@@ -326,5 +393,6 @@ describe('College Confession engagement redesign', () => {
         'nested-reply',
       ),
     );
+    expect(await screen.findByText('Nested reply')).toBeInTheDocument();
   });
 });

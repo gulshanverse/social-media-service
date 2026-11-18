@@ -125,6 +125,55 @@ async function testRepliesCanTargetPublishedReplies() {
   assert.equal(createArgs.data.parentId, nestedReply.id);
 }
 
+async function testCommentReactionCreatesAndRemoves() {
+  let reaction: { id: string; emoji: string } | null = null;
+  const reactionRows: Array<{ emoji: string }> = [];
+  const reactionModel = {
+    findUnique: async () => reaction,
+    create: async (args: any) => {
+      reaction = { id: 'comment-reaction-test', emoji: args.data.emoji };
+      reactionRows.push({ emoji: args.data.emoji });
+      return reaction;
+    },
+    delete: async () => {
+      reaction = null;
+      reactionRows.splice(0, reactionRows.length);
+    },
+    groupBy: async () =>
+      reactionRows.length ? [{ emoji: '❤️', _count: { _all: reactionRows.length } }] : [],
+    findMany: async () => reactionRows,
+  };
+  const transaction = async (callback: (tx: any) => Promise<void>) =>
+    callback({ confessionCommentReaction: reactionModel });
+
+  setPrismaForTests({
+    commenterSession: { findUnique: async () => null },
+    confession: { findFirst: async () => confession },
+    confessionComment: { findFirst: async () => ({ id: comment.id }) },
+    confessionCommentReaction: reactionModel,
+    $transaction: transaction,
+  } as any);
+
+  const service = new DiscussionService();
+  const created = await service.reactToComment(
+    'public-test',
+    comment.id,
+    { emoji: '❤️' } as any,
+    undefined,
+    'reaction-test-ip',
+  );
+  assert.deepEqual(created, { counts: { '❤️': 1 }, selected: ['❤️'] });
+
+  const removed = await service.reactToComment(
+    'public-test',
+    comment.id,
+    { emoji: '❤️' } as any,
+    undefined,
+    'reaction-test-ip',
+  );
+  assert.deepEqual(removed, { counts: {}, selected: [] });
+}
+
 async function testCoreFailuresStillPropagate() {
   setPrismaForTests({
     commenterSession: { findUnique: async () => null },
@@ -156,6 +205,7 @@ async function main() {
     await testCreatePublishesImmediately();
     await testListSurvivesReactionFailure();
     await testRepliesCanTargetPublishedReplies();
+    await testCommentReactionCreatesAndRemoves();
     await testCoreFailuresStillPropagate();
     console.log('discussion service publication and reaction fallback tests passed');
   } finally {

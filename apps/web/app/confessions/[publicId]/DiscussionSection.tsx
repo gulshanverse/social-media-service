@@ -331,8 +331,14 @@ export default function DiscussionSection({
       setReplyTo(null);
       setComposerOpen(false);
       setNotice(result.message);
-      const nextDiscussion = await getDiscussion(publicId);
-      if (discussionRequestRef.current === requestId) setDiscussion(nextDiscussion);
+      try {
+        const nextDiscussion = await getDiscussion(publicId);
+        if (discussionRequestRef.current === requestId) setDiscussion(nextDiscussion);
+      } catch {
+        if (discussionRequestRef.current === requestId) {
+          setNotice(`${result.message} Refresh the page to see the latest conversation.`);
+        }
+      }
     } catch (caught) {
       if (caught instanceof ApiRequestError && caught.status === 401) {
         setComposerOpen(false);
