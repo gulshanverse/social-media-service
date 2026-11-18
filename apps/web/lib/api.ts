@@ -97,8 +97,8 @@ export const reportConfession = (publicId: string, reason: string, details?: str
 export type CommenterProfile = {
   id: string;
   displayName: string;
-  instagramUsername: string;
-  instagramUrl: string;
+  instagramUsername: string | null;
+  instagramUrl: string | null;
 };
 export type DiscussionComment = {
   id: string;
@@ -131,19 +131,51 @@ export const registerCommenter = (payload: { displayName: string; instagramUsern
     method: 'POST',
     body: JSON.stringify(payload),
   });
+
+function normalizeDiscussionComment(comment: Partial<DiscussionComment>): DiscussionComment {
+  return {
+    ...(comment as DiscussionComment),
+    parentId: comment.parentId ?? null,
+    profile: {
+      id: comment.profile?.id ?? 'unknown-profile',
+      displayName: comment.profile?.displayName ?? 'Anonymous',
+      instagramUsername: comment.profile?.instagramUsername ?? null,
+      instagramUrl: comment.profile?.instagramUrl ?? null,
+    },
+    replyCount: comment.replyCount ?? comment.replies?.length ?? 0,
+    replies: (comment.replies ?? []).map(normalizeDiscussionComment),
+    reactionCounts: comment.reactionCounts ?? {},
+    selectedReactions: comment.selectedReactions ?? [],
+  };
+}
+
 export const getConfessionReactions = (publicId: string) =>
-  request<ReactionState>(`/confessions/${encodeURIComponent(publicId)}/reactions`, {
+  request<Partial<ReactionState>>(`/confessions/${encodeURIComponent(publicId)}/reactions`, {
     cache: 'no-store',
-  });
+  }).then((state) => ({
+    options: state.options ?? [],
+    counts: state.counts ?? {},
+    customReactions: state.customReactions ?? [],
+    selected: state.selected ?? [],
+  }));
 export const reactToConfession = (publicId: string, emoji: string) =>
   request<ReactionState>(`/confessions/${encodeURIComponent(publicId)}/reactions`, {
     method: 'POST',
     body: JSON.stringify({ emoji }),
   });
 export const getDiscussion = (publicId: string, page = 1) =>
-  request<DiscussionPage>(`/confessions/${encodeURIComponent(publicId)}/comments?page=${page}`, {
-    cache: 'no-store',
-  });
+  request<Partial<DiscussionPage>>(
+    `/confessions/${encodeURIComponent(publicId)}/comments?page=${page}`,
+    {
+      cache: 'no-store',
+    },
+  ).then((discussion) => ({
+    items: (discussion.items ?? []).map(normalizeDiscussionComment),
+    page: discussion.page ?? page,
+    limit: discussion.limit ?? 20,
+    total: discussion.total ?? 0,
+    hasMore: discussion.hasMore ?? false,
+  }));
 export const reactToComment = (publicId: string, commentId: string, emoji: string) =>
   request<{ counts: Record<string, number>; selected: string[] }>(
     `/confessions/${encodeURIComponent(publicId)}/comments/${encodeURIComponent(commentId)}/reactions`,

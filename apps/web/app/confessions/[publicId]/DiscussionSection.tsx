@@ -80,6 +80,13 @@ function commentReactionCount(comment: DiscussionComment) {
   return Object.values(comment.reactionCounts ?? {}).reduce((total, count) => total + count, 0);
 }
 
+function instagramProfileUrl(username: string | null | undefined) {
+  const normalized = username?.trim().replace(/^@+/, '');
+  return normalized && /^[A-Za-z0-9._]{1,30}$/.test(normalized)
+    ? `https://www.instagram.com/${encodeURIComponent(normalized)}/`
+    : null;
+}
+
 function updateCommentReaction(
   items: DiscussionComment[],
   commentId: string,
@@ -324,8 +331,14 @@ export default function DiscussionSection({
       setReplyTo(null);
       setComposerOpen(false);
       setNotice(result.message);
-      const nextDiscussion = await getDiscussion(publicId);
-      if (discussionRequestRef.current === requestId) setDiscussion(nextDiscussion);
+      try {
+        const nextDiscussion = await getDiscussion(publicId);
+        if (discussionRequestRef.current === requestId) setDiscussion(nextDiscussion);
+      } catch {
+        if (discussionRequestRef.current === requestId) {
+          setNotice(`${result.message} Refresh the page to see the latest conversation.`);
+        }
+      }
     } catch (caught) {
       if (caught instanceof ApiRequestError && caught.status === 401) {
         setComposerOpen(false);
@@ -742,15 +755,22 @@ function CommentCard({
   const [reported, setReported] = useState(false);
   const [repliesExpanded, setRepliesExpanded] = useState(comment.replies.length <= 2);
   const visibleReplies = repliesExpanded ? comment.replies : comment.replies.slice(0, 2);
+  const profileUrl = instagramProfileUrl(comment.profile.instagramUsername);
   return (
     <article className="comment-card">
       <div className="avatar">{initials(comment.profile.displayName)}</div>
       <div className="comment-main">
         <div className="comment-meta">
-          <strong>{comment.profile.displayName}</strong>
-          <a href={comment.profile.instagramUrl} target="_blank" rel="noreferrer">
-            @{comment.profile.instagramUsername}
-          </a>
+          <strong>
+            {profileUrl ? (
+              <a href={profileUrl} target="_blank" rel="noopener noreferrer">
+                {comment.profile.displayName}
+              </a>
+            ) : (
+              comment.profile.displayName
+            )}
+          </strong>
+          {profileUrl && <span>@{comment.profile.instagramUsername}</span>}
           <time dateTime={comment.createdAt} title={new Date(comment.createdAt).toLocaleString()}>
             {relative(comment.createdAt)}
           </time>
