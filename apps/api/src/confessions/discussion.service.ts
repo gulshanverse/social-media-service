@@ -163,10 +163,15 @@ export class DiscussionService {
         })
       : [];
     const allComments = [...items, ...replies];
-    const states = await this.reactionStates(
-      allComments.map((comment: any) => comment.id),
-      this.actorHash(session, ip),
-    );
+    let states: Map<string, ReactionSummary>;
+    try {
+      states = await this.reactionStates(
+        allComments.map((comment: any) => comment.id),
+        this.actorHash(session, ip),
+      );
+    } catch {
+      states = new Map();
+    }
     return {
       items: items.map((item: any) => ({
         ...this.safeComment(item, states.get(item.id)),
@@ -209,13 +214,13 @@ export class DiscussionService {
         profileId: session.profileId,
         parentId,
         content,
-        status: ConfessionCommentStatus.PENDING,
+        status: ConfessionCommentStatus.PUBLISHED,
       },
       include: { profile: true, _count: { select: { replies: true } } },
     });
     return {
-      status: 'PENDING',
-      message: 'Your comment is awaiting moderation.',
+      status: 'PUBLISHED',
+      message: 'Your comment is now visible.',
       comment: this.safeComment(comment),
     };
   }

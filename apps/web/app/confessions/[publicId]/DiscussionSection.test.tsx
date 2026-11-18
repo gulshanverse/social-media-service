@@ -162,6 +162,61 @@ describe('College Confession engagement redesign', () => {
     expect(screen.queryByText('Replies are temporarily unavailable.')).not.toBeInTheDocument();
   });
 
+  it('shows an immediately published comment after the submit response and discussion refresh', async () => {
+    discussionApi.getCommenterIdentity.mockResolvedValue({
+      id: 'profile-1',
+      displayName: 'Anonymous',
+      instagramUsername: 'anonymous',
+      instagramUrl: 'https://www.instagram.com/anonymous/',
+    });
+    const publishedComment = {
+      ...comment,
+      id: 'comment-new',
+      content: 'Newly published reply',
+    };
+    discussionApi.postDiscussionComment.mockResolvedValue({
+      status: 'PUBLISHED',
+      message: 'Your comment is now visible.',
+      comment: publishedComment,
+    });
+    discussionApi.getDiscussion
+      .mockResolvedValueOnce({ items: [], page: 1, limit: 20, total: 0, hasMore: false })
+      .mockResolvedValueOnce({
+        items: [publishedComment],
+        page: 1,
+        limit: 20,
+        total: 1,
+        hasMore: false,
+      });
+
+    render(<DiscussionSection publicId="conf-1" confession={confession} />);
+    await screen.findByPlaceholderText('Add a thoughtful reply…');
+    fireEvent.click(await screen.findByRole('button', { name: /replies\. Open reply composer/i }));
+    fireEvent.change(await screen.findByRole('textbox', { name: 'Your comment' }), {
+      target: { value: 'Newly published reply' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Post reply/i }));
+
+    await waitFor(() => expect(discussionApi.postDiscussionComment).toHaveBeenCalled());
+    expect(await screen.findByText(/Newly published reply/)).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Your comment is now visible.');
+    expect(discussionApi.postDiscussionComment).toHaveBeenCalledWith(
+      'conf-1',
+      'Newly published reply',
+      undefined,
+    );
+    expect(discussionApi.getDiscussion).toHaveBeenCalledTimes(2);
+  });
+
+  it('explains that comments appear immediately and remain reportable', async () => {
+    render(<DiscussionSection publicId="conf-1" confession={confession} />);
+    expect(screen.getByText(/Comments appear immediately.*report comments/i)).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: /replies\. Open reply composer/i }));
+    expect(
+      await screen.findByText(/Your reply appears immediately and can still be reported/i),
+    ).toBeInTheDocument();
+  });
+
   it('shows the discussion error only when the discussion request fails', async () => {
     discussionApi.getDiscussion.mockRejectedValue(new Error('Discussion unavailable'));
 
