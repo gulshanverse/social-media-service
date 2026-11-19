@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { UIEvent } from 'react';
 import type { PublicConfessionPage } from '@ggv/types';
 import { allConfessionCategories } from '@ggv/types';
@@ -28,6 +28,8 @@ type ServiceSlide = {
 };
 
 type PageItem = number | 'ellipsis';
+
+const MemoizedConfessionCard = memo(ConfessionCard);
 
 const categoryLabels: Record<string, string> = {
   CRUSH: 'Crush',
@@ -151,6 +153,8 @@ export default function ConfessionsFeed({
   const [query, setQuery] = useState<ConfessionFeedQuery>({ ...defaultQuery, ...initialQuery });
   const [searchInput, setSearchInput] = useState(initialSearch ?? '');
   const [data, setData] = useState<PublicConfessionPage | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadedQueryKey, setLoadedQueryKey] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
@@ -182,7 +186,12 @@ export default function ConfessionsFeed({
   const serviceResetInstantly = useRef(false);
   const pointerStart = useRef<number | null>(null);
   const serviceDragged = useRef(false);
+  const browseTarget = useRef<number | 'last' | null>(null);
+  const prefetchedQueries = useRef(new Set<string>());
   const servicePaused = serviceHovered || serviceFocused || serviceInteracting;
+  const currentQueryKey = queryString(query);
+  const isCurrentData = loadedQueryKey === currentQueryKey;
+  const navigationBusy = data !== null && !isCurrentData;
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -317,6 +326,7 @@ export default function ConfessionsFeed({
   const navigate = useCallback(
     (nextQuery: ConfessionFeedQuery, mode: HistoryMode = 'push') => {
       const next = { ...defaultQuery, ...nextQuery };
+      browseTarget.current = 0;
       setQuery(next);
       const search = queryString(next);
       const href = search ? `${pathname}?${search}` : pathname;
@@ -375,17 +385,49 @@ export default function ConfessionsFeed({
 
   useEffect(() => {
     const id = ++requestId.current;
-    setData(null);
+    const queryKey = queryString(query);
+    setIsLoading(true);
     setError('');
     getConfessions(query)
       .then((result) => {
-        if (id === requestId.current) setData(result);
+        if (id !== requestId.current) return;
+        setData(result);
+        setLoadedQueryKey(queryKey);
+        setBrowseIndex((currentIndex) => {
+          const target = browseTarget.current;
+          browseTarget.current = null;
+          if (target === 'last') return Math.max(result.items.length - 1, 0);
+          if (typeof target === 'number')
+            return Math.min(target, Math.max(result.items.length - 1, 0));
+          return Math.min(currentIndex, Math.max(result.items.length - 1, 0));
+        });
+        setIsLoading(false);
       })
       .catch((caught) => {
-        if (id === requestId.current)
-          setError(caught instanceof Error ? caught.message : 'Could not load confessions.');
+        if (id !== requestId.current) return;
+        setIsLoading(false);
+        setError(caught instanceof Error ? caught.message : 'Could not load confessions.');
       });
   }, [query]);
+
+  useEffect(() => {
+    if (!data || !isCurrentData) return;
+
+    const pagesToPrefetch = [
+      ...(data.hasMore ? [data.page + 1] : []),
+      ...(data.page > 1 ? [data.page - 1] : []),
+    ];
+
+    for (const page of pagesToPrefetch) {
+      const nextQuery = { ...query, page };
+      const key = queryString(nextQuery);
+      if (prefetchedQueries.current.has(key)) continue;
+      prefetchedQueries.current.add(key);
+      void getConfessions(nextQuery).catch(() => {
+        prefetchedQueries.current.delete(key);
+      });
+    }
+  }, [data, isCurrentData, query]);
   useEffect(() => {
     if (!data || !paginationScrollPending.current) return;
     paginationScrollPending.current = false;
@@ -434,11 +476,12 @@ export default function ConfessionsFeed({
     });
 
   const retry = () => setQuery((current) => ({ ...current }));
-  const goToPage = (page: number) => {
-    if (page === data?.page) return;
+  const goToPage = (page: number, target: number | 'last' = 0, shouldScrollToToolbar = true) => {
+    if (!isCurrentData || page === data?.page) return;
     setBrowseIndex(0);
-    paginationScrollPending.current = true;
+    paginationScrollPending.current = shouldScrollToToolbar;
     navigate({ ...query, page });
+    browseTarget.current = target;
   };
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
   const firstResult = data && data.total > 0 ? (data.page - 1) * data.limit + 1 : 0;
@@ -484,17 +527,16 @@ export default function ConfessionsFeed({
   };
 
   const goToConfession = (direction: -1 | 1) => {
+    if (!data || !isCurrentData) return;
     const nextIndex = browseIndex + direction;
-    if (nextIndex >= 0 && nextIndex < (data?.items.length ?? 0)) {
+    if (nextIndex >= 0 && nextIndex < data.items.length) {
       scrollToConfession(nextIndex);
       return;
     }
-    if (direction > 0 && data?.hasMore) {
-      paginationScrollPending.current = false;
-      goToPage(data.page + 1);
+    if (direction > 0 && data.hasMore) {
+      goToPage(data.page + 1, 0, false);
     } else if (direction < 0 && data && data.page > 1) {
-      paginationScrollPending.current = false;
-      goToPage(data.page - 1);
+      goToPage(data.page - 1, 'last', false);
     }
   };
 
@@ -910,7 +952,7 @@ export default function ConfessionsFeed({
         </div>
       </div>
 
-      {error ? (
+      {!data && error ? (
         <section className="state-panel feed-error-state">
           <h2>Couldn’t load the wall.</h2>
           <p>{error}</p>
@@ -925,28 +967,57 @@ export default function ConfessionsFeed({
           ))}
         </section>
       ) : data.items.length === 0 ? (
-        <section className="state-panel">
-          <div className="empty-orb">✦</div>
-          <h2>No confessions found.</h2>
-          <p>Try a different keyword or clear a filter to explore the wall.</p>
-          <button className="ghost-button" onClick={clearAll}>
-            Clear filters
-          </button>
-        </section>
+        <>
+          {isLoading && (
+            <div className="feed-loading-indicator" role="status" aria-live="polite">
+              Loading the next page…
+            </div>
+          )}
+          {error && (
+            <div className="feed-status feed-status--error" role="alert">
+              <span>Couldn’t refresh this page: {error}</span>
+              <button type="button" className="feed-status__action" onClick={retry}>
+                Try again
+              </button>
+            </div>
+          )}
+          <section className="state-panel">
+            <div className="empty-orb">✦</div>
+            <h2>No confessions found.</h2>
+            <p>Try a different keyword or clear a filter to explore the wall.</p>
+            <button className="ghost-button" onClick={clearAll}>
+              Clear filters
+            </button>
+          </section>
+        </>
       ) : (
         <>
+          {isLoading && (
+            <div className="feed-loading-indicator" role="status" aria-live="polite">
+              Loading the next page…
+            </div>
+          )}
+          {error && (
+            <div className="feed-status feed-status--error" role="alert">
+              <span>Couldn’t refresh this page: {error}</span>
+              <button type="button" className="feed-status__action" onClick={retry}>
+                Try again
+              </button>
+            </div>
+          )}
           {browseLayout === 'horizontal' ? (
             <section
               className="confession-carousel"
               aria-label="Horizontal confession browser"
               aria-roledescription="carousel"
+              aria-busy={isLoading}
             >
               <div className="confession-carousel__header">
                 <button
                   type="button"
                   className="carousel-control"
                   onClick={() => goToConfession(-1)}
-                  disabled={browseIndex === 0 && data.page <= 1}
+                  disabled={navigationBusy || (browseIndex === 0 && data.page <= 1)}
                   aria-label="Previous confession"
                 >
                   ← <span>Previous</span>
@@ -958,7 +1029,9 @@ export default function ConfessionsFeed({
                   type="button"
                   className="carousel-control"
                   onClick={() => goToConfession(1)}
-                  disabled={browseIndex === data.items.length - 1 && !data.hasMore}
+                  disabled={
+                    navigationBusy || (browseIndex === data.items.length - 1 && !data.hasMore)
+                  }
                   aria-label="Next confession"
                 >
                   <span>Next</span> →
@@ -994,7 +1067,7 @@ export default function ConfessionsFeed({
                     aria-roledescription="slide"
                     aria-label={`${(data.page - 1) * data.limit + index + 1} of ${data.total}`}
                   >
-                    <ConfessionCard confession={item} display={data.display} />
+                    <MemoizedConfessionCard confession={item} display={data.display} />
                   </div>
                 ))}
               </div>
@@ -1003,9 +1076,13 @@ export default function ConfessionsFeed({
               </p>
             </section>
           ) : (
-            <section className="card-grid">
+            <section className="card-grid" aria-busy={isLoading}>
               {data.items.map((item) => (
-                <ConfessionCard key={item.publicId} confession={item} display={data.display} />
+                <MemoizedConfessionCard
+                  key={item.publicId}
+                  confession={item}
+                  display={data.display}
+                />
               ))}
             </section>
           )}
@@ -1013,7 +1090,7 @@ export default function ConfessionsFeed({
             <button
               type="button"
               className="pagination-button"
-              disabled={data.page <= 1}
+              disabled={navigationBusy || data.page <= 1}
               onClick={() => goToPage(data.page - 1)}
             >
               Previous
@@ -1030,6 +1107,7 @@ export default function ConfessionsFeed({
                     className={`pagination-button pagination-number ${item === data.page ? 'is-current' : ''}`}
                     aria-current={item === data.page ? 'page' : undefined}
                     key={item}
+                    disabled={navigationBusy}
                     onClick={() => goToPage(item)}
                   >
                     {item}
@@ -1040,7 +1118,7 @@ export default function ConfessionsFeed({
             <button
               type="button"
               className="pagination-button"
-              disabled={!data.hasMore}
+              disabled={navigationBusy || !data.hasMore}
               onClick={() => goToPage(data.page + 1)}
             >
               Next

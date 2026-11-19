@@ -8,6 +8,9 @@ import type {
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
+export const CONFESSIONS_CACHE_TTL_MS = 20_000;
+const CONFESSIONS_CACHE_MAX_ENTRIES = 24;
+
 export class ApiRequestError extends Error {
   constructor(
     message: string,
@@ -55,16 +58,102 @@ export type ConfessionFeedQuery = {
   endDate?: string;
   sort?: 'newest' | 'oldest' | 'relevance';
 };
-export const getConfessions = (input: ConfessionFeedQuery | number = {}) => {
+
+type ConfessionCacheEntry = {
+  data: PublicConfessionPage;
+  expiresAt: number;
+  accessOrder: number;
+};
+
+const confessionCache = new Map<string, ConfessionCacheEntry>();
+const confessionRequests = new Map<string, Promise<PublicConfessionPage>>();
+let confessionCacheAccessOrder = 0;
+
+function confessionRequestDetails(input: ConfessionFeedQuery | number = {}) {
   const query = typeof input === 'number' ? { page: input } : input;
   const params = new URLSearchParams({
     page: String(query.page ?? 1),
     limit: String(query.limit ?? 12),
   });
+
   for (const [key, value] of Object.entries(query)) {
     if (key !== 'page' && value) params.set(key, String(value));
   }
-  return request<PublicConfessionPage>(`/confessions?${params.toString()}`, { cache: 'no-store' });
+
+  const normalizedParams = new URLSearchParams(params);
+  normalizedParams.sort();
+
+  return {
+    path: `/confessions?${params.toString()}`,
+    key: normalizedParams.toString(),
+  };
+}
+
+function readCachedConfessions(key: string) {
+  const cached = confessionCache.get(key);
+  if (!cached) return undefined;
+
+  const now = Date.now();
+  if (cached.expiresAt <= now) {
+    confessionCache.delete(key);
+    return undefined;
+  }
+
+  cached.accessOrder = ++confessionCacheAccessOrder;
+  return cached.data;
+}
+
+function writeCachedConfessions(key: string, data: PublicConfessionPage) {
+  const now = Date.now();
+  confessionCache.delete(key);
+  confessionCache.set(key, {
+    data,
+    expiresAt: now + CONFESSIONS_CACHE_TTL_MS,
+    accessOrder: ++confessionCacheAccessOrder,
+  });
+
+  while (confessionCache.size > CONFESSIONS_CACHE_MAX_ENTRIES) {
+    let leastRecentlyUsedKey: string | undefined;
+    let leastRecentlyUsedOrder = Number.POSITIVE_INFINITY;
+    for (const [entryKey, entry] of confessionCache) {
+      if (entry.accessOrder < leastRecentlyUsedOrder) {
+        leastRecentlyUsedKey = entryKey;
+        leastRecentlyUsedOrder = entry.accessOrder;
+      }
+    }
+    if (!leastRecentlyUsedKey) break;
+    confessionCache.delete(leastRecentlyUsedKey);
+  }
+}
+
+export const clearConfessionsCache = () => {
+  confessionCache.clear();
+  confessionRequests.clear();
+  confessionCacheAccessOrder = 0;
+};
+
+export const getConfessions = (input: ConfessionFeedQuery | number = {}) => {
+  const { path, key } = confessionRequestDetails(input);
+  const cached = readCachedConfessions(key);
+  if (cached) return Promise.resolve(cached);
+
+  const existingRequest = confessionRequests.get(key);
+  if (existingRequest) return existingRequest;
+
+  const requestPromise = request<PublicConfessionPage>(path, { cache: 'no-store' }).then(
+    (result) => {
+      writeCachedConfessions(key, result);
+      confessionRequests.delete(key);
+      return result;
+    },
+    (error) => {
+      // Failed responses stay out of the cache and can be retried normally.
+      confessionRequests.delete(key);
+      throw error;
+    },
+  );
+  confessionRequests.set(key, requestPromise);
+  return requestPromise;
 };
 export const getConfession = (publicId: string) =>
   request<PublicConfession>(`/confessions/${encodeURIComponent(publicId)}`, { cache: 'no-store' });

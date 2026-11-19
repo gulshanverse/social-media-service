@@ -505,6 +505,54 @@ a:hover .confession-card {
   background-size: 200% 100%;
   animation: shimmer 1.4s infinite;
 }
+.feed-loading-indicator,
+.feed-status {
+  max-width: 1240px;
+  margin: 8px auto 0;
+  padding: 0 5vw;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  color: #9ca3af;
+  font-size: 0.78rem;
+}
+.feed-loading-indicator::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border: 2px solid rgba(200, 255, 0, 0.3);
+  border-top-color: #c8ff00;
+  border-radius: 50%;
+  animation: feed-spinner 0.8s linear infinite;
+}
+.feed-loading-indicator {
+  justify-content: flex-start;
+  color: #c8ff00;
+}
+.feed-status--error {
+  color: #fca5a5;
+}
+.feed-status__action {
+  flex: 0 0 auto;
+  padding: 5px 10px;
+  border: 1px solid rgba(252, 165, 165, 0.4);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+.feed-status__action:hover {
+  border-color: currentColor;
+}
+@keyframes feed-spinner {
+  to {
+    transform: rotate(360deg);
+  }
+}
 @keyframes shimmer {
   to {
     background-position: -200% 0;
