@@ -3,7 +3,11 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { UIEvent } from 'react';
+import type {
+  PointerEvent as ReactPointerEvent,
+  UIEvent,
+  WheelEvent as ReactWheelEvent,
+} from 'react';
 import type { PublicConfessionPage } from '@ggv/types';
 import { allConfessionCategories } from '@ggv/types';
 import { ConfessionCard } from '../../components/ConfessionCard';
@@ -123,6 +127,20 @@ function queryString(query: ConfessionFeedQuery) {
   return params.toString();
 }
 
+function navigationQueryString(query: ConfessionFeedQuery, layout: BrowseLayout) {
+  const params = new URLSearchParams(queryString(query));
+  if (layout === 'horizontal') params.set('layout', 'horizontal');
+  return params.toString();
+}
+
+function trackAtStart(track: HTMLDivElement) {
+  return track.scrollLeft <= 4;
+}
+
+function trackAtEnd(track: HTMLDivElement) {
+  return track.scrollLeft + track.clientWidth >= track.scrollWidth - 4;
+}
+
 function pageItems(current: number, totalPages: number): PageItem[] {
   if (totalPages <= 7) return Array.from({ length: totalPages }, (_, index) => index + 1);
   const pages = new Set<number>([1, totalPages, current, current - 1, current + 1]);
@@ -185,8 +203,10 @@ export default function ConfessionsFeed({
   const serviceLoopCheck = useRef<() => void>(() => {});
   const serviceResetInstantly = useRef(false);
   const pointerStart = useRef<number | null>(null);
+  const confessionPointerStart = useRef<number | null>(null);
   const serviceDragged = useRef(false);
   const browseTarget = useRef<number | 'last' | null>(null);
+  const boundaryNavigationLock = useRef(false);
   const prefetchedQueries = useRef(new Set<string>());
   const servicePaused = serviceHovered || serviceFocused || serviceInteracting;
   const currentQueryKey = queryString(query);
@@ -328,12 +348,12 @@ export default function ConfessionsFeed({
       const next = { ...defaultQuery, ...nextQuery };
       browseTarget.current = 0;
       setQuery(next);
-      const search = queryString(next);
+      const search = navigationQueryString(next, browseLayout);
       const href = search ? `${pathname}?${search}` : pathname;
       if (mode === 'replace') router.replace(href, { scroll: false });
       else router.push(href, { scroll: false });
     },
-    [pathname, router],
+    [browseLayout, pathname, router],
   );
 
   useEffect(() => {
@@ -391,6 +411,7 @@ export default function ConfessionsFeed({
     getConfessions(query)
       .then((result) => {
         if (id !== requestId.current) return;
+        boundaryNavigationLock.current = false;
         setData(result);
         setLoadedQueryKey(queryKey);
         setBrowseIndex((currentIndex) => {
@@ -405,6 +426,7 @@ export default function ConfessionsFeed({
       })
       .catch((caught) => {
         if (id !== requestId.current) return;
+        boundaryNavigationLock.current = false;
         setIsLoading(false);
         setError(caught instanceof Error ? caught.message : 'Could not load confessions.');
       });
@@ -505,9 +527,7 @@ export default function ConfessionsFeed({
   const selectBrowseLayout = (nextLayout: BrowseLayout) => {
     setBrowseLayout(nextLayout);
     window.requestAnimationFrame(() => scrollToConfession(browseIndex, 'auto'));
-    const params = queryString(query);
-    const layoutQuery = nextLayout === 'horizontal' ? 'layout=horizontal' : '';
-    const href = [params, layoutQuery].filter(Boolean).join('&');
+    const href = navigationQueryString(query, nextLayout);
     router.replace(href ? `${pathname}?${href}` : pathname, { scroll: false });
   };
 
@@ -526,6 +546,42 @@ export default function ConfessionsFeed({
     if (nextIndex !== browseIndex) setBrowseIndex(nextIndex);
   };
 
+  const handleConfessionBoundaryWheel = (event: ReactWheelEvent<HTMLDivElement>) => {
+    if (!data || !isCurrentData || navigationBusy || boundaryNavigationLock.current) return;
+    const direction =
+      Math.abs(event.deltaX) >= Math.abs(event.deltaY)
+        ? Math.sign(event.deltaX)
+        : Math.sign(event.deltaY);
+    if (!direction) return;
+
+    const atStart = trackAtStart(event.currentTarget);
+    const atEnd = trackAtEnd(event.currentTarget);
+    const crossingBoundary =
+      (direction > 0 && atEnd && browseIndex === data.items.length - 1 && data.hasMore) ||
+      (direction < 0 && atStart && browseIndex === 0 && data.page > 1);
+    if (!crossingBoundary) return;
+
+    event.preventDefault();
+    goToConfession(direction > 0 ? 1 : -1);
+  };
+
+  const handleConfessionBoundaryPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const start = confessionPointerStart.current;
+    confessionPointerStart.current = null;
+    if (start === null || event.pointerType !== 'touch' || !data) return;
+
+    const delta = start - event.clientX;
+    if (Math.abs(delta) < 42) return;
+    const direction = Math.sign(delta);
+    const crossingBoundary =
+      (direction > 0 && trackAtEnd(event.currentTarget) && browseIndex === data.items.length - 1) ||
+      (direction < 0 && trackAtStart(event.currentTarget) && browseIndex === 0);
+    if (!crossingBoundary) return;
+
+    event.preventDefault();
+    goToConfession(direction > 0 ? 1 : -1);
+  };
+
   const goToConfession = (direction: -1 | 1) => {
     if (!data || !isCurrentData) return;
     const nextIndex = browseIndex + direction;
@@ -534,8 +590,12 @@ export default function ConfessionsFeed({
       return;
     }
     if (direction > 0 && data.hasMore) {
+      if (boundaryNavigationLock.current) return;
+      boundaryNavigationLock.current = true;
       goToPage(data.page + 1, 0, false);
     } else if (direction < 0 && data && data.page > 1) {
+      if (boundaryNavigationLock.current) return;
+      boundaryNavigationLock.current = true;
       goToPage(data.page - 1, 'last', false);
     }
   };
@@ -1042,6 +1102,15 @@ export default function ConfessionsFeed({
                 ref={confessionTrack}
                 tabIndex={0}
                 onScroll={handleConfessionTrackScroll}
+                onWheel={handleConfessionBoundaryWheel}
+                onPointerDown={(event) => {
+                  confessionPointerStart.current =
+                    event.pointerType === 'touch' ? event.clientX : null;
+                }}
+                onPointerUp={handleConfessionBoundaryPointerUp}
+                onPointerCancel={() => {
+                  confessionPointerStart.current = null;
+                }}
                 onKeyDown={(event) => {
                   if (event.key === 'ArrowLeft') {
                     event.preventDefault();

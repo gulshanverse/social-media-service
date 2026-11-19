@@ -3,11 +3,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import ConfessionsFeed from './ConfessionsFeed';
 import type { ConfessionFeedQuery } from '../../lib/api';
 
-const { getConfessions } = vi.hoisted(() => ({ getConfessions: vi.fn() }));
+const { getConfessions, router } = vi.hoisted(() => ({
+  getConfessions: vi.fn(),
+  router: { push: vi.fn(), replace: vi.fn() },
+}));
 
 vi.mock('next/navigation', () => ({
   usePathname: () => '/confessions',
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useRouter: () => router,
 }));
 vi.mock('../../lib/api', () => ({ getConfessions }));
 vi.mock('../../components/ConfessionCard', () => ({ ConfessionCard: () => null }));
@@ -73,6 +76,8 @@ async function flushPromises() {
 beforeEach(() => {
   vi.useFakeTimers();
   getConfessions.mockReset();
+  router.push.mockReset();
+  router.replace.mockReset();
   Object.defineProperty(window, 'matchMedia', {
     configurable: true,
     value: vi.fn(() => ({
@@ -171,6 +176,76 @@ describe('ConfessionsFeed navigation performance', () => {
     await act(async () => vi.runOnlyPendingTimers());
     expect(screen.getByText('Showing 2–2 of 3 results')).toBeTruthy();
     expect(toolbarScroll).toHaveBeenCalledTimes(1);
+  });
+
+  it('serializes horizontal layout once and preserves it across page navigation', async () => {
+    getConfessions.mockImplementation((input: ConfessionFeedQuery | number) => {
+      const page = typeof input === 'number' ? input : (input.page ?? 1);
+      return Promise.resolve(makePage(page, { itemCount: 1, limit: 1, total: 2 }));
+    });
+
+    render(<ConfessionsFeed initialQuery={{ ...initialQuery, page: 1 }} promotions={[]} />);
+    await flushPromises();
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Browsing layout' }), {
+      target: { value: 'horizontal' },
+    });
+    const layoutReplace = router.replace.mock.calls.at(-1)?.[0] as string;
+    expect(layoutReplace).toContain('layout=horizontal');
+    expect(layoutReplace.match(/layout=horizontal/g)).toHaveLength(1);
+    expect(router.replace).toHaveBeenLastCalledWith(layoutReplace, { scroll: false });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next confession' }));
+    await flushPromises();
+    const pagePush = router.push.mock.calls.at(-1)?.[0] as string;
+    expect(pagePush).toContain('page=2');
+    expect(pagePush).toContain('layout=horizontal');
+    expect(pagePush.match(/layout=horizontal/g)).toHaveLength(1);
+    expect(router.push).toHaveBeenLastCalledWith(pagePush, { scroll: false });
+  });
+
+  it('uses an additional outward wheel gesture to cross the page boundary once', async () => {
+    const pages = new Map<number, Deferred<ReturnType<typeof makePage>>>();
+    getConfessions.mockImplementation((input: ConfessionFeedQuery | number) => {
+      const page = typeof input === 'number' ? input : (input.page ?? 1);
+      let request = pages.get(page);
+      if (!request) {
+        request = deferred<ReturnType<typeof makePage>>();
+        pages.set(page, request);
+      }
+      return request.promise;
+    });
+
+    render(
+      <ConfessionsFeed
+        initialQuery={{ ...initialQuery, page: 1, limit: 2 }}
+        initialLayout="horizontal"
+        promotions={[]}
+      />,
+    );
+    pages.get(1)?.resolve(makePage(1, { itemCount: 2, limit: 2, total: 4 }));
+    await flushPromises();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next confession' }));
+    const track = document.querySelector('.confession-carousel__track');
+    if (!(track instanceof HTMLDivElement)) throw new Error('Carousel track was not rendered.');
+    Object.defineProperties(track, {
+      clientWidth: { configurable: true, value: 100 },
+      scrollWidth: { configurable: true, value: 200 },
+      scrollLeft: { configurable: true, writable: true, value: 100 },
+    });
+
+    fireEvent.wheel(track, { deltaX: 120, deltaY: 0 });
+    fireEvent.wheel(track, { deltaX: 120, deltaY: 0 });
+    expect(
+      getConfessions.mock.calls.filter(
+        ([input]) => (typeof input === 'number' ? input : (input.page ?? 1)) === 2,
+      ),
+    ).toHaveLength(2);
+
+    pages.get(2)?.resolve(makePage(2, { itemCount: 2, limit: 2, total: 4 }));
+    await flushPromises();
+    expect(screen.getByText('3 / 4')).toBeTruthy();
   });
 
   it('crosses the horizontal next boundary without scrolling back to the toolbar', async () => {
