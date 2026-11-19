@@ -112,14 +112,6 @@ const serviceSlides: ServiceSlide[] = [
     icon: '🎁',
     accent: 'cyan',
   },
-  {
-    id: 'feedback',
-    title: 'Suggestions',
-    description: 'We’d love to hear your thoughts.',
-    icon: '💡',
-    accent: 'emerald',
-    href: '/send',
-  },
 ];
 
 const defaultQuery: ConfessionFeedQuery = { page: 1, dateRange: 'all', sort: 'newest' };
