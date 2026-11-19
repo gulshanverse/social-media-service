@@ -46,18 +46,18 @@ const categoryLabels: Record<string, string> = {
 };
 
 const categoryIcons: Record<string, string> = {
-  ALL: '✦',
-  CRUSH: '♡',
-  ADMIRATION: '✧',
-  RELATIONSHIP: '↗',
-  FRIENDSHIP: '♧',
-  FUNNY: '☺',
-  COLLEGE_LIFE: '⌂',
-  APPRECIATION: '★',
-  ADVICE: '?',
-  RANT: '!',
-  CUSTOM: '⌁',
-  OTHER: '•',
+  ALL: '🔥',
+  CRUSH: '♥️',
+  ADMIRATION: '🎀',
+  RELATIONSHIP: '💑',
+  FRIENDSHIP: '🤝',
+  FUNNY: '😂',
+  COLLEGE_LIFE: '🎓',
+  APPRECIATION: '👏🏻',
+  ADVICE: '✨',
+  RANT: '🤪',
+  CUSTOM: '🌸',
+  OTHER: '🤩',
 };
 
 const categoryAccents: Record<string, string> = {
