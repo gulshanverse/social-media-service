@@ -80,7 +80,7 @@ const serviceSlides: ServiceSlide[] = [
     id: 'vibematch',
     title: 'VibeMatch',
     description: 'Meet your campus vibe.',
-    icon: '💋',
+    icon: '💗',
     accent: 'pink',
     href: '/vibematch',
   },
@@ -106,6 +106,14 @@ const serviceSlides: ServiceSlide[] = [
     description: 'Student essentials, made easier.',
     icon: '🎁',
     accent: 'cyan',
+  },
+  {
+    id: 'feedback',
+    title: 'Feedback & Suggestions',
+    description: 'Share your feedback and suggetions.',
+    icon: '💭',
+    accent: 'yellow',
+    href: '/send',
   },
 ];
 
