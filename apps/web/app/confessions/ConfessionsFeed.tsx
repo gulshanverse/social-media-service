@@ -2,8 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { UIEvent } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import type {
+  PointerEvent as ReactPointerEvent,
+  TouchEvent as ReactTouchEvent,
+  UIEvent,
+  WheelEvent as ReactWheelEvent,
+} from 'react';
 import type { PublicConfessionPage } from '@ggv/types';
 import { allConfessionCategories } from '@ggv/types';
 import { ConfessionCard } from '../../components/ConfessionCard';
@@ -120,7 +125,22 @@ function queryString(query: ConfessionFeedQuery) {
   for (const [key, value] of Object.entries(query)) {
     if (value && value !== 'all' && value !== 1) params.set(key, String(value));
   }
+  params.sort();
   return params.toString();
+}
+
+function navigationQueryString(query: ConfessionFeedQuery, layout: BrowseLayout) {
+  const params = new URLSearchParams(queryString(query));
+  if (layout === 'horizontal') params.set('layout', 'horizontal');
+  return params.toString();
+}
+
+function trackAtStart(track: HTMLDivElement) {
+  return track.scrollLeft <= 4;
+}
+
+function trackAtEnd(track: HTMLDivElement) {
+  return track.scrollLeft + track.clientWidth >= track.scrollWidth - 4;
 }
 
 function pageItems(current: number, totalPages: number): PageItem[] {
@@ -169,10 +189,14 @@ export default function ConfessionsFeed({
   const [documentVisible, setDocumentVisible] = useState(true);
   const [reducedMotion, setReducedMotion] = useState(false);
   const requestId = useRef(0);
+  const currentQueryRef = useRef(query);
+  currentQueryRef.current = query;
   const serviceTrack = useRef<HTMLDivElement>(null);
   const serviceCarousel = useRef<HTMLElement>(null);
   const confessionTrack = useRef<HTMLDivElement>(null);
   const feedToolbar = useRef<HTMLDivElement>(null);
+  const programmaticBrowseTarget = useRef<number | null>(null);
+  const programmaticBrowseTimeout = useRef<number | null>(null);
   const paginationScrollPending = useRef(false);
   const keyboardNavigation = useRef(false);
   const lastPointerType = useRef<string | null>(null);
@@ -185,8 +209,17 @@ export default function ConfessionsFeed({
   const serviceLoopCheck = useRef<() => void>(() => {});
   const serviceResetInstantly = useRef(false);
   const pointerStart = useRef<number | null>(null);
+  const confessionPointerStart = useRef<{
+    x: number;
+    page: number;
+    index: number;
+    atStart: boolean;
+    atEnd: boolean;
+  } | null>(null);
   const serviceDragged = useRef(false);
   const browseTarget = useRef<number | 'last' | null>(null);
+  const browseTargetScrollPending = useRef(false);
+  const boundaryNavigationLock = useRef(false);
   const prefetchedQueries = useRef(new Set<string>());
   const servicePaused = serviceHovered || serviceFocused || serviceInteracting;
   const currentQueryKey = queryString(query);
@@ -200,6 +233,15 @@ export default function ConfessionsFeed({
     mediaQuery.addEventListener?.('change', updatePreference);
     return () => mediaQuery.removeEventListener?.('change', updatePreference);
   }, []);
+
+  useEffect(
+    () => () => {
+      if (programmaticBrowseTimeout.current !== null) {
+        window.clearTimeout(programmaticBrowseTimeout.current);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     const updateVisibility = () => setDocumentVisible(document.visibilityState === 'visible');
@@ -324,16 +366,20 @@ export default function ConfessionsFeed({
   }, [finishServiceLoop]);
 
   const navigate = useCallback(
-    (nextQuery: ConfessionFeedQuery, mode: HistoryMode = 'push') => {
+    (
+      nextQuery: ConfessionFeedQuery,
+      mode: HistoryMode = 'push',
+      target: number | 'last' | null = 0,
+    ) => {
       const next = { ...defaultQuery, ...nextQuery };
-      browseTarget.current = 0;
+      browseTarget.current = target;
       setQuery(next);
-      const search = queryString(next);
+      const search = navigationQueryString(next, browseLayout);
       const href = search ? `${pathname}?${search}` : pathname;
       if (mode === 'replace') router.replace(href, { scroll: false });
       else router.push(href, { scroll: false });
     },
-    [pathname, router],
+    [browseLayout, pathname, router],
   );
 
   useEffect(() => {
@@ -365,9 +411,16 @@ export default function ConfessionsFeed({
       endDate: initialEndDate,
       sort: initialSort,
     };
-    setQuery(nextInitialQuery);
-    setSearchInput(initialSearch ?? '');
-    setDraft(nextInitialQuery);
+    if (queryString(currentQueryRef.current) !== queryString(nextInitialQuery)) {
+      browseTarget.current = 0;
+      setQuery(nextInitialQuery);
+    }
+    setSearchInput((current) =>
+      current === (initialSearch ?? '') ? current : (initialSearch ?? ''),
+    );
+    setDraft((current) =>
+      queryString(current) === queryString(nextInitialQuery) ? current : nextInitialQuery,
+    );
   }, [
     initialCategory,
     initialCustomCategory,
@@ -391,11 +444,13 @@ export default function ConfessionsFeed({
     getConfessions(query)
       .then((result) => {
         if (id !== requestId.current) return;
+        boundaryNavigationLock.current = false;
+        const target = browseTarget.current;
+        browseTarget.current = null;
+        browseTargetScrollPending.current = target !== null;
         setData(result);
         setLoadedQueryKey(queryKey);
         setBrowseIndex((currentIndex) => {
-          const target = browseTarget.current;
-          browseTarget.current = null;
           if (target === 'last') return Math.max(result.items.length - 1, 0);
           if (typeof target === 'number')
             return Math.min(target, Math.max(result.items.length - 1, 0));
@@ -405,10 +460,44 @@ export default function ConfessionsFeed({
       })
       .catch((caught) => {
         if (id !== requestId.current) return;
+        boundaryNavigationLock.current = false;
         setIsLoading(false);
         setError(caught instanceof Error ? caught.message : 'Could not load confessions.');
       });
   }, [query]);
+
+  useLayoutEffect(() => {
+    if (!browseTargetScrollPending.current) return;
+    const track = confessionTrack.current;
+    const slide = track?.children[browseIndex] as HTMLElement | undefined;
+    programmaticBrowseTarget.current = null;
+    if (programmaticBrowseTimeout.current !== null) {
+      window.clearTimeout(programmaticBrowseTimeout.current);
+      programmaticBrowseTimeout.current = null;
+    }
+    if (track && slide) {
+      const previousScrollBehavior = track.style.scrollBehavior;
+      const previousScrollSnapType = track.style.scrollSnapType;
+      track.style.scrollBehavior = 'auto';
+      track.style.scrollSnapType = 'none';
+      track.scrollLeft =
+        browseIndex === 0
+          ? 0
+          : track.scrollLeft +
+            slide.getBoundingClientRect().left -
+            track.getBoundingClientRect().left;
+      window.requestAnimationFrame(() => {
+        track.style.scrollBehavior = previousScrollBehavior;
+        track.style.scrollSnapType = previousScrollSnapType;
+      });
+      programmaticBrowseTarget.current = browseIndex;
+      programmaticBrowseTimeout.current = window.setTimeout(() => {
+        programmaticBrowseTarget.current = null;
+        programmaticBrowseTimeout.current = null;
+      }, 1200);
+    }
+    browseTargetScrollPending.current = false;
+  }, [browseIndex, data]);
 
   useEffect(() => {
     if (!data || !isCurrentData) return;
@@ -480,8 +569,7 @@ export default function ConfessionsFeed({
     if (!isCurrentData || page === data?.page) return;
     setBrowseIndex(0);
     paginationScrollPending.current = shouldScrollToToolbar;
-    navigate({ ...query, page });
-    browseTarget.current = target;
+    navigate({ ...query, page }, 'push', target);
   };
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
   const firstResult = data && data.total > 0 ? (data.page - 1) * data.limit + 1 : 0;
@@ -496,6 +584,17 @@ export default function ConfessionsFeed({
       if (!track || !data?.items.length) return;
       const nextIndex = Math.max(0, Math.min(index, data.items.length - 1));
       const slide = track.children[nextIndex] as HTMLElement | undefined;
+      if (programmaticBrowseTimeout.current !== null) {
+        window.clearTimeout(programmaticBrowseTimeout.current);
+        programmaticBrowseTimeout.current = null;
+      }
+      programmaticBrowseTarget.current = behavior === 'smooth' ? nextIndex : null;
+      if (behavior === 'smooth') {
+        programmaticBrowseTimeout.current = window.setTimeout(() => {
+          programmaticBrowseTarget.current = null;
+          programmaticBrowseTimeout.current = null;
+        }, 1200);
+      }
       setBrowseIndex(nextIndex);
       slide?.scrollIntoView({ behavior, block: 'nearest', inline: 'start' });
     },
@@ -505,9 +604,7 @@ export default function ConfessionsFeed({
   const selectBrowseLayout = (nextLayout: BrowseLayout) => {
     setBrowseLayout(nextLayout);
     window.requestAnimationFrame(() => scrollToConfession(browseIndex, 'auto'));
-    const params = queryString(query);
-    const layoutQuery = nextLayout === 'horizontal' ? 'layout=horizontal' : '';
-    const href = [params, layoutQuery].filter(Boolean).join('&');
+    const href = navigationQueryString(query, nextLayout);
     router.replace(href ? `${pathname}?${href}` : pathname, { scroll: false });
   };
 
@@ -523,7 +620,107 @@ export default function ConfessionsFeed({
           : closest,
       0,
     );
+    if (programmaticBrowseTarget.current !== null) return;
     if (nextIndex !== browseIndex) setBrowseIndex(nextIndex);
+  };
+
+  const handleConfessionBoundaryWheel = (event: ReactWheelEvent<HTMLDivElement>) => {
+    programmaticBrowseTarget.current = null;
+    if (programmaticBrowseTimeout.current !== null) {
+      window.clearTimeout(programmaticBrowseTimeout.current);
+      programmaticBrowseTimeout.current = null;
+    }
+    if (!data || !isCurrentData || navigationBusy || boundaryNavigationLock.current) return;
+    const direction =
+      Math.abs(event.deltaX) >= Math.abs(event.deltaY)
+        ? Math.sign(event.deltaX)
+        : Math.sign(event.deltaY);
+    if (!direction) return;
+
+    const atStart = trackAtStart(event.currentTarget);
+    const atEnd = trackAtEnd(event.currentTarget);
+    const lastIndex = data.items.length - 1;
+    if (direction > 0 && atEnd && browseIndex < lastIndex) {
+      event.preventDefault();
+      scrollToConfession(lastIndex);
+      return;
+    }
+    if (direction < 0 && atStart && browseIndex > 0) {
+      event.preventDefault();
+      scrollToConfession(0);
+      return;
+    }
+    const crossingBoundary =
+      (direction > 0 && atEnd && browseIndex === lastIndex && data.hasMore) ||
+      (direction < 0 && atStart && browseIndex === 0 && data.page > 1);
+    if (!crossingBoundary) return;
+
+    event.preventDefault();
+    goToConfession(direction > 0 ? 1 : -1);
+  };
+
+  const beginConfessionGesture = (x: number, track: HTMLDivElement) => {
+    programmaticBrowseTarget.current = null;
+    if (programmaticBrowseTimeout.current !== null) {
+      window.clearTimeout(programmaticBrowseTimeout.current);
+      programmaticBrowseTimeout.current = null;
+    }
+    confessionPointerStart.current = data
+      ? {
+          x,
+          page: data.page,
+          index: browseIndex,
+          atStart: trackAtStart(track),
+          atEnd: trackAtEnd(track),
+        }
+      : null;
+  };
+
+  const finishConfessionGesture = (endX: number, preventDefault: () => void) => {
+    const start = confessionPointerStart.current;
+    confessionPointerStart.current = null;
+    if (
+      start === null ||
+      !data ||
+      !isCurrentData ||
+      navigationBusy ||
+      boundaryNavigationLock.current
+    )
+      return;
+
+    if (start.page !== data.page) return;
+    const delta = start.x - endX;
+    if (Math.abs(delta) < 42) return;
+    const direction = Math.sign(delta);
+    const lastIndex = data.items.length - 1;
+    if (direction > 0 && start.atEnd && start.index < lastIndex) {
+      scrollToConfession(lastIndex);
+      return;
+    }
+    if (direction < 0 && start.atStart && start.index > 0) {
+      scrollToConfession(0);
+      return;
+    }
+    const crossingBoundary =
+      (direction > 0 && start.atEnd && start.index === lastIndex && data.hasMore) ||
+      (direction < 0 && start.atStart && start.index === 0 && data.page > 1);
+    if (!crossingBoundary) return;
+
+    preventDefault();
+    goToConfession(direction > 0 ? 1 : -1);
+  };
+
+  const handleConfessionBoundaryPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.pointerType === 'touch') {
+      finishConfessionGesture(event.clientX, () => event.preventDefault());
+    }
+  };
+
+  const handleConfessionBoundaryTouchEnd = (event: ReactTouchEvent<HTMLDivElement>) => {
+    const touch = event.changedTouches[0];
+    if (touch) {
+      finishConfessionGesture(touch.clientX, () => event.preventDefault());
+    }
   };
 
   const goToConfession = (direction: -1 | 1) => {
@@ -534,8 +731,12 @@ export default function ConfessionsFeed({
       return;
     }
     if (direction > 0 && data.hasMore) {
+      if (boundaryNavigationLock.current) return;
+      boundaryNavigationLock.current = true;
       goToPage(data.page + 1, 0, false);
     } else if (direction < 0 && data && data.page > 1) {
+      if (boundaryNavigationLock.current) return;
+      boundaryNavigationLock.current = true;
       goToPage(data.page - 1, 'last', false);
     }
   };
@@ -1042,6 +1243,27 @@ export default function ConfessionsFeed({
                 ref={confessionTrack}
                 tabIndex={0}
                 onScroll={handleConfessionTrackScroll}
+                onWheel={handleConfessionBoundaryWheel}
+                onPointerDown={(event) => {
+                  if (event.pointerType === 'touch') {
+                    beginConfessionGesture(event.clientX, event.currentTarget);
+                  } else {
+                    programmaticBrowseTarget.current = null;
+                    if (programmaticBrowseTimeout.current !== null) {
+                      window.clearTimeout(programmaticBrowseTimeout.current);
+                      programmaticBrowseTimeout.current = null;
+                    }
+                  }
+                }}
+                onTouchStart={(event) => {
+                  const touch = event.touches[0];
+                  if (touch) beginConfessionGesture(touch.clientX, event.currentTarget);
+                }}
+                onPointerUp={handleConfessionBoundaryPointerUp}
+                onTouchEnd={handleConfessionBoundaryTouchEnd}
+                onTouchCancel={() => {
+                  confessionPointerStart.current = null;
+                }}
                 onKeyDown={(event) => {
                   if (event.key === 'ArrowLeft') {
                     event.preventDefault();
