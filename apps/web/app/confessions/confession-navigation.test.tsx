@@ -29,23 +29,28 @@ const initialQuery: ConfessionFeedQuery = {
   sort: 'oldest',
 };
 
-function makePage(page: number) {
+function makePage(
+  page: number,
+  {
+    itemCount = 1,
+    limit = 1,
+    total = 3,
+  }: { itemCount?: number; limit?: number; total?: number } = {},
+) {
   return {
-    items: [
-      {
-        publicId: `confession-${page}`,
-        content: `Confession ${page}`,
-        category: 'CRUSH' as const,
-        customCategory: null,
-        theme: null,
-        publishedAt: '2026-11-19T00:00:00.000Z',
-        viewCount: 0,
-      },
-    ],
+    items: Array.from({ length: itemCount }, (_, index) => ({
+      publicId: `confession-${page}-${index}`,
+      content: `Confession ${page}-${index}`,
+      category: 'CRUSH' as const,
+      customCategory: null,
+      theme: null,
+      publishedAt: '2026-11-19T00:00:00.000Z',
+      viewCount: 0,
+    })),
     page,
-    limit: 1,
-    total: 3,
-    hasMore: page < 3,
+    limit,
+    total,
+    hasMore: page * limit < total,
     display: { cardTextSize: 16, previewLines: 5 },
   };
 }
@@ -127,7 +132,7 @@ describe('ConfessionsFeed navigation performance', () => {
     );
   });
 
-  it('keeps the visible page while the next page loads and then updates it', async () => {
+  it('keeps the visible vertical page while pagination loads and scrolls the toolbar once', async () => {
     const pages = new Map<number, Deferred<ReturnType<typeof makePage>>>();
     getConfessions.mockImplementation((input: ConfessionFeedQuery | number) => {
       const page = typeof input === 'number' ? input : (input.page ?? 1);
@@ -139,10 +144,21 @@ describe('ConfessionsFeed navigation performance', () => {
       return request.promise;
     });
 
-    render(<ConfessionsFeed initialQuery={{ ...initialQuery, page: 1 }} promotions={[]} />);
+    render(
+      <ConfessionsFeed
+        initialQuery={{ ...initialQuery, page: 1 }}
+        initialLayout="vertical"
+        promotions={[]}
+      />,
+    );
     pages.get(1)?.resolve(makePage(1));
     await flushPromises();
 
+    expect(document.querySelector('.card-grid')).toBeTruthy();
+    expect(document.querySelector('.confession-carousel')).toBeNull();
+    const toolbar = document.querySelector('.feed-toolbar');
+    if (!(toolbar instanceof HTMLElement)) throw new Error('Feed toolbar was not rendered.');
+    const toolbarScroll = vi.spyOn(toolbar, 'scrollIntoView');
     expect(screen.getByText('Showing 1–1 of 3 results')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     await flushPromises();
@@ -152,7 +168,72 @@ describe('ConfessionsFeed navigation performance', () => {
 
     pages.get(2)?.resolve(makePage(2));
     await flushPromises();
+    await act(async () => vi.runOnlyPendingTimers());
     expect(screen.getByText('Showing 2–2 of 3 results')).toBeTruthy();
+    expect(toolbarScroll).toHaveBeenCalledTimes(1);
+  });
+
+  it('crosses the horizontal next boundary without scrolling back to the toolbar', async () => {
+    const pages = new Map<number, Deferred<ReturnType<typeof makePage>>>();
+    getConfessions.mockImplementation((input: ConfessionFeedQuery | number) => {
+      const page = typeof input === 'number' ? input : (input.page ?? 1);
+      let request = pages.get(page);
+      if (!request) {
+        request = deferred<ReturnType<typeof makePage>>();
+        pages.set(page, request);
+      }
+      return request.promise;
+    });
+
+    render(
+      <ConfessionsFeed
+        initialQuery={{ ...initialQuery, page: 1 }}
+        initialLayout="horizontal"
+        promotions={[]}
+      />,
+    );
+    pages.get(1)?.resolve(makePage(1));
+    await flushPromises();
+
+    const toolbar = document.querySelector('.feed-toolbar');
+    if (!(toolbar instanceof HTMLElement)) throw new Error('Feed toolbar was not rendered.');
+    const toolbarScroll = vi.spyOn(toolbar, 'scrollIntoView');
+    fireEvent.click(screen.getByRole('button', { name: 'Next confession' }));
+    pages.get(2)?.resolve(makePage(2));
+    await flushPromises();
+    await act(async () => vi.runOnlyPendingTimers());
+
+    expect(screen.getByText('2 / 3')).toBeTruthy();
+    expect(toolbarScroll).not.toHaveBeenCalled();
+  });
+
+  it('opens the previous page at its last confession', async () => {
+    const pages = new Map<number, Deferred<ReturnType<typeof makePage>>>();
+    getConfessions.mockImplementation((input: ConfessionFeedQuery | number) => {
+      const page = typeof input === 'number' ? input : (input.page ?? 1);
+      let request = pages.get(page);
+      if (!request) {
+        request = deferred<ReturnType<typeof makePage>>();
+        pages.set(page, request);
+      }
+      return request.promise;
+    });
+
+    render(
+      <ConfessionsFeed
+        initialQuery={{ ...initialQuery, page: 2, limit: 2 }}
+        initialLayout="horizontal"
+        promotions={[]}
+      />,
+    );
+    pages.get(2)?.resolve(makePage(2, { itemCount: 1, limit: 2 }));
+    await flushPromises();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Previous confession' }));
+    pages.get(1)?.resolve(makePage(1, { itemCount: 2, limit: 2 }));
+    await flushPromises();
+
+    expect(screen.getByText('2 / 3')).toBeTruthy();
   });
 
   it('ignores an older page response after a newer query is selected', async () => {

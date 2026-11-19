@@ -476,10 +476,10 @@ export default function ConfessionsFeed({
     });
 
   const retry = () => setQuery((current) => ({ ...current }));
-  const goToPage = (page: number, target: number | 'last' = 0) => {
+  const goToPage = (page: number, target: number | 'last' = 0, shouldScrollToToolbar = true) => {
     if (!isCurrentData || page === data?.page) return;
     setBrowseIndex(0);
-    paginationScrollPending.current = true;
+    paginationScrollPending.current = shouldScrollToToolbar;
     navigate({ ...query, page });
     browseTarget.current = target;
   };
@@ -534,11 +534,9 @@ export default function ConfessionsFeed({
       return;
     }
     if (direction > 0 && data.hasMore) {
-      paginationScrollPending.current = false;
-      goToPage(data.page + 1);
+      goToPage(data.page + 1, 0, false);
     } else if (direction < 0 && data && data.page > 1) {
-      paginationScrollPending.current = false;
-      goToPage(data.page - 1, 'last');
+      goToPage(data.page - 1, 'last', false);
     }
   };
 
