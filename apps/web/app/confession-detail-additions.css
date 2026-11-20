@@ -141,10 +141,9 @@
 
 .detail-carousel {
   position: relative;
-  width: min(760px, 100%);
-  margin: 0 auto;
+  width: 100%;
+  margin: 35px auto 20px;
   overflow: hidden;
-  border-radius: 1.25rem;
   touch-action: pan-y;
   isolation: isolate;
 }
@@ -173,22 +172,41 @@
 }
 
 .detail-carousel__track {
-  display: flex;
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   width: 300%;
-  align-items: stretch;
   transform: translate3d(-33.333333%, 0, 0);
   will-change: transform;
 }
 
 .detail-carousel__slide {
-  flex: 0 0 33.333333%;
   min-width: 0;
-  padding: 0 0.4rem;
+  grid-row: 1;
 }
 
-.detail-carousel__slide > .confession-card {
-  height: 100%;
-  margin: 0;
+.detail-carousel__slide[data-testid='current-confession-slide'] {
+  grid-column: 2;
+}
+
+.detail-carousel__slide:not([data-testid='current-confession-slide']) {
+  position: absolute;
+  top: 0;
+  width: 33.333333%;
+}
+
+.detail-carousel__slide[aria-hidden='true']:first-child {
+  left: 0;
+}
+
+.detail-carousel__slide[aria-hidden='true']:last-child {
+  right: 0;
+}
+
+.detail-carousel__slide > .confession-card--detailed {
+  width: 100%;
+  max-width: 710px;
+  margin: 0 auto;
   box-shadow: 0 22px 70px rgba(0, 0, 0, 0.22);
 }
 
@@ -216,6 +234,11 @@
   transition: opacity 240ms ease;
 }
 
+.detail-carousel__hint[data-visible='false'] {
+  visibility: hidden;
+  opacity: 0;
+}
+
 .detail-carousel__hint span {
   color: #c8ff00;
   font-size: 0.9rem;
@@ -229,13 +252,7 @@
 
 @media (max-width: 700px) {
   .detail-carousel {
-    width: calc(100% + 1rem);
-    margin-inline: -0.5rem;
-    border-radius: 1rem;
-  }
-
-  .detail-carousel__slide {
-    padding-inline: 0.5rem;
+    margin-top: 35px;
   }
 
   .detail-carousel__hint {

@@ -72,6 +72,7 @@ export default function ConfessionDetailClient({
   const [boundaryPages, setBoundaryPages] = useState<Record<number, BrowseState>>({});
   const [related, setRelated] = useState<PublicConfession[] | null>(null);
   const [browseError, setBrowseError] = useState('');
+  const [showSwipeHint, setShowSwipeHint] = useState(true);
   const trackRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const navigationLockRef = useRef(false);
@@ -119,6 +120,25 @@ export default function ConfessionDetailClient({
     },
     [],
   );
+
+  useEffect(() => {
+    let timer: number | undefined;
+    let visible = true;
+
+    const schedule = (delay: number) => {
+      timer = window.setTimeout(() => {
+        visible = !visible;
+        setShowSwipeHint(visible);
+        schedule(visible ? 2000 : 60000);
+      }, delay);
+    };
+
+    setShowSwipeHint(true);
+    schedule(2000);
+    return () => {
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
+  }, [publicId]);
 
   useEffect(() => {
     if (initialConfession) return;
@@ -494,7 +514,11 @@ export default function ConfessionDetailClient({
                   {nextConfession ? <ConfessionCard confession={nextConfession} detailed /> : null}
                 </div>
               </div>
-              <p className="detail-carousel__hint" aria-hidden="true">
+              <p
+                className="detail-carousel__hint"
+                data-visible={showSwipeHint}
+                aria-hidden={!showSwipeHint}
+              >
                 <span>←</span> Swipe to explore <span>→</span>
               </p>
             </div>

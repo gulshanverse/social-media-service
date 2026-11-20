@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PublicConfession } from '@ggv/types';
@@ -83,7 +83,10 @@ const boundaryPageTwo = {
 };
 
 describe('ConfessionDetailClient', () => {
-  afterEach(() => cleanup());
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+  });
 
   beforeEach(() => {
     getConfessions.mockResolvedValue(browseResult);
@@ -100,6 +103,34 @@ describe('ConfessionDetailClient', () => {
     expect(screen.getByRole('heading', { name: 'Related confessions' })).toBeInTheDocument();
     expect(screen.queryByText('Have something to say?')).not.toBeInTheDocument();
     expect(screen.queryByText('Share your own anonymous confession')).not.toBeInTheDocument();
+  });
+
+  it('keeps neighboring slides isolated from the active card layout', async () => {
+    render(<ConfessionDetailClient publicId="conf-1" initialConfession={confession} />);
+
+    await waitFor(() => expect(screen.getByText('2 / 3')).toBeInTheDocument());
+
+    const currentSlide = screen.getByTestId('current-confession-slide');
+    const slides = Array.from(currentSlide.parentElement?.children ?? []);
+    expect(slides).toHaveLength(3);
+    expect(currentSlide).not.toHaveAttribute('aria-hidden', 'true');
+    expect(slides.filter((slide) => slide !== currentSlide)).toHaveLength(2);
+    expect(slides.filter((slide) => slide.hasAttribute('data-testid'))).toEqual([currentSlide]);
+  });
+
+  it('shows the swipe hint for 2 seconds, hides it for 60 seconds, and repeats', () => {
+    vi.useFakeTimers();
+    render(<ConfessionDetailClient publicId="conf-1" initialConfession={confession} />);
+    const hint = document.querySelector('.detail-carousel__hint');
+    if (!(hint instanceof HTMLElement)) throw new Error('Swipe hint was not rendered.');
+
+    expect(hint).toHaveAttribute('data-visible', 'true');
+    act(() => vi.advanceTimersByTime(2000));
+    expect(hint).toHaveAttribute('data-visible', 'false');
+    act(() => vi.advanceTimersByTime(60000));
+    expect(hint).toHaveAttribute('data-visible', 'true');
+    act(() => vi.advanceTimersByTime(2000));
+    expect(hint).toHaveAttribute('data-visible', 'false');
   });
 
   it('navigates left to the next confession and right to the previous confession', async () => {
