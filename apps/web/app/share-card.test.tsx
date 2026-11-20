@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   SHARE_CARD_MAX_LINES,
+  SHARE_CARD_TEXT_WIDTH,
+  measureShareCardText,
   shareCardCategory,
   shareCardDate,
   truncateShareCardText,
@@ -16,6 +18,23 @@ describe('share card renderer helpers', () => {
     expect(wrapShareCardText('यह एक हिंदी confession है।').length).toBeGreaterThan(0);
   });
 
+  it('keeps English, Hinglish, Hindi, mixed Unicode, and long-word lines within the font width', () => {
+    const samples = [
+      'A short English confession with ordinary campus words.',
+      'Waise sach kaha tha tumne ki sbke naye dost bn jaate hai.',
+      'यह एक हिंदी confession है और कॉलेज जीवन दोस्तों के साथ बेहतर है।',
+      'Mixed Unicode café — दोस्त 🫶 campus जीवन.',
+      'supercalifragilisticexpialidocious'.repeat(4),
+    ];
+    for (const sample of samples) {
+      expect(
+        wrapShareCardText(sample).every(
+          (line) => measureShareCardText(line) <= SHARE_CARD_TEXT_WIDTH,
+        ),
+      ).toBe(true);
+    }
+  });
+
   it('limits long content to exactly 11 visible lines with an ellipsis', () => {
     const content = Array.from(
       { length: 30 },
@@ -25,6 +44,17 @@ describe('share card renderer helpers', () => {
     expect(result.truncated).toBe(true);
     expect(result.lines).toHaveLength(SHARE_CARD_MAX_LINES);
     expect(result.lines.at(-1)).toMatch(/\.\.\.$/u);
+    expect(result.lines.every((line) => measureShareCardText(line) <= SHARE_CARD_TEXT_WIDTH)).toBe(
+      true,
+    );
+  });
+
+  it('keeps content that wraps to exactly 11 lines complete', () => {
+    const content = Array.from({ length: 11 }, (_, index) => `Line ${index + 1}`).join('\n');
+    const result = truncateShareCardText(content);
+    expect(result.truncated).toBe(false);
+    expect(result.lines).toHaveLength(11);
+    expect(result.lines.at(-1)).not.toMatch(/\.\.\.$/u);
   });
 
   it('keeps category and UTC date aligned with the public confession data', () => {
