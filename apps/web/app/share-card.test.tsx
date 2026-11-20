@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   SHARE_CARD_MAX_LINES,
+  SHARE_CARD_RADIUS,
   SHARE_CARD_TEXT_WIDTH,
+  SHARE_CARD_WIDTH,
   measureShareCardText,
+  shareCardHeight,
   shareCardCategory,
   shareCardDate,
   truncateShareCardText,
@@ -55,6 +58,20 @@ describe('share card renderer helpers', () => {
     expect(result.truncated).toBe(false);
     expect(result.lines).toHaveLength(11);
     expect(result.lines.at(-1)).not.toMatch(/\.\.\.$/u);
+  });
+
+  it('grows naturally with rendered line count instead of reserving 11 lines', () => {
+    const heights = [2, 5, 8, 11].map(shareCardHeight);
+    expect(heights[0]).toBeLessThan(heights[1]);
+    expect(heights[1]).toBeLessThan(heights[2]);
+    expect(heights[2]).toBeLessThan(heights[3]);
+    expect(shareCardHeight(0)).toBe(shareCardHeight(1));
+    expect(shareCardHeight(40)).toBe(heights[3]);
+  });
+
+  it('keeps the production attachment geometry fixed and rounded', () => {
+    expect(SHARE_CARD_WIDTH).toBe(720);
+    expect(SHARE_CARD_RADIUS).toBe(40);
   });
 
   it('keeps category and UTC date aligned with the public confession data', () => {
