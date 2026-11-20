@@ -45,47 +45,25 @@ function BrandMark() {
 }
 
 function CampusIllustration() {
-  const windowStyle = {
-    display: 'flex',
-    width: 20,
-    height: 22,
-    border: '2px solid #f2d9ff',
-    background: '#55217d',
-  };
   return (
-    <div
-      style={{
-        position: 'absolute',
-        right: 350,
-        bottom: 18,
-        display: 'flex',
-        alignItems: 'flex-end',
-        gap: 18,
-        color: '#f2d9ff',
-        opacity: 0.9,
-      }}
+    <svg
+      width="310"
+      height="78"
+      viewBox="0 0 310 78"
+      aria-hidden="true"
+      style={{ position: 'absolute', right: 350, bottom: 18, opacity: 0.9 }}
     >
-      <div style={{ display: 'flex', width: 38, height: 42, border: '3px solid #f2d9ff' }} />
-      <div
-        style={{
-          display: 'flex',
-          width: 190,
-          height: 52,
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'flex-end',
-          border: '3px solid #f2d9ff',
-          background: 'transparent',
-        }}
-      >
-        <div style={{ display: 'flex', gap: 12, height: 30, alignItems: 'center' }}>
-          <div style={windowStyle} />
-          <div style={windowStyle} />
-          <div style={windowStyle} />
-        </div>
-      </div>
-      <div style={{ display: 'flex', width: 38, height: 42, border: '3px solid #f2d9ff' }} />
-    </div>
+      <g fill="none" stroke="#f2d9ff" strokeWidth="3">
+        <rect x="2" y="18" width="38" height="42" />
+        <rect x="58" y="8" width="190" height="52" />
+        <rect x="268" y="18" width="38" height="42" />
+      </g>
+      <g fill="#55217d" stroke="#f2d9ff" strokeWidth="2">
+        <rect x="78" y="19" width="20" height="22" />
+        <rect x="143" y="19" width="20" height="22" />
+        <rect x="208" y="19" width="20" height="22" />
+      </g>
+    </svg>
   );
 }
 

@@ -54,6 +54,22 @@ describe('ShareMenu', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
+  it('traps Tab and Shift+Tab within the sharing dialog', async () => {
+    renderMenu();
+    fireEvent.click(screen.getByRole('button', { name: 'Share' }));
+    const dialog = screen.getByRole('dialog', { name: 'Share Confession' });
+    const dialogButtons = within(dialog).getAllByRole('button');
+    const firstButton = dialogButtons[0];
+    const lastButton = dialogButtons[dialogButtons.length - 1];
+
+    lastButton.focus();
+    fireEvent.keyDown(document, { key: 'Tab' });
+    expect(document.activeElement).toBe(firstButton);
+    firstButton.focus();
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(lastButton);
+  });
+
   it('copies the exact canonical URL and keeps the panel open', async () => {
     renderMenu();
     fireEvent.click(screen.getByRole('button', { name: 'Share' }));

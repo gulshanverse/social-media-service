@@ -83,36 +83,20 @@ export default function OpenGraphImage() {
           A new anonymous confession from our college community.
         </div>
       </div>
-      <div
-        style={{
-          position: 'absolute',
-          right: 450,
-          bottom: 46,
-          display: 'flex',
-          width: 250,
-          height: 76,
-          alignItems: 'center',
-          justifyContent: 'center',
-          border: '4px solid #0a5965',
-          color: '#0a5965',
-          opacity: 0.9,
-        }}
+      <svg
+        width="250"
+        height="76"
+        viewBox="0 0 250 76"
+        aria-hidden="true"
+        style={{ position: 'absolute', right: 450, bottom: 46, opacity: 0.9 }}
       >
-        <div
-          style={{
-            display: 'flex',
-            width: 236,
-            height: 58,
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 16,
-          }}
-        >
-          <div style={{ width: 22, height: 28, border: '3px solid #0a5965' }} />
-          <div style={{ width: 22, height: 28, border: '3px solid #0a5965' }} />
-          <div style={{ width: 22, height: 28, border: '3px solid #0a5965' }} />
-        </div>
-      </div>
+        <rect x="2" y="2" width="246" height="72" fill="none" stroke="#0a5965" strokeWidth="4" />
+        <g fill="none" stroke="#0a5965" strokeWidth="3">
+          <rect x="30" y="24" width="22" height="28" />
+          <rect x="114" y="24" width="22" height="28" />
+          <rect x="198" y="24" width="22" height="28" />
+        </g>
+      </svg>
       <div
         style={{
           display: 'flex',

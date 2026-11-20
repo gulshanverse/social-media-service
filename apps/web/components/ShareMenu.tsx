@@ -149,6 +149,29 @@ export function ShareMenu({ url, title, buttonContent, buttonClassName }: ShareM
     const focusTimer = window.setTimeout(() => closeRef.current?.focus(), 0);
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') close();
+      if (event.key !== 'Tab' || !panelRef.current) return;
+      const activeElement = document.activeElement;
+      if (!(activeElement instanceof HTMLElement) || !panelRef.current.contains(activeElement))
+        return;
+      const focusableElements = Array.from(
+        panelRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
+        ),
+      );
+      if (focusableElements.length === 0) {
+        event.preventDefault();
+        closeRef.current?.focus();
+        return;
+      }
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+      if (event.shiftKey && activeElement === firstElement) {
+        event.preventDefault();
+        lastElement.focus();
+      } else if (!event.shiftKey && activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
+      }
     }
     function handlePointerDown(event: PointerEvent) {
       const target = event.target;
