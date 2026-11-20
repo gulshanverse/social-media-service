@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PublicConfession } from '@ggv/types';
 import { ConfessionCard } from '../../../components/ConfessionCard';
 import { getConfession, getConfessions, type ConfessionFeedQuery } from '../../../lib/api';
@@ -69,6 +69,7 @@ export default function ConfessionDetailClient({
   const [error, setError] = useState('');
   const [context, setContext] = useState<DetailContext>(() => readContext());
   const [browse, setBrowse] = useState<BrowseState | null>(null);
+  const [boundaryPages, setBoundaryPages] = useState<Record<number, BrowseState>>({});
   const [related, setRelated] = useState<PublicConfession[] | null>(null);
   const [browseError, setBrowseError] = useState('');
   const trackRef = useRef<HTMLDivElement>(null);
@@ -77,6 +78,9 @@ export default function ConfessionDetailClient({
   const gestureRef = useRef<Gesture | null>(null);
   const touchGestureRef = useRef<Gesture | null>(null);
   const touchSeenDuringPointerRef = useRef(false);
+  const adjacentRequestsRef = useRef(new Map<number, Promise<BrowseState | undefined>>());
+  const adjacentGenerationRef = useRef(0);
+  const settleTimerRef = useRef<number | undefined>(undefined);
   const wheelGestureRef = useRef({ deltaX: 0, resetTimer: 0 as number | undefined });
 
   function setTrackOffset(offset: number, animate = false) {
@@ -94,6 +98,13 @@ export default function ConfessionDetailClient({
     navigationLockRef.current = false;
     gestureRef.current = null;
     touchGestureRef.current = null;
+    adjacentGenerationRef.current += 1;
+    adjacentRequestsRef.current.clear();
+    setBoundaryPages({});
+    if (settleTimerRef.current !== undefined) {
+      window.clearTimeout(settleTimerRef.current);
+      settleTimerRef.current = undefined;
+    }
     setTrackOffset(0);
   }, [publicId]);
 
@@ -101,6 +112,9 @@ export default function ConfessionDetailClient({
     () => () => {
       if (wheelGestureRef.current.resetTimer !== undefined) {
         window.clearTimeout(wheelGestureRef.current.resetTimer);
+      }
+      if (settleTimerRef.current !== undefined) {
+        window.clearTimeout(settleTimerRef.current);
       }
     },
     [],
@@ -127,6 +141,34 @@ export default function ConfessionDetailClient({
       );
   }, [publicId]);
 
+  const loadAdjacentPage = useCallback(
+    (page: number) => {
+      if (page < 1 || boundaryPages[page]) return adjacentRequestsRef.current.get(page);
+      const existingRequest = adjacentRequestsRef.current.get(page);
+      if (existingRequest) return existingRequest;
+      const generation = adjacentGenerationRef.current;
+      const request = getConfessions({ ...context, page })
+        .then((result) => {
+          if (generation === adjacentGenerationRef.current) {
+            setBoundaryPages((current) => ({ ...current, [page]: result }));
+          }
+          return result;
+        })
+        .catch(() => {
+          if (generation === adjacentGenerationRef.current) {
+            setBrowseError('Browsing is unavailable.');
+          }
+          return undefined;
+        })
+        .finally(() => {
+          adjacentRequestsRef.current.delete(page);
+        });
+      adjacentRequestsRef.current.set(page, request);
+      return request;
+    },
+    [boundaryPages, context],
+  );
+
   useEffect(() => {
     if (!confession) return;
     const relatedQuery: ConfessionFeedQuery = {
@@ -147,58 +189,69 @@ export default function ConfessionDetailClient({
     () => browse?.items.findIndex((item) => item.publicId === publicId) ?? -1,
     [browse, publicId],
   );
-  const previousConfession = currentIndex > 0 ? browse?.items[currentIndex - 1] : undefined;
+  const previousPage = browse && currentIndex === 0 ? boundaryPages[browse.page - 1] : undefined;
+  const nextPage =
+    browse && currentIndex === browse.items.length - 1 ? boundaryPages[browse.page + 1] : undefined;
+  const previousConfession =
+    currentIndex > 0 ? browse?.items[currentIndex - 1] : previousPage?.items.at(-1);
   const nextConfession =
     currentIndex >= 0 && browse && currentIndex < browse.items.length - 1
       ? browse.items[currentIndex + 1]
-      : undefined;
+      : nextPage?.items[0];
   const position =
     browse && currentIndex >= 0 ? (browse.page - 1) * browse.limit + currentIndex + 1 : 0;
-  const canGoPrevious = currentIndex > 0 || Boolean(browse && browse.page > 1);
-  const canGoNext = Boolean(
-    browse &&
-    (currentIndex >= 0 ? currentIndex < browse.items.length - 1 || browse.hasMore : browse.hasMore),
-  );
+  const canGoPrevious = Boolean(previousConfession);
+  const canGoNext = Boolean(nextConfession);
+
+  const primeBoundaryPages = useCallback(() => {
+    if (!browse || currentIndex < 0) return;
+    if (currentIndex === 0 && browse.page > 1) void loadAdjacentPage(browse.page - 1);
+    if (currentIndex === browse.items.length - 1 && browse.hasMore) {
+      void loadAdjacentPage(browse.page + 1);
+    }
+  }, [browse, currentIndex, loadAdjacentPage]);
+
+  useEffect(() => {
+    primeBoundaryPages();
+  }, [primeBoundaryPages]);
 
   function openConfession(nextId: string, nextPage = context.page) {
     const query = contextQuery({ ...context, page: nextPage });
     router.push(`/confessions/${encodeURIComponent(nextId)}${query ? `?${query}` : ''}`);
   }
 
-  function navigate(direction: -1 | 1) {
+  function navigate(direction: -1 | 1, settle = false) {
     if (!browse || navigationLockRef.current) return;
     navigationLockRef.current = true;
     if (currentIndex >= 0) {
       const nextIndex = currentIndex + direction;
       if (nextIndex >= 0 && nextIndex < browse.items.length) {
-        openConfession(browse.items[nextIndex].publicId);
+        const nextId = browse.items[nextIndex].publicId;
+        if (settle) {
+          setTrackOffset(direction > 0 ? -window.innerWidth : window.innerWidth, true);
+          settleTimerRef.current = window.setTimeout(() => {
+            settleTimerRef.current = undefined;
+            openConfession(nextId, browse.page);
+          }, 360);
+        } else {
+          openConfession(nextId, browse.page);
+        }
         return;
       }
-      const nextPage = browse.page + direction;
-      if (direction > 0 && browse.hasMore) {
-        getConfessions({ ...context, page: nextPage })
-          .then((result) => {
-            setBrowse(result);
-            const next = result.items[0];
-            if (next) openConfession(next.publicId, nextPage);
-          })
-          .catch(() => setBrowseError('Browsing is unavailable.'))
-          .finally(() => {
-            navigationLockRef.current = false;
-          });
-      } else if (direction < 0 && browse.page > 1) {
-        getConfessions({ ...context, page: nextPage })
-          .then((result) => {
-            setBrowse(result);
-            const next = result.items[result.items.length - 1];
-            if (next) openConfession(next.publicId, nextPage);
-          })
-          .catch(() => setBrowseError('Browsing is unavailable.'))
-          .finally(() => {
-            navigationLockRef.current = false;
-          });
-      } else {
+      const targetPage = browse.page + direction;
+      const boundary = direction > 0 ? nextPage?.items[0] : previousPage?.items.at(-1);
+      if (!boundary) {
         navigationLockRef.current = false;
+        return;
+      }
+      if (settle) {
+        setTrackOffset(direction > 0 ? -window.innerWidth : window.innerWidth, true);
+        settleTimerRef.current = window.setTimeout(() => {
+          settleTimerRef.current = undefined;
+          openConfession(boundary.publicId, targetPage);
+        }, 360);
+      } else {
+        openConfession(boundary.publicId, targetPage);
       }
       return;
     }
@@ -217,9 +270,7 @@ export default function ConfessionDetailClient({
   }
 
   function canDrag(direction: -1 | 1) {
-    return direction < 0
-      ? Boolean(nextConfession || browse?.hasMore)
-      : Boolean(previousConfession || (browse?.page && browse.page > 1));
+    return direction > 0 ? Boolean(nextConfession) : Boolean(previousConfession);
   }
 
   function updateDrag(
@@ -263,9 +314,7 @@ export default function ConfessionDetailClient({
       resetTrack();
       return;
     }
-    const width = viewportRef.current?.clientWidth ?? window.innerWidth;
-    setTrackOffset(deltaX < 0 ? -width : width, true);
-    navigate(direction);
+    navigate(direction, true);
   }
 
   function handlePointerDown(event: React.PointerEvent<HTMLElement>) {
@@ -288,6 +337,7 @@ export default function ConfessionDetailClient({
       active: true,
     };
     touchSeenDuringPointerRef.current = false;
+    primeBoundaryPages();
   }
 
   function handlePointerMove(event: React.PointerEvent<HTMLElement>) {
@@ -323,6 +373,7 @@ export default function ConfessionDetailClient({
       startedAt: performance.now(),
       active: true,
     };
+    primeBoundaryPages();
   }
 
   function handleTouchMove(event: React.TouchEvent<HTMLElement>) {
