@@ -225,8 +225,8 @@ export default function ConfessionDetailClient({
 
   const primeBoundaryPages = useCallback(() => {
     if (!browse || currentIndex < 0) return;
-    if (currentIndex === 0 && browse.page > 1) void loadAdjacentPage(browse.page - 1);
-    if (currentIndex === browse.items.length - 1 && browse.hasMore) {
+    if (currentIndex <= 2 && browse.page > 1) void loadAdjacentPage(browse.page - 1);
+    if (currentIndex >= browse.items.length - 3 && browse.hasMore) {
       void loadAdjacentPage(browse.page + 1);
     }
   }, [browse, currentIndex, loadAdjacentPage]);
@@ -234,6 +234,46 @@ export default function ConfessionDetailClient({
   useEffect(() => {
     primeBoundaryPages();
   }, [primeBoundaryPages]);
+
+  const prefetchConfessionRoute = useCallback(
+    (nextId: string, nextPage: number) => {
+      const query = contextQuery({ ...context, page: nextPage });
+      const href = `/confessions/${encodeURIComponent(nextId)}${query ? `?${query}` : ''}`;
+      // A failed route prefetch is intentionally ignored: navigation remains retryable.
+      void Promise.resolve()
+        .then(() => router.prefetch(href))
+        .catch(() => undefined);
+    },
+    [context, router],
+  );
+
+  useEffect(() => {
+    if (!browse || currentIndex < 0) return;
+
+    const candidates: Array<{ id: string; page: number }> = [];
+    for (const offset of [1, 2, 3]) {
+      const next = browse.items[currentIndex + offset];
+      if (next) candidates.push({ id: next.publicId, page: browse.page });
+      const previous = browse.items[currentIndex - offset];
+      if (previous) candidates.push({ id: previous.publicId, page: browse.page });
+    }
+
+    const previousBoundaryItems = boundaryPages[browse.page - 1]?.items ?? [];
+    for (const item of previousBoundaryItems.slice(-3)) {
+      candidates.push({ id: item.publicId, page: browse.page - 1 });
+    }
+    const nextBoundaryItems = boundaryPages[browse.page + 1]?.items ?? [];
+    for (const item of nextBoundaryItems.slice(0, 3)) {
+      candidates.push({ id: item.publicId, page: browse.page + 1 });
+    }
+
+    const seen = new Set<string>();
+    for (const candidate of candidates) {
+      if (candidate.id === publicId || seen.has(candidate.id)) continue;
+      seen.add(candidate.id);
+      prefetchConfessionRoute(candidate.id, candidate.page);
+    }
+  }, [boundaryPages, browse, currentIndex, prefetchConfessionRoute, publicId]);
 
   function openConfession(nextId: string, nextPage = context.page) {
     const query = contextQuery({ ...context, page: nextPage });
