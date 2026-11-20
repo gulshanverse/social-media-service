@@ -3,13 +3,19 @@ import { join } from 'node:path';
 import { ImageResponse } from 'next/og';
 import {
   SHARE_CARD_FONT_SIZE,
-  SHARE_CARD_HEIGHT,
+  SHARE_CARD_FOOTER_HEIGHT,
+  SHARE_CARD_HEADER_HEIGHT,
   SHARE_CARD_LINE_HEIGHT,
+  SHARE_CARD_LINE_HEIGHT_PX,
   SHARE_CARD_MAX_LINES,
+  SHARE_CARD_RADIUS,
+  SHARE_CARD_SECTION_GAP,
   SHARE_CARD_TEXT_WIDTH,
+  SHARE_CARD_VERTICAL_PADDING,
   SHARE_CARD_WIDTH,
   shareCardCategory,
   shareCardDate,
+  shareCardHeight,
   truncateShareCardText,
 } from '../../../../lib/share-card';
 import { getPublicConfessionForPreview } from '../../../../lib/social-preview';
@@ -45,14 +51,13 @@ export async function GET(
   const metadataColor = token(tokens, 'cardMetadataColor', theme?.accentColor || '#c8ff00');
   const borderStyle = token(tokens, 'cardBorderStyle', theme?.borderStyle || 'solid');
   const borderWidth = token(tokens, 'cardBorderWidth', '0px');
-  const radius = token(tokens, 'cardRadius', theme?.radius || '28px');
   const shadow = token(tokens, 'cardShadow', '0 18px 50px rgba(0, 0, 0, 0.24)');
-  const padding = token(tokens, 'cardPadding', '48px');
   const { lines } = truncateShareCardText(
     confession.content,
     SHARE_CARD_MAX_LINES,
     SHARE_CARD_TEXT_WIDTH,
   );
+  const height = shareCardHeight(lines.length);
   const fontData = await readFile(join(process.cwd(), 'app/fonts/NotoSansDevanagari-Regular.ttf'));
   const fontBuffer = fontData.buffer.slice(
     fontData.byteOffset,
@@ -64,25 +69,22 @@ export async function GET(
       style={{
         display: 'flex',
         width: SHARE_CARD_WIDTH,
-        height: SHARE_CARD_HEIGHT,
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 40,
-        background: '#0b0f19',
+        height,
+        background: 'transparent',
         fontFamily: 'Noto Sans Devanagari',
       }}
     >
       <div
         style={{
           display: 'flex',
-          width: SHARE_CARD_WIDTH - 80,
-          height: SHARE_CARD_HEIGHT - 80,
+          width: SHARE_CARD_WIDTH,
+          height,
           flexDirection: 'column',
           justifyContent: 'space-between',
-          padding,
+          padding: SHARE_CARD_VERTICAL_PADDING,
           overflow: 'hidden',
           border: `${borderWidth} ${borderStyle} ${metadataColor}`,
-          borderRadius: radius,
+          borderRadius: SHARE_CARD_RADIUS,
           background,
           color: textColor,
           boxShadow: shadow,
@@ -97,6 +99,7 @@ export async function GET(
             fontSize: 20,
             fontWeight: 400,
             letterSpacing: 1.5,
+            height: SHARE_CARD_HEADER_HEIGHT,
           }}
         >
           <span>COLLEGE CONFESSION</span>
@@ -107,16 +110,21 @@ export async function GET(
             display: 'flex',
             flexDirection: 'column',
             width: SHARE_CARD_TEXT_WIDTH,
-            minHeight: 520,
-            justifyContent: 'center',
+            marginTop: SHARE_CARD_SECTION_GAP,
+            marginBottom: SHARE_CARD_SECTION_GAP,
+            flex: 1,
             fontSize: SHARE_CARD_FONT_SIZE,
             fontWeight: 400,
             lineHeight: SHARE_CARD_LINE_HEIGHT,
           }}
         >
           {lines.map((line, index) => (
-            <div key={`${index}-${line}`} style={{ display: 'flex', minHeight: 45 }}>
-              {line}
+            <div
+              key={`${index}-${line}`}
+              style={{ display: 'flex', height: SHARE_CARD_LINE_HEIGHT_PX }}
+            >
+              {index === 0 ? `“${line}` : line}
+              {index === lines.length - 1 ? '”' : ''}
             </div>
           ))}
         </div>
@@ -130,6 +138,7 @@ export async function GET(
             color: metadataColor,
             fontSize: 19,
             fontWeight: 400,
+            height: SHARE_CARD_FOOTER_HEIGHT,
           }}
         >
           <span>{shareCardCategory(confession)}</span>
@@ -139,7 +148,7 @@ export async function GET(
     </div>,
     {
       width: SHARE_CARD_WIDTH,
-      height: SHARE_CARD_HEIGHT,
+      height,
       headers: cacheHeaders,
       fonts: [{ name: 'Noto Sans Devanagari', data: fontBuffer, weight: 400, style: 'normal' }],
     },

@@ -3,11 +3,29 @@ import { join } from 'node:path';
 import type { PublicConfession } from '@ggv/types';
 
 export const SHARE_CARD_WIDTH = 720;
-export const SHARE_CARD_HEIGHT = 900;
 export const SHARE_CARD_MAX_LINES = 11;
 export const SHARE_CARD_TEXT_WIDTH = 580;
 export const SHARE_CARD_FONT_SIZE = 32;
 export const SHARE_CARD_LINE_HEIGHT = 1.42;
+export const SHARE_CARD_LINE_HEIGHT_PX = SHARE_CARD_FONT_SIZE * SHARE_CARD_LINE_HEIGHT;
+export const SHARE_CARD_RADIUS = 40;
+
+// Fixed layout portions; the confession text is the only dynamic portion.
+export const SHARE_CARD_VERTICAL_PADDING = 48;
+export const SHARE_CARD_HEADER_HEIGHT = 28;
+export const SHARE_CARD_SECTION_GAP = 34;
+export const SHARE_CARD_FOOTER_HEIGHT = 49;
+
+export function shareCardHeight(lineCount: number) {
+  const lines = Math.max(1, Math.min(SHARE_CARD_MAX_LINES, Math.ceil(lineCount)));
+  return Math.ceil(
+    SHARE_CARD_VERTICAL_PADDING * 2 +
+      SHARE_CARD_HEADER_HEIGHT +
+      SHARE_CARD_SECTION_GAP * 2 +
+      SHARE_CARD_LINE_HEIGHT_PX * lines +
+      SHARE_CARD_FOOTER_HEIGHT,
+  );
+}
 
 const categoryNames: Record<string, string> = {
   ADMIRATION: 'Admiration',
