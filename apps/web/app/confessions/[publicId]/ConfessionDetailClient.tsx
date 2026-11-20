@@ -69,6 +69,12 @@ export default function ConfessionDetailClient({
     startY: number;
     active: boolean;
   } | null>(null);
+  const touchGestureRef = useRef<{
+    startX: number;
+    startY: number;
+    active: boolean;
+  } | null>(null);
+  const touchSeenDuringPointerRef = useRef(false);
   const wheelGestureRef = useRef({ deltaX: 0, resetTimer: 0 as number | undefined });
 
   useEffect(() => {
@@ -205,6 +211,8 @@ export default function ConfessionDetailClient({
       isInteractiveTarget(event.target)
     ) {
       pointerGestureRef.current = null;
+      touchGestureRef.current = null;
+      touchSeenDuringPointerRef.current = false;
       return;
     }
     pointerGestureRef.current = {
@@ -213,6 +221,7 @@ export default function ConfessionDetailClient({
       startY: event.clientY,
       active: true,
     };
+    touchSeenDuringPointerRef.current = false;
   }
 
   function handlePointerMove(event: React.PointerEvent<HTMLElement>) {
@@ -222,6 +231,7 @@ export default function ConfessionDetailClient({
     const deltaY = event.clientY - gesture.startY;
     if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 12) {
       gesture.active = false;
+      touchGestureRef.current = null;
       return;
     }
     if (Math.abs(deltaX) > 12 && Math.abs(deltaX) > Math.abs(deltaY)) event.preventDefault();
@@ -229,6 +239,10 @@ export default function ConfessionDetailClient({
 
   function handlePointerUp(event: React.PointerEvent<HTMLElement>) {
     const gesture = pointerGestureRef.current;
+    if (touchSeenDuringPointerRef.current) {
+      pointerGestureRef.current = null;
+      return;
+    }
     pointerGestureRef.current = null;
     if (!gesture || gesture.pointerId !== event.pointerId || !gesture.active) return;
     const deltaX = event.clientX - gesture.startX;
@@ -241,10 +255,12 @@ export default function ConfessionDetailClient({
     const touch = event.touches[0];
     if (!touch || isInteractiveTarget(event.target)) {
       pointerGestureRef.current = null;
+      touchGestureRef.current = null;
+      touchSeenDuringPointerRef.current = false;
       return;
     }
-    pointerGestureRef.current = {
-      pointerId: -1,
+    touchSeenDuringPointerRef.current = pointerGestureRef.current !== null;
+    touchGestureRef.current = {
       startX: touch.clientX,
       startY: touch.clientY,
       active: true,
@@ -252,9 +268,9 @@ export default function ConfessionDetailClient({
   }
 
   function handleTouchMove(event: React.TouchEvent<HTMLElement>) {
-    const gesture = pointerGestureRef.current;
+    const gesture = touchGestureRef.current;
     const touch = event.touches[0];
-    if (!gesture || gesture.pointerId !== -1 || !touch || !gesture.active) return;
+    if (!gesture || !touch || !gesture.active) return;
     const deltaX = touch.clientX - gesture.startX;
     const deltaY = touch.clientY - gesture.startY;
     if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 12) {
@@ -265,10 +281,12 @@ export default function ConfessionDetailClient({
   }
 
   function handleTouchEnd(event: React.TouchEvent<HTMLElement>) {
-    const gesture = pointerGestureRef.current;
+    const gesture = touchGestureRef.current;
     const touch = event.changedTouches[0];
     pointerGestureRef.current = null;
-    if (!gesture || gesture.pointerId !== -1 || !touch || !gesture.active) return;
+    touchGestureRef.current = null;
+    touchSeenDuringPointerRef.current = false;
+    if (!gesture || !touch || !gesture.active) return;
     const deltaX = touch.clientX - gesture.startX;
     const deltaY = touch.clientY - gesture.startY;
     if (Math.abs(deltaX) < 56 || Math.abs(deltaX) <= Math.abs(deltaY)) return;
@@ -301,12 +319,15 @@ export default function ConfessionDetailClient({
       onPointerUp={handlePointerUp}
       onPointerCancel={() => {
         pointerGestureRef.current = null;
+        if (!touchSeenDuringPointerRef.current) touchGestureRef.current = null;
       }}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       onTouchCancel={() => {
         pointerGestureRef.current = null;
+        touchGestureRef.current = null;
+        touchSeenDuringPointerRef.current = false;
       }}
       onWheel={handleWheel}
     >
