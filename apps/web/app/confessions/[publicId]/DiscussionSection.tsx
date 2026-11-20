@@ -422,11 +422,7 @@ export default function DiscussionSection({
         </button>
         <div className="engagement-share">
           <ShareMenu
-            url={
-              typeof window === 'undefined'
-                ? `https://www.confessions.live/confessions/${publicId}`
-                : window.location.href
-            }
+            url={`https://www.confessions.live/confessions/${encodeURIComponent(publicId)}`}
             title="College Confession"
             buttonClassName="engagement-action engagement-share-button"
             buttonContent={
