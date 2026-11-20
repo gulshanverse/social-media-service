@@ -62,7 +62,7 @@ function styleFor(theme: PublicPromotionTheme, layout: PromotionLayoutSettings):
     '--promotion-description-weight': layout.descriptionWeight,
     '--promotion-heading-line-height': layout.headingLineHeight,
     '--promotion-description-line-height': layout.descriptionLineHeight,
-    '--promotion-copy-width': isAuto ? 'min(62%, 620px)' : width,
+    '--promotion-copy-width': isAuto ? 'min(82%, 760px)' : width,
     '--promotion-copy-margin-start': copyMarginStart,
     '--promotion-copy-margin-end': copyMarginEnd,
     '--promotion-copy-justify': justifyContent,

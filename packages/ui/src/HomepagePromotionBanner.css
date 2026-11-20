@@ -161,7 +161,7 @@
     );
   }
   .homepage-promotion-copy {
-    width: var(--promotion-copy-width, min(86%, 520px));
+    width: 100%;
     padding: 16px;
   }
   .homepage-promotion-badge {
