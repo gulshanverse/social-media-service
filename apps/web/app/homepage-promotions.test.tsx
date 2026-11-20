@@ -97,6 +97,55 @@ describe('HomepagePromotionCarousel', () => {
     );
   });
 
+  it('keeps long promotion content in the banner flow and preserves the CTA', () => {
+    const longPromotion = {
+      ...promotions[0],
+      title: 'A much longer announcement heading that needs room to wrap gracefully',
+      description:
+        'This description intentionally spans multiple lines so the banner can grow with its content instead of clipping the message or introducing an internal scrollbar on smaller screens.',
+    };
+    const { container } = render(<HomepagePromotionCarousel promotions={[longPromotion]} />);
+    const copy = container.querySelector('.homepage-promotion-copy');
+    expect(copy).toBeTruthy();
+    expect(copy?.textContent).toContain(longPromotion.title);
+    expect(copy?.textContent).toContain(longPromotion.description);
+    expect(
+      screen.getByRole('link', {
+        name: `Get details: ${longPromotion.title}`,
+      }),
+    ).toBeTruthy();
+  });
+
+  it('maps manual center positioning to flow alignment without transform offsets', () => {
+    const manualPromotion = {
+      ...promotions[0],
+      layoutSettings: {
+        version: 1 as const,
+        mode: 'manual' as const,
+        headingFont: 'inherit' as const,
+        bodyFont: 'inherit' as const,
+        headingSize: 3.2,
+        descriptionSize: 1,
+        headingWeight: 800 as const,
+        descriptionWeight: 500 as const,
+        headingLineHeight: 1.02,
+        descriptionLineHeight: 1.45,
+        letterSpacing: 'tight' as const,
+        headingTransform: 'none' as const,
+        alignment: 'center' as const,
+        horizontalPosition: 'center' as const,
+        verticalPosition: 'center' as const,
+        contentWidth: 'wide' as const,
+        padding: 'comfortable' as const,
+        spacing: 'comfortable' as const,
+      },
+    };
+    const { container } = render(<HomepagePromotionCarousel promotions={[manualPromotion]} />);
+    const card = container.querySelector('.homepage-promotion-card');
+    expect(card?.getAttribute('style')).toContain('--promotion-copy-justify: center');
+    expect(card?.getAttribute('style')).toContain('--promotion-copy-margin-start: auto');
+  });
+
   it('falls back to Aurora for an invalid background preset', () => {
     const { container } = render(
       <HomepagePromotionCarousel
