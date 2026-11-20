@@ -3,13 +3,19 @@ import { join } from 'node:path';
 import { ImageResponse } from 'next/og';
 import {
   SHARE_CARD_FONT_SIZE,
-  SHARE_CARD_HEIGHT,
+  SHARE_CARD_FOOTER_HEIGHT,
+  SHARE_CARD_FOOTER_PADDING,
+  SHARE_CARD_HEADER_HEIGHT,
   SHARE_CARD_LINE_HEIGHT,
   SHARE_CARD_MAX_LINES,
-  SHARE_CARD_TEXT_WIDTH,
+  SHARE_CARD_OUTER_PADDING,
+  SHARE_CARD_SECTION_GAP,
   SHARE_CARD_WIDTH,
   shareCardCategory,
+  shareCardContent,
+  shareCardContentWidth,
   shareCardDate,
+  shareCardHeight,
   truncateShareCardText,
 } from '../../../../lib/share-card';
 import { getPublicConfessionForPreview } from '../../../../lib/social-preview';
@@ -22,6 +28,11 @@ const cacheHeaders = {
 
 function token(tokens: Record<string, string>, key: string, fallback: string) {
   return tokens[key] || fallback;
+}
+
+function pixelValue(value: string, fallback: number) {
+  const match = /^([\d.]+)px$/u.exec(value.trim());
+  return match ? Number(match[1]) : fallback;
 }
 
 export async function GET(
@@ -45,14 +56,16 @@ export async function GET(
   const metadataColor = token(tokens, 'cardMetadataColor', theme?.accentColor || '#c8ff00');
   const borderStyle = token(tokens, 'cardBorderStyle', theme?.borderStyle || 'solid');
   const borderWidth = token(tokens, 'cardBorderWidth', '0px');
-  const radius = token(tokens, 'cardRadius', theme?.radius || '28px');
+  const radius = theme?.radius || '28px';
   const shadow = token(tokens, 'cardShadow', '0 18px 50px rgba(0, 0, 0, 0.24)');
-  const padding = token(tokens, 'cardPadding', '48px');
-  const { lines } = truncateShareCardText(
-    confession.content,
-    SHARE_CARD_MAX_LINES,
-    SHARE_CARD_TEXT_WIDTH,
-  );
+  const cardPadding = pixelValue(token(tokens, 'cardPadding', '25px'), 25);
+  const content = shareCardContent(confession.content);
+  const contentWidth = shareCardContentWidth(cardPadding);
+  const { lines } = truncateShareCardText(content, SHARE_CARD_MAX_LINES, contentWidth);
+  const cardHeight = shareCardHeight(lines.length, cardPadding);
+  const canvasHeight = cardHeight + SHARE_CARD_OUTER_PADDING * 2;
+  const bodyLineHeight = SHARE_CARD_FONT_SIZE * SHARE_CARD_LINE_HEIGHT;
+  const bodyHeight = lines.length * bodyLineHeight;
   const fontData = await readFile(join(process.cwd(), 'app/fonts/NotoSansDevanagari-Regular.ttf'));
   const fontBuffer = fontData.buffer.slice(
     fontData.byteOffset,
@@ -64,10 +77,10 @@ export async function GET(
       style={{
         display: 'flex',
         width: SHARE_CARD_WIDTH,
-        height: SHARE_CARD_HEIGHT,
+        height: canvasHeight,
         alignItems: 'center',
         justifyContent: 'center',
-        padding: 40,
+        padding: SHARE_CARD_OUTER_PADDING,
         background: '#0b0f19',
         fontFamily: 'Noto Sans Devanagari',
       }}
@@ -75,11 +88,11 @@ export async function GET(
       <div
         style={{
           display: 'flex',
-          width: SHARE_CARD_WIDTH - 80,
-          height: SHARE_CARD_HEIGHT - 80,
+          width: SHARE_CARD_WIDTH - SHARE_CARD_OUTER_PADDING * 2,
+          height: cardHeight,
           flexDirection: 'column',
           justifyContent: 'space-between',
-          padding,
+          padding: cardPadding,
           overflow: 'hidden',
           border: `${borderWidth} ${borderStyle} ${metadataColor}`,
           borderRadius: radius,
@@ -91,6 +104,7 @@ export async function GET(
         <div
           style={{
             display: 'flex',
+            height: SHARE_CARD_HEADER_HEIGHT,
             alignItems: 'center',
             justifyContent: 'space-between',
             color: metadataColor,
@@ -99,23 +113,34 @@ export async function GET(
             letterSpacing: 1.5,
           }}
         >
-          <span>COLLEGE CONFESSION</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <svg width="22" height="22" viewBox="0 0 64 64">
+              <rect width="64" height="64" rx="16" fill="#070a12" />
+              <path d="M14 20 22 39h20l8-19-11 8-7-12-7 12-11-8Z" fill="#ffd54a" />
+              <path d="M20 45h24" stroke="#ff2d75" strokeWidth="5" strokeLinecap="round" />
+            </svg>
+            <span>COLLEGE CONFESSION</span>
+          </span>
           <span>ANONYMOUS</span>
         </div>
         <div
           style={{
             display: 'flex',
             flexDirection: 'column',
-            width: SHARE_CARD_TEXT_WIDTH,
-            minHeight: 520,
-            justifyContent: 'center',
+            width: contentWidth,
+            height: bodyHeight,
+            justifyContent: 'flex-start',
             fontSize: SHARE_CARD_FONT_SIZE,
             fontWeight: 400,
             lineHeight: SHARE_CARD_LINE_HEIGHT,
+            textAlign: 'left',
           }}
         >
           {lines.map((line, index) => (
-            <div key={`${index}-${line}`} style={{ display: 'flex', minHeight: 45 }}>
+            <div
+              key={`${index}-${line}`}
+              style={{ display: 'flex', height: bodyLineHeight, textAlign: 'left' }}
+            >
               {line}
             </div>
           ))}
@@ -123,9 +148,10 @@ export async function GET(
         <div
           style={{
             display: 'flex',
-            alignItems: 'center',
+            height: SHARE_CARD_FOOTER_HEIGHT + SHARE_CARD_FOOTER_PADDING + 2,
+            alignItems: 'flex-end',
             justifyContent: 'space-between',
-            paddingTop: 22,
+            paddingTop: SHARE_CARD_FOOTER_PADDING,
             borderTop: `2px ${borderStyle} ${metadataColor}`,
             color: metadataColor,
             fontSize: 19,
@@ -139,7 +165,7 @@ export async function GET(
     </div>,
     {
       width: SHARE_CARD_WIDTH,
-      height: SHARE_CARD_HEIGHT,
+      height: canvasHeight,
       headers: cacheHeaders,
       fonts: [{ name: 'Noto Sans Devanagari', data: fontBuffer, weight: 400, style: 'normal' }],
     },

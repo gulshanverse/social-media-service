@@ -3,11 +3,18 @@ import { join } from 'node:path';
 import type { PublicConfession } from '@ggv/types';
 
 export const SHARE_CARD_WIDTH = 720;
-export const SHARE_CARD_HEIGHT = 900;
 export const SHARE_CARD_MAX_LINES = 11;
-export const SHARE_CARD_TEXT_WIDTH = 580;
+export const SHARE_CARD_OUTER_PADDING = 24;
+export const SHARE_CARD_DEFAULT_PADDING = 25;
+export const SHARE_CARD_MIN_HEIGHT = 330;
+export const SHARE_CARD_TEXT_WIDTH =
+  SHARE_CARD_WIDTH - SHARE_CARD_OUTER_PADDING * 2 - SHARE_CARD_DEFAULT_PADDING * 2;
 export const SHARE_CARD_FONT_SIZE = 32;
 export const SHARE_CARD_LINE_HEIGHT = 1.42;
+export const SHARE_CARD_HEADER_HEIGHT = 26;
+export const SHARE_CARD_SECTION_GAP = 18;
+export const SHARE_CARD_FOOTER_HEIGHT = 25;
+export const SHARE_CARD_FOOTER_PADDING = 16;
 
 const categoryNames: Record<string, string> = {
   ADMIRATION: 'Admiration',
@@ -37,6 +44,27 @@ export function shareCardDate(publishedAt: string) {
     year: 'numeric',
     timeZone: 'UTC',
   });
+}
+
+export function shareCardContent(content: string) {
+  return `“${content}”`;
+}
+
+export function shareCardContentWidth(cardPadding = SHARE_CARD_DEFAULT_PADDING) {
+  return SHARE_CARD_WIDTH - SHARE_CARD_OUTER_PADDING * 2 - cardPadding * 2;
+}
+
+export function shareCardHeight(lineCount: number, cardPadding = SHARE_CARD_DEFAULT_PADDING) {
+  const bodyHeight = lineCount * SHARE_CARD_FONT_SIZE * SHARE_CARD_LINE_HEIGHT;
+  const contentHeight =
+    cardPadding * 2 +
+    SHARE_CARD_HEADER_HEIGHT +
+    SHARE_CARD_SECTION_GAP * 2 +
+    bodyHeight +
+    SHARE_CARD_FOOTER_PADDING +
+    2 +
+    SHARE_CARD_FOOTER_HEIGHT;
+  return Math.max(SHARE_CARD_MIN_HEIGHT, Math.ceil(contentHeight));
 }
 
 type FontMetrics = {

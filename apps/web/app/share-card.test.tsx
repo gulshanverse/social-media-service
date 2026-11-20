@@ -3,6 +3,9 @@ import {
   SHARE_CARD_MAX_LINES,
   SHARE_CARD_TEXT_WIDTH,
   measureShareCardText,
+  shareCardContent,
+  shareCardContentWidth,
+  shareCardHeight,
   shareCardCategory,
   shareCardDate,
   truncateShareCardText,
@@ -55,6 +58,27 @@ describe('share card renderer helpers', () => {
     expect(result.truncated).toBe(false);
     expect(result.lines).toHaveLength(11);
     expect(result.lines.at(-1)).not.toMatch(/\.\.\.$/u);
+  });
+
+  it('scales card height with the actual rendered line count', () => {
+    const heights = [2, 4, 6, 8, 11].map((lineCount) => shareCardHeight(lineCount));
+    expect(heights).toEqual([...heights].sort((left, right) => left - right));
+    expect(new Set(heights).size).toBe(5);
+    expect(shareCardHeight(2)).toBeGreaterThanOrEqual(330);
+    expect(shareCardHeight(11)).toBeGreaterThan(shareCardHeight(2));
+  });
+
+  it('uses balanced theme padding and preserves explicit breaks and Unicode content', () => {
+    expect(shareCardContent('hello')).toBe('“hello”');
+    expect(shareCardContentWidth(25)).toBe(622);
+    expect(shareCardContentWidth(48)).toBe(576);
+    const result = truncateShareCardText(
+      'English punctuation, Hinglish words, and Hindi: हिंदी।\nSecond paragraph.',
+      SHARE_CARD_MAX_LINES,
+      shareCardContentWidth(25),
+    );
+    expect(result.lines.length).toBeGreaterThan(1);
+    expect(result.lines.every((line) => measureShareCardText(line) <= 622)).toBe(true);
   });
 
   it('keeps category and UTC date aligned with the public confession data', () => {
