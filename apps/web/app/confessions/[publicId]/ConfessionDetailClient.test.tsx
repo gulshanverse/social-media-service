@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PublicConfession } from '@ggv/types';
 import ConfessionDetailClient from './ConfessionDetailClient';
 
@@ -55,8 +55,8 @@ const confession: PublicConfession = {
 
 const browseResult = {
   items: [
-    { ...confession, publicId: 'conf-0', content: 'Previous confession' },
-    confession,
+    { ...confession, publicId: 'conf-0', content: 'Page one first' },
+    { ...confession, content: 'Page one last' },
     { ...confession, publicId: 'conf-2', content: 'Next confession' },
   ],
   page: 1,
@@ -64,11 +64,31 @@ const browseResult = {
   total: 3,
   hasMore: false,
 };
+const boundaryPageOne = {
+  items: [{ ...confession, publicId: 'conf-0', content: 'Page one first' }, confession],
+  page: 1,
+  limit: 2,
+  total: 4,
+  hasMore: true,
+};
+const boundaryPageTwo = {
+  items: [
+    { ...confession, publicId: 'conf-2', content: 'Page two first' },
+    { ...confession, publicId: 'conf-3', content: 'Page two last' },
+  ],
+  page: 2,
+  limit: 2,
+  total: 4,
+  hasMore: false,
+};
 
 describe('ConfessionDetailClient', () => {
+  afterEach(() => cleanup());
+
   beforeEach(() => {
     getConfessions.mockResolvedValue(browseResult);
     router.push.mockReset();
+    window.history.replaceState({}, '', '/confessions/conf-1?sort=newest');
   });
 
   it('keeps the confession card and discussion while omitting the promotional CTA', () => {
@@ -90,7 +110,9 @@ describe('ConfessionDetailClient', () => {
 
     fireEvent.touchStart(page, { touches: [{ clientX: 220, clientY: 300 }] });
     fireEvent.touchEnd(page, { changedTouches: [{ clientX: 120, clientY: 304 }] });
-    expect(router.push).toHaveBeenCalledWith('/confessions/conf-2?sort=newest');
+    await waitFor(() =>
+      expect(router.push).toHaveBeenCalledWith('/confessions/conf-2?sort=newest'),
+    );
 
     router.push.mockReset();
     render(<ConfessionDetailClient publicId="conf-1" initialConfession={confession} />);
@@ -100,7 +122,9 @@ describe('ConfessionDetailClient', () => {
     await waitFor(() => expect(screen.getAllByText('2 / 3')).toHaveLength(2));
     fireEvent.touchStart(secondPage, { touches: [{ clientX: 120, clientY: 300 }] });
     fireEvent.touchEnd(secondPage, { changedTouches: [{ clientX: 220, clientY: 304 }] });
-    expect(router.push).toHaveBeenCalledWith('/confessions/conf-0?sort=newest');
+    await waitFor(() =>
+      expect(router.push).toHaveBeenCalledWith('/confessions/conf-0?sort=newest'),
+    );
   });
 
   it('keeps vertical scrolling and interactive controls out of swipe navigation', async () => {
@@ -143,7 +167,9 @@ describe('ConfessionDetailClient', () => {
     fireEvent.pointerCancel(page, { pointerId: 7, pointerType: 'touch' });
     fireEvent.touchEnd(page, { changedTouches: [{ clientX: 120, clientY: 304 }] });
 
-    expect(router.push).toHaveBeenCalledWith('/confessions/conf-2?sort=newest');
+    await waitFor(() =>
+      expect(router.push).toHaveBeenCalledWith('/confessions/conf-2?sort=newest'),
+    );
   });
 
   it('does not navigate twice when pointerup and touchend represent one gesture', async () => {
@@ -163,8 +189,233 @@ describe('ConfessionDetailClient', () => {
     fireEvent.pointerUp(page, { pointerId: 8, pointerType: 'touch', clientX: 120, clientY: 304 });
     fireEvent.touchEnd(page, { changedTouches: [{ clientX: 120, clientY: 304 }] });
 
-    expect(router.push).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(router.push).toHaveBeenCalledTimes(1));
     expect(router.push).toHaveBeenCalledWith('/confessions/conf-2?sort=newest');
+  });
+
+  it('renders the next confession and tracks a slow left drag in real time', async () => {
+    render(<ConfessionDetailClient publicId="conf-1" initialConfession={confession} />);
+    const page = document.querySelector('.site-shell');
+    const track = document.querySelector('.detail-carousel__track');
+    if (!(page instanceof HTMLElement) || !(track instanceof HTMLElement))
+      throw new Error('Detail carousel was not rendered.');
+    await waitFor(() => expect(screen.getByText('2 / 3')).toBeInTheDocument());
+
+    expect(screen.getAllByText('Next confession').length).toBeGreaterThanOrEqual(1);
+    fireEvent.pointerDown(page, {
+      pointerId: 10,
+      pointerType: 'touch',
+      isPrimary: true,
+      clientX: 260,
+      clientY: 320,
+    });
+    fireEvent.pointerMove(page, {
+      pointerId: 10,
+      pointerType: 'touch',
+      clientX: 180,
+      clientY: 322,
+    });
+
+    expect(track.style.transform).toContain('-80px');
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it('springs back after an incomplete horizontal drag', async () => {
+    render(<ConfessionDetailClient publicId="conf-1" initialConfession={confession} />);
+    const page = document.querySelector('.site-shell');
+    const track = document.querySelector('.detail-carousel__track');
+    if (!(page instanceof HTMLElement) || !(track instanceof HTMLElement))
+      throw new Error('Detail carousel was not rendered.');
+    await waitFor(() => expect(screen.getByText('2 / 3')).toBeInTheDocument());
+
+    fireEvent.pointerDown(page, {
+      pointerId: 11,
+      pointerType: 'touch',
+      isPrimary: true,
+      clientX: 220,
+      clientY: 320,
+    });
+    fireEvent.pointerMove(page, {
+      pointerId: 11,
+      pointerType: 'touch',
+      clientX: 190,
+      clientY: 322,
+    });
+    fireEvent.pointerUp(page, {
+      pointerId: 11,
+      pointerType: 'touch',
+      clientX: 190,
+      clientY: 322,
+    });
+
+    expect(track.style.transform).toContain('0px');
+    expect(track.style.transition).toContain('360ms');
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it.each([320, 760])(
+    'settles exactly across the carousel viewport at %ipx',
+    async (viewportWidth) => {
+      render(<ConfessionDetailClient publicId="conf-1" initialConfession={confession} />);
+      const page = document.querySelector('.site-shell');
+      const viewport = document.querySelector('.detail-carousel');
+      const track = document.querySelector('.detail-carousel__track');
+      if (
+        !(page instanceof HTMLElement) ||
+        !(viewport instanceof HTMLElement) ||
+        !(track instanceof HTMLElement)
+      )
+        throw new Error('Detail carousel was not rendered.');
+      await waitFor(() => expect(screen.getByText('2 / 3')).toBeInTheDocument());
+      Object.defineProperty(viewport, 'clientWidth', {
+        configurable: true,
+        value: viewportWidth,
+      });
+
+      fireEvent.pointerDown(page, {
+        pointerId: 1,
+        pointerType: 'touch',
+        isPrimary: true,
+        clientX: 300,
+        clientY: 300,
+      });
+      fireEvent.pointerUp(page, {
+        pointerId: 1,
+        pointerType: 'touch',
+        clientX: 100,
+        clientY: 304,
+      });
+
+      expect(track.style.transform).toContain(`-${viewportWidth}px`);
+      expect(router.push).not.toHaveBeenCalled();
+    },
+  );
+
+  it('locks rapid repeated swipes to one navigation', async () => {
+    render(<ConfessionDetailClient publicId="conf-1" initialConfession={confession} />);
+    const page = document.querySelector('.site-shell');
+    if (!(page instanceof HTMLElement)) throw new Error('Detail page was not rendered.');
+    await waitFor(() => expect(screen.getByText('2 / 3')).toBeInTheDocument());
+
+    fireEvent.pointerDown(page, {
+      pointerId: 12,
+      pointerType: 'touch',
+      isPrimary: true,
+      clientX: 220,
+      clientY: 320,
+    });
+    fireEvent.pointerUp(page, {
+      pointerId: 12,
+      pointerType: 'touch',
+      clientX: 100,
+      clientY: 322,
+    });
+    fireEvent.pointerDown(page, {
+      pointerId: 13,
+      pointerType: 'touch',
+      isPrimary: true,
+      clientX: 220,
+      clientY: 320,
+    });
+    fireEvent.pointerUp(page, {
+      pointerId: 13,
+      pointerType: 'touch',
+      clientX: 100,
+      clientY: 322,
+    });
+
+    await waitFor(() => expect(router.push).toHaveBeenCalledTimes(1));
+  });
+
+  it('loads page two before revealing the next slot at the end of page one', async () => {
+    getConfessions.mockImplementation((query: { page?: number; limit?: number }) => {
+      if (query.page === 2 && !query.limit) return Promise.resolve(boundaryPageTwo);
+      if (query.page === 1 && !query.limit) return Promise.resolve(boundaryPageOne);
+      return Promise.resolve(browseResult);
+    });
+    render(<ConfessionDetailClient publicId="conf-1" initialConfession={confession} />);
+    const page = document.querySelector('.site-shell');
+    if (!(page instanceof HTMLElement)) throw new Error('Detail page was not rendered.');
+    await waitFor(() => expect(screen.getByText('Page two first')).toBeInTheDocument());
+
+    fireEvent.touchStart(page, { touches: [{ clientX: 240, clientY: 300 }] });
+    fireEvent.touchMove(page, { touches: [{ clientX: 140, clientY: 304 }] });
+    expect(screen.getByText('Page two first')).toBeInTheDocument();
+    expect(router.push).not.toHaveBeenCalled();
+    fireEvent.touchEnd(page, { changedTouches: [{ clientX: 140, clientY: 304 }] });
+
+    await waitFor(() =>
+      expect(router.push).toHaveBeenCalledWith('/confessions/conf-2?page=2&sort=newest'),
+    );
+  });
+
+  it('loads page one before revealing the previous slot at the start of page two', async () => {
+    window.history.replaceState({}, '', '/confessions/conf-2?page=2&sort=newest');
+    getConfessions.mockImplementation((query: { page?: number; limit?: number }) => {
+      if (query.page === 2 && !query.limit) return Promise.resolve(boundaryPageTwo);
+      if (query.page === 1 && !query.limit) return Promise.resolve(boundaryPageOne);
+      return Promise.resolve(browseResult);
+    });
+    const pageTwoConfession = { ...confession, publicId: 'conf-2', content: 'Page two first' };
+    render(<ConfessionDetailClient publicId="conf-2" initialConfession={pageTwoConfession} />);
+    const page = document.querySelector('.site-shell');
+    if (!(page instanceof HTMLElement)) throw new Error('Detail page was not rendered.');
+    await waitFor(() => expect(screen.getByText('Page one last')).toBeInTheDocument());
+
+    fireEvent.touchStart(page, { touches: [{ clientX: 140, clientY: 300 }] });
+    fireEvent.touchMove(page, { touches: [{ clientX: 240, clientY: 304 }] });
+    fireEvent.touchEnd(page, { changedTouches: [{ clientX: 240, clientY: 304 }] });
+
+    await waitFor(() =>
+      expect(router.push).toHaveBeenCalledWith('/confessions/conf-1?sort=newest'),
+    );
+  });
+
+  it('keeps the current slide in place while a boundary page is loading', async () => {
+    let resolvePageTwo: (value: typeof boundaryPageTwo) => void = () => undefined;
+    const pendingPageTwo = new Promise<typeof boundaryPageTwo>((resolve) => {
+      resolvePageTwo = resolve;
+    });
+    getConfessions.mockImplementation((query: { page?: number; limit?: number }) => {
+      if (query.page === 2 && !query.limit) return pendingPageTwo;
+      if (query.page === 1 && !query.limit) return Promise.resolve(boundaryPageOne);
+      return Promise.resolve(browseResult);
+    });
+    render(<ConfessionDetailClient publicId="conf-1" initialConfession={confession} />);
+    const page = document.querySelector('.site-shell');
+    const track = document.querySelector('.detail-carousel__track');
+    if (!(page instanceof HTMLElement) || !(track instanceof HTMLElement))
+      throw new Error('Detail carousel was not rendered.');
+    await waitFor(() => expect(screen.getByText('2 / 4')).toBeInTheDocument());
+
+    fireEvent.touchStart(page, { touches: [{ clientX: 240, clientY: 300 }] });
+    fireEvent.touchMove(page, { touches: [{ clientX: 140, clientY: 304 }] });
+    expect(track.style.transform).toContain('-18px');
+    expect(router.push).not.toHaveBeenCalled();
+
+    resolvePageTwo(boundaryPageTwo);
+    await waitFor(() => expect(screen.getByText('Page two first')).toBeInTheDocument());
+    fireEvent.touchMove(page, { touches: [{ clientX: 140, clientY: 304 }] });
+    fireEvent.touchEnd(page, { changedTouches: [{ clientX: 140, clientY: 304 }] });
+    await waitFor(() =>
+      expect(router.push).toHaveBeenCalledWith('/confessions/conf-2?page=2&sort=newest'),
+    );
+  });
+
+  it('does not navigate into an empty slide when an adjacent page fails to load', async () => {
+    getConfessions.mockImplementation((query: { page?: number; limit?: number }) => {
+      if (query.page === 2 && !query.limit) return Promise.reject(new Error('page unavailable'));
+      if (query.page === 1 && !query.limit) return Promise.resolve(boundaryPageOne);
+      return Promise.resolve(browseResult);
+    });
+    render(<ConfessionDetailClient publicId="conf-1" initialConfession={confession} />);
+    const page = document.querySelector('.site-shell');
+    if (!(page instanceof HTMLElement)) throw new Error('Detail page was not rendered.');
+    await waitFor(() => expect(screen.getByText('Browsing is unavailable.')).toBeInTheDocument());
+
+    fireEvent.touchStart(page, { touches: [{ clientX: 240, clientY: 300 }] });
+    fireEvent.touchEnd(page, { changedTouches: [{ clientX: 120, clientY: 304 }] });
+    expect(router.push).not.toHaveBeenCalled();
   });
 
   it('supports horizontal trackpad gestures and ignores vertical wheel scrolling', async () => {
@@ -177,7 +428,7 @@ describe('ConfessionDetailClient', () => {
     expect(router.push).not.toHaveBeenCalled();
     fireEvent.wheel(page, { deltaX: -80, deltaY: 0 });
     fireEvent.wheel(page, { deltaX: -80, deltaY: 0 });
-    expect(router.push).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(router.push).toHaveBeenCalledTimes(1));
     expect(router.push).toHaveBeenCalledWith('/confessions/conf-2?sort=newest');
   });
 });
