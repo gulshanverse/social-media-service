@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PublicConfession } from '@ggv/types';
 import ConfessionDetailClient from './ConfessionDetailClient';
 
@@ -21,18 +21,15 @@ vi.mock('next/link', () => ({
   ),
 }));
 
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: vi.fn() }),
+const { getConfessions, router } = vi.hoisted(() => ({
+  getConfessions: vi.fn(),
+  router: { push: vi.fn() },
 }));
 
+vi.mock('next/navigation', () => ({ useRouter: () => router }));
+
 vi.mock('../../../lib/api', () => ({
-  getConfessions: vi.fn().mockResolvedValue({
-    items: [],
-    page: 1,
-    limit: 12,
-    total: 0,
-    hasMore: false,
-  }),
+  getConfessions,
   getConfession: vi.fn(),
 }));
 
@@ -56,7 +53,24 @@ const confession: PublicConfession = {
   viewCount: 1,
 };
 
+const browseResult = {
+  items: [
+    { ...confession, publicId: 'conf-0', content: 'Previous confession' },
+    confession,
+    { ...confession, publicId: 'conf-2', content: 'Next confession' },
+  ],
+  page: 1,
+  limit: 12,
+  total: 3,
+  hasMore: false,
+};
+
 describe('ConfessionDetailClient', () => {
+  beforeEach(() => {
+    getConfessions.mockResolvedValue(browseResult);
+    router.push.mockReset();
+  });
+
   it('keeps the confession card and discussion while omitting the promotional CTA', () => {
     render(<ConfessionDetailClient publicId="conf-1" initialConfession={confession} />);
 
@@ -66,5 +80,63 @@ describe('ConfessionDetailClient', () => {
     expect(screen.getByRole('heading', { name: 'Related confessions' })).toBeInTheDocument();
     expect(screen.queryByText('Have something to say?')).not.toBeInTheDocument();
     expect(screen.queryByText('Share your own anonymous confession')).not.toBeInTheDocument();
+  });
+
+  it('navigates left to the next confession and right to the previous confession', async () => {
+    render(<ConfessionDetailClient publicId="conf-1" initialConfession={confession} />);
+    const page = document.querySelector('.site-shell');
+    if (!(page instanceof HTMLElement)) throw new Error('Detail page was not rendered.');
+    await waitFor(() => expect(screen.getByText('2 / 3')).toBeInTheDocument());
+
+    fireEvent.touchStart(page, { touches: [{ clientX: 220, clientY: 300 }] });
+    fireEvent.touchEnd(page, { changedTouches: [{ clientX: 120, clientY: 304 }] });
+    expect(router.push).toHaveBeenCalledWith('/confessions/conf-2?sort=newest');
+
+    router.push.mockReset();
+    render(<ConfessionDetailClient publicId="conf-1" initialConfession={confession} />);
+    const secondPage = document.querySelectorAll('.site-shell')[1];
+    if (!(secondPage instanceof HTMLElement))
+      throw new Error('Second detail page was not rendered.');
+    await waitFor(() => expect(screen.getAllByText('2 / 3')).toHaveLength(2));
+    fireEvent.touchStart(secondPage, { touches: [{ clientX: 120, clientY: 300 }] });
+    fireEvent.touchEnd(secondPage, { changedTouches: [{ clientX: 220, clientY: 304 }] });
+    expect(router.push).toHaveBeenCalledWith('/confessions/conf-0?sort=newest');
+  });
+
+  it('keeps vertical scrolling and interactive controls out of swipe navigation', async () => {
+    render(<ConfessionDetailClient publicId="conf-1" initialConfession={confession} />);
+    const page = document.querySelector('.detail-page');
+    if (!(page instanceof HTMLElement)) throw new Error('Detail page was not rendered.');
+    await waitFor(() => expect(screen.getByText('2 / 3')).toBeInTheDocument());
+
+    fireEvent.pointerDown(page, { pointerId: 1, pointerType: 'touch', clientX: 220, clientY: 100 });
+    fireEvent.pointerUp(page, { pointerId: 1, pointerType: 'touch', clientX: 120, clientY: 220 });
+    fireEvent.pointerDown(screen.getByRole('button', { name: /Previous/ }), {
+      pointerId: 2,
+      pointerType: 'touch',
+      clientX: 220,
+      clientY: 100,
+    });
+    fireEvent.pointerUp(screen.getByRole('button', { name: /Previous/ }), {
+      pointerId: 2,
+      pointerType: 'touch',
+      clientX: 120,
+      clientY: 100,
+    });
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it('supports horizontal trackpad gestures and ignores vertical wheel scrolling', async () => {
+    render(<ConfessionDetailClient publicId="conf-1" initialConfession={confession} />);
+    const page = document.querySelector('.detail-page');
+    if (!(page instanceof HTMLElement)) throw new Error('Detail page was not rendered.');
+    await waitFor(() => expect(screen.getByText('2 / 3')).toBeInTheDocument());
+
+    fireEvent.wheel(page, { deltaX: 15, deltaY: 40 });
+    expect(router.push).not.toHaveBeenCalled();
+    fireEvent.wheel(page, { deltaX: -80, deltaY: 0 });
+    fireEvent.wheel(page, { deltaX: -80, deltaY: 0 });
+    expect(router.push).toHaveBeenCalledTimes(1);
+    expect(router.push).toHaveBeenCalledWith('/confessions/conf-2?sort=newest');
   });
 });

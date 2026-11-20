@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PublicConfession } from '@ggv/types';
 import { ConfessionCard } from '../../../components/ConfessionCard';
 import { getConfession, getConfessions, type ConfessionFeedQuery } from '../../../lib/api';
@@ -62,6 +62,27 @@ export default function ConfessionDetailClient({
   const [browse, setBrowse] = useState<BrowseState | null>(null);
   const [related, setRelated] = useState<PublicConfession[] | null>(null);
   const [browseError, setBrowseError] = useState('');
+  const navigationLockRef = useRef(false);
+  const pointerGestureRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    active: boolean;
+  } | null>(null);
+  const wheelGestureRef = useRef({ deltaX: 0, resetTimer: 0 as number | undefined });
+
+  useEffect(() => {
+    navigationLockRef.current = false;
+  }, [publicId]);
+
+  useEffect(
+    () => () => {
+      if (wheelGestureRef.current.resetTimer !== undefined) {
+        window.clearTimeout(wheelGestureRef.current.resetTimer);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     if (initialConfession) return;
@@ -118,7 +139,8 @@ export default function ConfessionDetailClient({
   }
 
   function navigate(direction: -1 | 1) {
-    if (!browse) return;
+    if (!browse || navigationLockRef.current) return;
+    navigationLockRef.current = true;
     if (currentIndex >= 0) {
       const nextIndex = currentIndex + direction;
       if (nextIndex >= 0 && nextIndex < browse.items.length) {
@@ -127,27 +149,167 @@ export default function ConfessionDetailClient({
       }
       const nextPage = browse.page + direction;
       if (direction > 0 && browse.hasMore) {
-        getConfessions({ ...context, page: nextPage }).then((result) => {
-          setBrowse(result);
-          const next = result.items[0];
-          if (next) openConfession(next.publicId, nextPage);
-        });
+        getConfessions({ ...context, page: nextPage })
+          .then((result) => {
+            setBrowse(result);
+            const next = result.items[0];
+            if (next) openConfession(next.publicId, nextPage);
+          })
+          .catch(() => setBrowseError('Browsing is unavailable.'))
+          .finally(() => {
+            navigationLockRef.current = false;
+          });
       } else if (direction < 0 && browse.page > 1) {
-        getConfessions({ ...context, page: nextPage }).then((result) => {
-          setBrowse(result);
-          const next = result.items[result.items.length - 1];
-          if (next) openConfession(next.publicId, nextPage);
-        });
+        getConfessions({ ...context, page: nextPage })
+          .then((result) => {
+            setBrowse(result);
+            const next = result.items[result.items.length - 1];
+            if (next) openConfession(next.publicId, nextPage);
+          })
+          .catch(() => setBrowseError('Browsing is unavailable.'))
+          .finally(() => {
+            navigationLockRef.current = false;
+          });
+      } else {
+        navigationLockRef.current = false;
       }
       return;
     }
     if (direction > 0 && browse.hasMore) {
-      getConfessions({ ...context, page: browse.page + 1 }).then((result) => setBrowse(result));
+      getConfessions({ ...context, page: browse.page + 1 })
+        .then((result) => setBrowse(result))
+        .catch(() => setBrowseError('Browsing is unavailable.'))
+        .finally(() => {
+          navigationLockRef.current = false;
+        });
+      return;
     }
+    navigationLockRef.current = false;
+  }
+
+  function isInteractiveTarget(target: EventTarget | null) {
+    return (
+      target instanceof Element &&
+      Boolean(
+        target.closest(
+          'a, button, input, textarea, select, option, [role="button"], [contenteditable="true"], [data-no-confession-swipe]',
+        ),
+      )
+    );
+  }
+
+  function handlePointerDown(event: React.PointerEvent<HTMLElement>) {
+    if (
+      event.isPrimary === false ||
+      event.pointerType === 'mouse' ||
+      isInteractiveTarget(event.target)
+    ) {
+      pointerGestureRef.current = null;
+      return;
+    }
+    pointerGestureRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      active: true,
+    };
+  }
+
+  function handlePointerMove(event: React.PointerEvent<HTMLElement>) {
+    const gesture = pointerGestureRef.current;
+    if (!gesture || gesture.pointerId !== event.pointerId || !gesture.active) return;
+    const deltaX = event.clientX - gesture.startX;
+    const deltaY = event.clientY - gesture.startY;
+    if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 12) {
+      gesture.active = false;
+      return;
+    }
+    if (Math.abs(deltaX) > 12 && Math.abs(deltaX) > Math.abs(deltaY)) event.preventDefault();
+  }
+
+  function handlePointerUp(event: React.PointerEvent<HTMLElement>) {
+    const gesture = pointerGestureRef.current;
+    pointerGestureRef.current = null;
+    if (!gesture || gesture.pointerId !== event.pointerId || !gesture.active) return;
+    const deltaX = event.clientX - gesture.startX;
+    const deltaY = event.clientY - gesture.startY;
+    if (Math.abs(deltaX) < 56 || Math.abs(deltaX) <= Math.abs(deltaY)) return;
+    navigate(deltaX < 0 ? 1 : -1);
+  }
+
+  function handleTouchStart(event: React.TouchEvent<HTMLElement>) {
+    const touch = event.touches[0];
+    if (!touch || isInteractiveTarget(event.target)) {
+      pointerGestureRef.current = null;
+      return;
+    }
+    pointerGestureRef.current = {
+      pointerId: -1,
+      startX: touch.clientX,
+      startY: touch.clientY,
+      active: true,
+    };
+  }
+
+  function handleTouchMove(event: React.TouchEvent<HTMLElement>) {
+    const gesture = pointerGestureRef.current;
+    const touch = event.touches[0];
+    if (!gesture || gesture.pointerId !== -1 || !touch || !gesture.active) return;
+    const deltaX = touch.clientX - gesture.startX;
+    const deltaY = touch.clientY - gesture.startY;
+    if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 12) {
+      gesture.active = false;
+      return;
+    }
+    if (Math.abs(deltaX) > 12 && Math.abs(deltaX) > Math.abs(deltaY)) event.preventDefault();
+  }
+
+  function handleTouchEnd(event: React.TouchEvent<HTMLElement>) {
+    const gesture = pointerGestureRef.current;
+    const touch = event.changedTouches[0];
+    pointerGestureRef.current = null;
+    if (!gesture || gesture.pointerId !== -1 || !touch || !gesture.active) return;
+    const deltaX = touch.clientX - gesture.startX;
+    const deltaY = touch.clientY - gesture.startY;
+    if (Math.abs(deltaX) < 56 || Math.abs(deltaX) <= Math.abs(deltaY)) return;
+    navigate(deltaX < 0 ? 1 : -1);
+  }
+
+  function handleWheel(event: React.WheelEvent<HTMLElement>) {
+    if (isInteractiveTarget(event.target) || Math.abs(event.deltaX) <= Math.abs(event.deltaY))
+      return;
+    wheelGestureRef.current.deltaX += event.deltaX;
+    if (wheelGestureRef.current.resetTimer !== undefined) {
+      window.clearTimeout(wheelGestureRef.current.resetTimer);
+    }
+    wheelGestureRef.current.resetTimer = window.setTimeout(() => {
+      wheelGestureRef.current.deltaX = 0;
+      wheelGestureRef.current.resetTimer = undefined;
+    }, 180);
+    if (Math.abs(wheelGestureRef.current.deltaX) < 72) return;
+    event.preventDefault();
+    const direction = wheelGestureRef.current.deltaX < 0 ? 1 : -1;
+    wheelGestureRef.current.deltaX = 0;
+    navigate(direction);
   }
 
   return (
-    <main className="site-shell">
+    <main
+      className="site-shell"
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={() => {
+        pointerGestureRef.current = null;
+      }}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={() => {
+        pointerGestureRef.current = null;
+      }}
+      onWheel={handleWheel}
+    >
       <section className="detail-page">
         <header className="detail-header">
           <Link className="back-link" href="/confessions">
