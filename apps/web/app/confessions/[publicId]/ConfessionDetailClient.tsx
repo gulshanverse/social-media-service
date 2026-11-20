@@ -18,6 +18,15 @@ type BrowseState = {
   hasMore: boolean;
 };
 
+type Gesture = {
+  pointerId?: number;
+  startX: number;
+  startY: number;
+  lastX: number;
+  startedAt: number;
+  active: boolean;
+};
+
 function readContext(): DetailContext {
   if (typeof window === 'undefined') return { page: 1, sort: 'newest', dateRange: 'all' };
   const params = new URLSearchParams(window.location.search);
@@ -62,23 +71,30 @@ export default function ConfessionDetailClient({
   const [browse, setBrowse] = useState<BrowseState | null>(null);
   const [related, setRelated] = useState<PublicConfession[] | null>(null);
   const [browseError, setBrowseError] = useState('');
+  const trackRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
   const navigationLockRef = useRef(false);
-  const pointerGestureRef = useRef<{
-    pointerId: number;
-    startX: number;
-    startY: number;
-    active: boolean;
-  } | null>(null);
-  const touchGestureRef = useRef<{
-    startX: number;
-    startY: number;
-    active: boolean;
-  } | null>(null);
+  const gestureRef = useRef<Gesture | null>(null);
+  const touchGestureRef = useRef<Gesture | null>(null);
   const touchSeenDuringPointerRef = useRef(false);
   const wheelGestureRef = useRef({ deltaX: 0, resetTimer: 0 as number | undefined });
 
+  function setTrackOffset(offset: number, animate = false) {
+    const track = trackRef.current;
+    if (!track) return;
+    track.style.transition = animate ? 'transform 360ms cubic-bezier(0.22, 1, 0.36, 1)' : 'none';
+    track.style.transform = `translate3d(calc(-33.333333% + ${Math.round(offset)}px), 0, 0)`;
+  }
+
+  function resetTrack() {
+    setTrackOffset(0, true);
+  }
+
   useEffect(() => {
     navigationLockRef.current = false;
+    gestureRef.current = null;
+    touchGestureRef.current = null;
+    setTrackOffset(0);
   }, [publicId]);
 
   useEffect(
@@ -131,6 +147,11 @@ export default function ConfessionDetailClient({
     () => browse?.items.findIndex((item) => item.publicId === publicId) ?? -1,
     [browse, publicId],
   );
+  const previousConfession = currentIndex > 0 ? browse?.items[currentIndex - 1] : undefined;
+  const nextConfession =
+    currentIndex >= 0 && browse && currentIndex < browse.items.length - 1
+      ? browse.items[currentIndex + 1]
+      : undefined;
   const position =
     browse && currentIndex >= 0 ? (browse.page - 1) * browse.limit + currentIndex + 1 : 0;
   const canGoPrevious = currentIndex > 0 || Boolean(browse && browse.page > 1);
@@ -181,15 +202,6 @@ export default function ConfessionDetailClient({
       }
       return;
     }
-    if (direction > 0 && browse.hasMore) {
-      getConfessions({ ...context, page: browse.page + 1 })
-        .then((result) => setBrowse(result))
-        .catch(() => setBrowseError('Browsing is unavailable.'))
-        .finally(() => {
-          navigationLockRef.current = false;
-        });
-      return;
-    }
     navigationLockRef.current = false;
   }
 
@@ -204,65 +216,111 @@ export default function ConfessionDetailClient({
     );
   }
 
+  function canDrag(direction: -1 | 1) {
+    return direction < 0
+      ? Boolean(nextConfession || browse?.hasMore)
+      : Boolean(previousConfession || (browse?.page && browse.page > 1));
+  }
+
+  function updateDrag(
+    gesture: Gesture,
+    clientX: number,
+    clientY: number,
+    event?: { preventDefault(): void },
+  ) {
+    if (!gesture.active) return;
+    const deltaX = clientX - gesture.startX;
+    const deltaY = clientY - gesture.startY;
+    if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 12) {
+      gesture.active = false;
+      resetTrack();
+      return;
+    }
+    if (Math.abs(deltaX) <= 8 || Math.abs(deltaX) <= Math.abs(deltaY)) return;
+    const direction = deltaX < 0 ? 1 : -1;
+    if (!canDrag(direction)) {
+      const resistance = deltaX * 0.18;
+      setTrackOffset(resistance);
+    } else {
+      setTrackOffset(deltaX);
+    }
+    gesture.lastX = clientX;
+    event?.preventDefault();
+  }
+
+  function finishDrag(gesture: Gesture, clientX: number, clientY: number) {
+    if (!gesture.active) return;
+    const deltaX = clientX - gesture.startX;
+    const deltaY = clientY - gesture.startY;
+    const elapsed = Math.max(1, performance.now() - gesture.startedAt);
+    const velocity = Math.abs(deltaX) / elapsed;
+    const direction = deltaX < 0 ? 1 : -1;
+    const shouldNavigate =
+      Math.abs(deltaX) >= Math.max(56, (viewportRef.current?.clientWidth ?? 360) * 0.2) ||
+      (elapsed >= 40 && velocity > 0.55);
+    gesture.active = false;
+    if (Math.abs(deltaX) <= Math.abs(deltaY) || !shouldNavigate || !canDrag(direction)) {
+      resetTrack();
+      return;
+    }
+    const width = viewportRef.current?.clientWidth ?? window.innerWidth;
+    setTrackOffset(deltaX < 0 ? -width : width, true);
+    navigate(direction);
+  }
+
   function handlePointerDown(event: React.PointerEvent<HTMLElement>) {
     if (
       event.isPrimary === false ||
       event.pointerType === 'mouse' ||
       isInteractiveTarget(event.target)
     ) {
-      pointerGestureRef.current = null;
+      gestureRef.current = null;
       touchGestureRef.current = null;
       touchSeenDuringPointerRef.current = false;
       return;
     }
-    pointerGestureRef.current = {
+    gestureRef.current = {
       pointerId: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
+      lastX: event.clientX,
+      startedAt: performance.now(),
       active: true,
     };
     touchSeenDuringPointerRef.current = false;
   }
 
   function handlePointerMove(event: React.PointerEvent<HTMLElement>) {
-    const gesture = pointerGestureRef.current;
-    if (!gesture || gesture.pointerId !== event.pointerId || !gesture.active) return;
-    const deltaX = event.clientX - gesture.startX;
-    const deltaY = event.clientY - gesture.startY;
-    if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 12) {
-      gesture.active = false;
-      touchGestureRef.current = null;
-      return;
-    }
-    if (Math.abs(deltaX) > 12 && Math.abs(deltaX) > Math.abs(deltaY)) event.preventDefault();
+    const gesture = gestureRef.current;
+    if (!gesture || gesture.pointerId !== event.pointerId) return;
+    updateDrag(gesture, event.clientX, event.clientY, event);
   }
 
   function handlePointerUp(event: React.PointerEvent<HTMLElement>) {
-    const gesture = pointerGestureRef.current;
+    const gesture = gestureRef.current;
     if (touchSeenDuringPointerRef.current) {
-      pointerGestureRef.current = null;
+      gestureRef.current = null;
       return;
     }
-    pointerGestureRef.current = null;
-    if (!gesture || gesture.pointerId !== event.pointerId || !gesture.active) return;
-    const deltaX = event.clientX - gesture.startX;
-    const deltaY = event.clientY - gesture.startY;
-    if (Math.abs(deltaX) < 56 || Math.abs(deltaX) <= Math.abs(deltaY)) return;
-    navigate(deltaX < 0 ? 1 : -1);
+    gestureRef.current = null;
+    if (!gesture || gesture.pointerId !== event.pointerId) return;
+    finishDrag(gesture, event.clientX, event.clientY);
   }
 
   function handleTouchStart(event: React.TouchEvent<HTMLElement>) {
     const touch = event.touches[0];
     if (!touch || isInteractiveTarget(event.target)) {
-      pointerGestureRef.current = null;
+      gestureRef.current = null;
       touchGestureRef.current = null;
       touchSeenDuringPointerRef.current = false;
       return;
     }
-    touchSeenDuringPointerRef.current = pointerGestureRef.current !== null;
+    touchSeenDuringPointerRef.current = gestureRef.current !== null;
     touchGestureRef.current = {
       startX: touch.clientX,
       startY: touch.clientY,
+      lastX: touch.clientX,
+      startedAt: performance.now(),
       active: true,
     };
   }
@@ -270,27 +328,18 @@ export default function ConfessionDetailClient({
   function handleTouchMove(event: React.TouchEvent<HTMLElement>) {
     const gesture = touchGestureRef.current;
     const touch = event.touches[0];
-    if (!gesture || !touch || !gesture.active) return;
-    const deltaX = touch.clientX - gesture.startX;
-    const deltaY = touch.clientY - gesture.startY;
-    if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 12) {
-      gesture.active = false;
-      return;
-    }
-    if (Math.abs(deltaX) > 12 && Math.abs(deltaX) > Math.abs(deltaY)) event.preventDefault();
+    if (!gesture || !touch) return;
+    updateDrag(gesture, touch.clientX, touch.clientY, event);
   }
 
   function handleTouchEnd(event: React.TouchEvent<HTMLElement>) {
     const gesture = touchGestureRef.current;
     const touch = event.changedTouches[0];
-    pointerGestureRef.current = null;
+    gestureRef.current = null;
     touchGestureRef.current = null;
     touchSeenDuringPointerRef.current = false;
-    if (!gesture || !touch || !gesture.active) return;
-    const deltaX = touch.clientX - gesture.startX;
-    const deltaY = touch.clientY - gesture.startY;
-    if (Math.abs(deltaX) < 56 || Math.abs(deltaX) <= Math.abs(deltaY)) return;
-    navigate(deltaX < 0 ? 1 : -1);
+    if (!gesture || !touch) return;
+    finishDrag(gesture, touch.clientX, touch.clientY);
   }
 
   function handleWheel(event: React.WheelEvent<HTMLElement>) {
@@ -313,21 +362,25 @@ export default function ConfessionDetailClient({
 
   return (
     <main
-      className="site-shell"
+      className="site-shell confession-detail-shell"
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={() => {
-        pointerGestureRef.current = null;
-        if (!touchSeenDuringPointerRef.current) touchGestureRef.current = null;
+        gestureRef.current = null;
+        if (!touchSeenDuringPointerRef.current) {
+          touchGestureRef.current = null;
+          resetTrack();
+        }
       }}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       onTouchCancel={() => {
-        pointerGestureRef.current = null;
+        gestureRef.current = null;
         touchGestureRef.current = null;
         touchSeenDuringPointerRef.current = false;
+        resetTrack();
       }}
       onWheel={handleWheel}
     >
@@ -370,8 +423,27 @@ export default function ConfessionDetailClient({
                 {browseError}
               </p>
             )}
-            <div className="detail-card">
-              <ConfessionCard confession={confession} detailed />
+            <div
+              className="detail-carousel"
+              ref={viewportRef}
+              aria-label="Swipe between confessions"
+            >
+              <div className="detail-carousel__track" ref={trackRef}>
+                <div className="detail-carousel__slide" aria-hidden={!previousConfession}>
+                  {previousConfession ? (
+                    <ConfessionCard confession={previousConfession} detailed />
+                  ) : null}
+                </div>
+                <div className="detail-carousel__slide" data-testid="current-confession-slide">
+                  <ConfessionCard confession={confession} detailed />
+                </div>
+                <div className="detail-carousel__slide" aria-hidden={!nextConfession}>
+                  {nextConfession ? <ConfessionCard confession={nextConfession} detailed /> : null}
+                </div>
+              </div>
+              <p className="detail-carousel__hint" aria-hidden="true">
+                <span>←</span> Swipe to explore <span>→</span>
+              </p>
             </div>
             <DiscussionSection publicId={publicId} confession={confession} />
             <section className="related-confessions" aria-labelledby="related-confessions-heading">

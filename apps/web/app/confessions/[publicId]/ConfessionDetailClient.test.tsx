@@ -167,6 +167,102 @@ describe('ConfessionDetailClient', () => {
     expect(router.push).toHaveBeenCalledWith('/confessions/conf-2?sort=newest');
   });
 
+  it('renders the next confession and tracks a slow left drag in real time', async () => {
+    render(<ConfessionDetailClient publicId="conf-1" initialConfession={confession} />);
+    const page = document.querySelector('.site-shell');
+    const track = document.querySelector('.detail-carousel__track');
+    if (!(page instanceof HTMLElement) || !(track instanceof HTMLElement))
+      throw new Error('Detail carousel was not rendered.');
+    await waitFor(() => expect(screen.getByText('2 / 3')).toBeInTheDocument());
+
+    expect(screen.getAllByText('Next confession').length).toBeGreaterThanOrEqual(1);
+    fireEvent.pointerDown(page, {
+      pointerId: 10,
+      pointerType: 'touch',
+      isPrimary: true,
+      clientX: 260,
+      clientY: 320,
+    });
+    fireEvent.pointerMove(page, {
+      pointerId: 10,
+      pointerType: 'touch',
+      clientX: 180,
+      clientY: 322,
+    });
+
+    expect(track.style.transform).toContain('-80px');
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it('springs back after an incomplete horizontal drag', async () => {
+    render(<ConfessionDetailClient publicId="conf-1" initialConfession={confession} />);
+    const page = document.querySelector('.site-shell');
+    const track = document.querySelector('.detail-carousel__track');
+    if (!(page instanceof HTMLElement) || !(track instanceof HTMLElement))
+      throw new Error('Detail carousel was not rendered.');
+    await waitFor(() => expect(screen.getByText('2 / 3')).toBeInTheDocument());
+
+    fireEvent.pointerDown(page, {
+      pointerId: 11,
+      pointerType: 'touch',
+      isPrimary: true,
+      clientX: 220,
+      clientY: 320,
+    });
+    fireEvent.pointerMove(page, {
+      pointerId: 11,
+      pointerType: 'touch',
+      clientX: 190,
+      clientY: 322,
+    });
+    fireEvent.pointerUp(page, {
+      pointerId: 11,
+      pointerType: 'touch',
+      clientX: 190,
+      clientY: 322,
+    });
+
+    expect(track.style.transform).toContain('0px');
+    expect(track.style.transition).toContain('360ms');
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it('locks rapid repeated swipes to one navigation', async () => {
+    render(<ConfessionDetailClient publicId="conf-1" initialConfession={confession} />);
+    const page = document.querySelector('.site-shell');
+    if (!(page instanceof HTMLElement)) throw new Error('Detail page was not rendered.');
+    await waitFor(() => expect(screen.getByText('2 / 3')).toBeInTheDocument());
+
+    fireEvent.pointerDown(page, {
+      pointerId: 12,
+      pointerType: 'touch',
+      isPrimary: true,
+      clientX: 220,
+      clientY: 320,
+    });
+    fireEvent.pointerUp(page, {
+      pointerId: 12,
+      pointerType: 'touch',
+      clientX: 100,
+      clientY: 322,
+    });
+    fireEvent.pointerDown(page, {
+      pointerId: 13,
+      pointerType: 'touch',
+      isPrimary: true,
+      clientX: 220,
+      clientY: 320,
+    });
+    fireEvent.pointerUp(page, {
+      pointerId: 13,
+      pointerType: 'touch',
+      clientX: 100,
+      clientY: 322,
+    });
+
+    expect(router.push).toHaveBeenCalledTimes(1);
+  });
+
   it('supports horizontal trackpad gestures and ignores vertical wheel scrolling', async () => {
     render(<ConfessionDetailClient publicId="conf-1" initialConfession={confession} />);
     const page = document.querySelector('.detail-page');

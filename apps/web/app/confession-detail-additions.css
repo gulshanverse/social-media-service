@@ -133,3 +133,123 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Premium, finger-tracked navigation for the individual confession detail route only. */
+.confession-detail-shell {
+  overflow-x: hidden;
+}
+
+.detail-carousel {
+  position: relative;
+  width: min(760px, 100%);
+  margin: 0 auto;
+  overflow: hidden;
+  border-radius: 1.25rem;
+  touch-action: pan-y;
+  isolation: isolate;
+}
+
+.detail-carousel::before,
+.detail-carousel::after {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  width: 4rem;
+  height: 70%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(200, 255, 0, 0.08), transparent 70%);
+  content: '';
+  opacity: 0.65;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.detail-carousel::before {
+  left: -3.5rem;
+}
+
+.detail-carousel::after {
+  right: -3.5rem;
+}
+
+.detail-carousel__track {
+  display: flex;
+  width: 300%;
+  align-items: stretch;
+  transform: translate3d(-33.333333%, 0, 0);
+  will-change: transform;
+}
+
+.detail-carousel__slide {
+  flex: 0 0 33.333333%;
+  min-width: 0;
+  padding: 0 0.4rem;
+}
+
+.detail-carousel__slide > .confession-card {
+  height: 100%;
+  margin: 0;
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.22);
+}
+
+.detail-carousel__slide[aria-hidden='true'] {
+  opacity: 0.82;
+}
+
+.detail-carousel__hint {
+  position: absolute;
+  z-index: 3;
+  bottom: 0.7rem;
+  left: 50%;
+  margin: 0;
+  padding: 0.38rem 0.7rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(8, 10, 16, 0.68);
+  color: rgba(255, 255, 255, 0.56);
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  opacity: 0.82;
+  pointer-events: none;
+  text-transform: uppercase;
+  transform: translateX(-50%);
+  transition: opacity 240ms ease;
+}
+
+.detail-carousel__hint span {
+  color: #c8ff00;
+  font-size: 0.9rem;
+  line-height: 0;
+}
+
+.detail-carousel:focus-within .detail-carousel__hint,
+.detail-carousel:hover .detail-carousel__hint {
+  opacity: 0;
+}
+
+@media (max-width: 700px) {
+  .detail-carousel {
+    width: calc(100% + 1rem);
+    margin-inline: -0.5rem;
+    border-radius: 1rem;
+  }
+
+  .detail-carousel__slide {
+    padding-inline: 0.5rem;
+  }
+
+  .detail-carousel__hint {
+    bottom: 0.55rem;
+    font-size: 0.58rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .detail-carousel__track {
+    transition: none !important;
+  }
+
+  .detail-carousel__hint {
+    transition: none;
+  }
+}
