@@ -434,6 +434,7 @@ textarea::placeholder {
 }
 .feed-heading,
 .detail-page {
+  touch-action: pan-y;
   max-width: 1240px;
   margin: auto;
   padding: 75px 5vw 40px;

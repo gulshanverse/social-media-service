@@ -126,6 +126,47 @@ describe('ConfessionDetailClient', () => {
     expect(router.push).not.toHaveBeenCalled();
   });
 
+  it('recovers when a touch pointer is cancelled before touchend', async () => {
+    render(<ConfessionDetailClient publicId="conf-1" initialConfession={confession} />);
+    const page = document.querySelector('.site-shell');
+    if (!(page instanceof HTMLElement)) throw new Error('Detail page was not rendered.');
+    await waitFor(() => expect(screen.getByText('2 / 3')).toBeInTheDocument());
+
+    fireEvent.pointerDown(page, {
+      pointerId: 7,
+      pointerType: 'touch',
+      isPrimary: true,
+      clientX: 220,
+      clientY: 300,
+    });
+    fireEvent.touchStart(page, { touches: [{ clientX: 220, clientY: 300 }] });
+    fireEvent.pointerCancel(page, { pointerId: 7, pointerType: 'touch' });
+    fireEvent.touchEnd(page, { changedTouches: [{ clientX: 120, clientY: 304 }] });
+
+    expect(router.push).toHaveBeenCalledWith('/confessions/conf-2?sort=newest');
+  });
+
+  it('does not navigate twice when pointerup and touchend represent one gesture', async () => {
+    render(<ConfessionDetailClient publicId="conf-1" initialConfession={confession} />);
+    const page = document.querySelector('.site-shell');
+    if (!(page instanceof HTMLElement)) throw new Error('Detail page was not rendered.');
+    await waitFor(() => expect(screen.getByText('2 / 3')).toBeInTheDocument());
+
+    fireEvent.pointerDown(page, {
+      pointerId: 8,
+      pointerType: 'touch',
+      isPrimary: true,
+      clientX: 220,
+      clientY: 300,
+    });
+    fireEvent.touchStart(page, { touches: [{ clientX: 220, clientY: 300 }] });
+    fireEvent.pointerUp(page, { pointerId: 8, pointerType: 'touch', clientX: 120, clientY: 304 });
+    fireEvent.touchEnd(page, { changedTouches: [{ clientX: 120, clientY: 304 }] });
+
+    expect(router.push).toHaveBeenCalledTimes(1);
+    expect(router.push).toHaveBeenCalledWith('/confessions/conf-2?sort=newest');
+  });
+
   it('supports horizontal trackpad gestures and ignores vertical wheel scrolling', async () => {
     render(<ConfessionDetailClient publicId="conf-1" initialConfession={confession} />);
     const page = document.querySelector('.detail-page');
