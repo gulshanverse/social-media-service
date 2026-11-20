@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   SHARE_CARD_MAX_LINES,
+  SHARE_CARD_RADIUS,
   SHARE_CARD_TEXT_WIDTH,
+  SHARE_CARD_WIDTH,
   measureShareCardText,
   shareCardHeight,
   shareCardCategory,
@@ -65,6 +67,11 @@ describe('share card renderer helpers', () => {
     expect(heights[2]).toBeLessThan(heights[3]);
     expect(shareCardHeight(0)).toBe(shareCardHeight(1));
     expect(shareCardHeight(40)).toBe(heights[3]);
+  });
+
+  it('keeps the production attachment geometry fixed and rounded', () => {
+    expect(SHARE_CARD_WIDTH).toBe(720);
+    expect(SHARE_CARD_RADIUS).toBe(40);
   });
 
   it('keeps category and UTC date aligned with the public confession data', () => {
