@@ -56,7 +56,7 @@ export async function GET(
   const metadataColor = token(tokens, 'cardMetadataColor', theme?.accentColor || '#c8ff00');
   const borderStyle = token(tokens, 'cardBorderStyle', theme?.borderStyle || 'solid');
   const borderWidth = token(tokens, 'cardBorderWidth', '0px');
-  const radius = token(tokens, 'cardRadius', theme?.radius || '28px');
+  const radius = theme?.radius || '28px';
   const shadow = token(tokens, 'cardShadow', '0 18px 50px rgba(0, 0, 0, 0.24)');
   const cardPadding = pixelValue(token(tokens, 'cardPadding', '25px'), 25);
   const content = shareCardContent(confession.content);
