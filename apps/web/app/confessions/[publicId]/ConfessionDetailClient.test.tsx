@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PublicConfession } from '@ggv/types';
@@ -83,7 +83,10 @@ const boundaryPageTwo = {
 };
 
 describe('ConfessionDetailClient', () => {
-  afterEach(() => cleanup());
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+  });
 
   beforeEach(() => {
     getConfessions.mockResolvedValue(browseResult);
@@ -100,6 +103,40 @@ describe('ConfessionDetailClient', () => {
     expect(screen.getByRole('heading', { name: 'Related confessions' })).toBeInTheDocument();
     expect(screen.queryByText('Have something to say?')).not.toBeInTheDocument();
     expect(screen.queryByText('Share your own anonymous confession')).not.toBeInTheDocument();
+  });
+
+  it('keeps neighboring slides isolated from the active card layout', async () => {
+    render(<ConfessionDetailClient publicId="conf-1" initialConfession={confession} />);
+
+    await waitFor(() => expect(screen.getByText('2 / 3')).toBeInTheDocument());
+
+    const currentSlide = screen.getByTestId('current-confession-slide');
+    expect(screen.getByTestId('previous-confession-slide')).toBeInTheDocument();
+    expect(screen.getByTestId('next-confession-slide')).toBeInTheDocument();
+    const slides = Array.from(currentSlide.parentElement?.children ?? []);
+    expect(slides).toHaveLength(3);
+    expect(currentSlide).not.toHaveAttribute('aria-hidden', 'true');
+    expect(slides.filter((slide) => slide !== currentSlide)).toHaveLength(2);
+    expect(slides.map((slide) => slide.getAttribute('data-testid'))).toEqual([
+      'previous-confession-slide',
+      'current-confession-slide',
+      'next-confession-slide',
+    ]);
+  });
+
+  it('shows the swipe hint for 2 seconds, hides it for 60 seconds, and repeats', () => {
+    vi.useFakeTimers();
+    render(<ConfessionDetailClient publicId="conf-1" initialConfession={confession} />);
+    const hint = document.querySelector('.detail-carousel__hint');
+    if (!(hint instanceof HTMLElement)) throw new Error('Swipe hint was not rendered.');
+
+    expect(hint).toHaveAttribute('data-visible', 'true');
+    act(() => vi.advanceTimersByTime(2000));
+    expect(hint).toHaveAttribute('data-visible', 'false');
+    act(() => vi.advanceTimersByTime(60000));
+    expect(hint).toHaveAttribute('data-visible', 'true');
+    act(() => vi.advanceTimersByTime(2000));
+    expect(hint).toHaveAttribute('data-visible', 'false');
   });
 
   it('navigates left to the next confession and right to the previous confession', async () => {
@@ -336,11 +373,13 @@ describe('ConfessionDetailClient', () => {
     render(<ConfessionDetailClient publicId="conf-1" initialConfession={confession} />);
     const page = document.querySelector('.site-shell');
     if (!(page instanceof HTMLElement)) throw new Error('Detail page was not rendered.');
-    await waitFor(() => expect(screen.getByText('Page two first')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByTestId('next-confession-slide')).toHaveTextContent('Page two first'),
+    );
 
     fireEvent.touchStart(page, { touches: [{ clientX: 240, clientY: 300 }] });
     fireEvent.touchMove(page, { touches: [{ clientX: 140, clientY: 304 }] });
-    expect(screen.getByText('Page two first')).toBeInTheDocument();
+    expect(screen.getByTestId('next-confession-slide')).toHaveTextContent('Page two first');
     expect(router.push).not.toHaveBeenCalled();
     fireEvent.touchEnd(page, { changedTouches: [{ clientX: 140, clientY: 304 }] });
 
@@ -360,7 +399,9 @@ describe('ConfessionDetailClient', () => {
     render(<ConfessionDetailClient publicId="conf-2" initialConfession={pageTwoConfession} />);
     const page = document.querySelector('.site-shell');
     if (!(page instanceof HTMLElement)) throw new Error('Detail page was not rendered.');
-    await waitFor(() => expect(screen.getByText('Page one last')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByTestId('previous-confession-slide')).toHaveTextContent(confession.content),
+    );
 
     fireEvent.touchStart(page, { touches: [{ clientX: 140, clientY: 300 }] });
     fireEvent.touchMove(page, { touches: [{ clientX: 240, clientY: 304 }] });
