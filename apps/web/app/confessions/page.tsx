@@ -2,13 +2,35 @@ import type { Metadata } from 'next';
 import ConfessionsFeed from './ConfessionsFeed';
 import { publicPageMetadata } from '../../lib/metadata';
 import { getHomepagePromotions, type ConfessionFeedQuery } from '../../lib/api';
+import { SITE_ORIGIN } from '../../lib/seo-routes';
+import { PREVIEW_HEIGHT, PREVIEW_WIDTH } from '../../lib/social-preview';
 
-export const metadata: Metadata = publicPageMetadata({
+const feedMetadata = publicPageMetadata({
   title: 'Community Confessions',
   description: 'Read community-submitted campus confessions reviewed by moderators.',
   path: '/confessions',
   indexable: false,
 });
+
+export const metadata: Metadata = {
+  ...feedMetadata,
+  openGraph: {
+    ...feedMetadata.openGraph,
+    images: [
+      {
+        url: `${SITE_ORIGIN}/confessions/opengraph-image`,
+        width: PREVIEW_WIDTH,
+        height: PREVIEW_HEIGHT,
+        alt: 'College Confession anonymous community preview',
+      },
+    ],
+  },
+  twitter: {
+    ...feedMetadata.twitter,
+    card: 'summary_large_image',
+    images: [`${SITE_ORIGIN}/confessions/opengraph-image`],
+  },
+};
 
 type ConfessionsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;

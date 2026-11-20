@@ -5,27 +5,23 @@ import { ApiRequestError, getConfession } from '../../../lib/api';
 import type { PublicConfession } from '@ggv/types';
 import { publicPageMetadata } from '../../../lib/metadata';
 import { SITE_ORIGIN } from '../../../lib/seo-routes';
+import {
+  getPublicConfessionForPreview,
+  previewDescription,
+  previewTitle,
+} from '../../../lib/social-preview';
 
 type Params = { publicId: string };
 
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const { publicId } = await params;
   const encodedId = encodeURIComponent(publicId);
-  let title = 'Community Confession';
-  let description = 'A community-submitted post shared on College Confession.';
-  try {
-    const confession = await getConfession(publicId);
-    const cleanContent = confession.content.replace(/\s+/g, ' ').trim();
-    title = confession.category ? `${confession.category.replaceAll('_', ' ')} confession` : title;
-    description = cleanContent.length > 180 ? `${cleanContent.slice(0, 177)}…` : cleanContent;
-  } catch (error) {
-    if (error instanceof ApiRequestError && error.status === 404) {
-      return { title: 'Confession unavailable', robots: { index: false, follow: true } };
-    }
-  }
+  const confession = await getPublicConfessionForPreview(publicId);
+  if (!confession)
+    return { title: 'Confession unavailable', robots: { index: false, follow: true } };
   const metadata = publicPageMetadata({
-    title,
-    description,
+    title: previewTitle(confession),
+    description: previewDescription(confession),
     path: `/confessions/${encodedId}`,
     indexable: false,
   });
