@@ -23,7 +23,7 @@ vi.mock('next/link', () => ({
 
 const { getConfessions, router } = vi.hoisted(() => ({
   getConfessions: vi.fn(),
-  router: { push: vi.fn() },
+  router: { push: vi.fn(), prefetch: vi.fn() },
 }));
 
 vi.mock('next/navigation', () => ({ useRouter: () => router }));
@@ -91,6 +91,8 @@ describe('ConfessionDetailClient', () => {
   beforeEach(() => {
     getConfessions.mockResolvedValue(browseResult);
     router.push.mockReset();
+    router.prefetch.mockReset();
+    router.prefetch.mockResolvedValue(undefined);
     window.history.replaceState({}, '', '/confessions/conf-1?sort=newest');
   });
 
@@ -122,6 +124,47 @@ describe('ConfessionDetailClient', () => {
       'current-confession-slide',
       'next-confession-slide',
     ]);
+  });
+
+  it('prefetches the nearest previous and next routes with the active query context', async () => {
+    getConfessions.mockResolvedValue({ ...browseResult, page: 3 });
+    window.history.replaceState(
+      {},
+      '',
+      '/confessions/conf-1?page=3&search=campus&category=CRUSH&dateRange=7d&sort=oldest',
+    );
+    render(<ConfessionDetailClient publicId="conf-1" initialConfession={confession} />);
+
+    await waitFor(() => {
+      expect(router.prefetch).toHaveBeenCalledWith(
+        '/confessions/conf-0?page=3&search=campus&category=CRUSH&dateRange=7d&sort=oldest',
+      );
+      expect(router.prefetch).toHaveBeenCalledWith(
+        '/confessions/conf-2?page=3&search=campus&category=CRUSH&dateRange=7d&sort=oldest',
+      );
+    });
+  });
+
+  it('warms an adjacent page before the current page boundary is reached', async () => {
+    getConfessions.mockImplementation((query: { page?: number; limit?: number }) => {
+      if (query.page === 2 && !query.limit) return Promise.resolve(boundaryPageTwo);
+      if (query.page === 1 && !query.limit) return Promise.resolve(boundaryPageOne);
+      return Promise.resolve(browseResult);
+    });
+    render(<ConfessionDetailClient publicId="conf-1" initialConfession={confession} />);
+
+    await waitFor(() => {
+      expect(getConfessions).toHaveBeenCalledWith({
+        page: 2,
+        search: undefined,
+        category: undefined,
+        customCategory: undefined,
+        dateRange: 'all',
+        startDate: undefined,
+        endDate: undefined,
+        sort: 'newest',
+      });
+    });
   });
 
   it('shows the swipe hint for 2 seconds, hides it for 60 seconds, and repeats', () => {
