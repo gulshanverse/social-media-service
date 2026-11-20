@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PublicConfession } from '@ggv/types';
 import ConfessionDetailClient from './ConfessionDetailClient';
 
@@ -83,6 +83,8 @@ const boundaryPageTwo = {
 };
 
 describe('ConfessionDetailClient', () => {
+  afterEach(() => cleanup());
+
   beforeEach(() => {
     getConfessions.mockResolvedValue(browseResult);
     router.push.mockReset();
@@ -250,6 +252,44 @@ describe('ConfessionDetailClient', () => {
     expect(track.style.transition).toContain('360ms');
     expect(router.push).not.toHaveBeenCalled();
   });
+
+  it.each([320, 760])(
+    'settles exactly across the carousel viewport at %ipx',
+    async (viewportWidth) => {
+      render(<ConfessionDetailClient publicId="conf-1" initialConfession={confession} />);
+      const page = document.querySelector('.site-shell');
+      const viewport = document.querySelector('.detail-carousel');
+      const track = document.querySelector('.detail-carousel__track');
+      if (
+        !(page instanceof HTMLElement) ||
+        !(viewport instanceof HTMLElement) ||
+        !(track instanceof HTMLElement)
+      )
+        throw new Error('Detail carousel was not rendered.');
+      await waitFor(() => expect(screen.getByText('2 / 3')).toBeInTheDocument());
+      Object.defineProperty(viewport, 'clientWidth', {
+        configurable: true,
+        value: viewportWidth,
+      });
+
+      fireEvent.pointerDown(page, {
+        pointerId: 1,
+        pointerType: 'touch',
+        isPrimary: true,
+        clientX: 300,
+        clientY: 300,
+      });
+      fireEvent.pointerUp(page, {
+        pointerId: 1,
+        pointerType: 'touch',
+        clientX: 100,
+        clientY: 304,
+      });
+
+      expect(track.style.transform).toContain(`-${viewportWidth}px`);
+      expect(router.push).not.toHaveBeenCalled();
+    },
+  );
 
   it('locks rapid repeated swipes to one navigation', async () => {
     render(<ConfessionDetailClient publicId="conf-1" initialConfession={confession} />);

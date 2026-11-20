@@ -228,7 +228,8 @@ export default function ConfessionDetailClient({
       if (nextIndex >= 0 && nextIndex < browse.items.length) {
         const nextId = browse.items[nextIndex].publicId;
         if (settle) {
-          setTrackOffset(direction > 0 ? -window.innerWidth : window.innerWidth, true);
+          const width = viewportRef.current?.clientWidth ?? window.innerWidth;
+          setTrackOffset(direction > 0 ? -width : width, true);
           settleTimerRef.current = window.setTimeout(() => {
             settleTimerRef.current = undefined;
             openConfession(nextId, browse.page);
@@ -245,7 +246,8 @@ export default function ConfessionDetailClient({
         return;
       }
       if (settle) {
-        setTrackOffset(direction > 0 ? -window.innerWidth : window.innerWidth, true);
+        const width = viewportRef.current?.clientWidth ?? window.innerWidth;
+        setTrackOffset(direction > 0 ? -width : width, true);
         settleTimerRef.current = window.setTimeout(() => {
           settleTimerRef.current = undefined;
           openConfession(boundary.publicId, targetPage);
