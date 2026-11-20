@@ -195,11 +195,11 @@
   width: 33.333333%;
 }
 
-.detail-carousel__slide[aria-hidden='true']:first-child {
+.detail-carousel__slide:first-child {
   left: 0;
 }
 
-.detail-carousel__slide[aria-hidden='true']:last-child {
+.detail-carousel__slide:last-child {
   right: 0;
 }
 

@@ -502,7 +502,11 @@ export default function ConfessionDetailClient({
               aria-label="Swipe between confessions"
             >
               <div className="detail-carousel__track" ref={trackRef}>
-                <div className="detail-carousel__slide" aria-hidden={!previousConfession}>
+                <div
+                  className="detail-carousel__slide"
+                  data-testid="previous-confession-slide"
+                  aria-hidden={!previousConfession}
+                >
                   {previousConfession ? (
                     <ConfessionCard confession={previousConfession} detailed />
                   ) : null}
@@ -510,7 +514,11 @@ export default function ConfessionDetailClient({
                 <div className="detail-carousel__slide" data-testid="current-confession-slide">
                   <ConfessionCard confession={confession} detailed />
                 </div>
-                <div className="detail-carousel__slide" aria-hidden={!nextConfession}>
+                <div
+                  className="detail-carousel__slide"
+                  data-testid="next-confession-slide"
+                  aria-hidden={!nextConfession}
+                >
                   {nextConfession ? <ConfessionCard confession={nextConfession} detailed /> : null}
                 </div>
               </div>
