@@ -132,20 +132,11 @@
 }
 .promotion-preview-card {
   width: 100%;
-  position: relative;
-  overflow: hidden;
-  isolation: isolate;
-  aspect-ratio: 16 / 6;
-  min-height: 220px;
-  border: 1px solid #35435d;
-  border-radius: 18px;
-  background: linear-gradient(135deg, #171b38, #301b50 55%, #631f61);
+  min-height: 0;
 }
 .promotion-preview-card--mobile {
   width: min(100%, 440px);
   margin: 0 auto;
-  aspect-ratio: 5 / 4;
-  min-height: 0;
 }
 .promotion-preview-card > img,
 .promotion-preview-shade {
@@ -392,7 +383,6 @@
     padding: 14px;
   }
   .promotion-preview-card {
-    aspect-ratio: 5 / 4;
     min-height: 0;
   }
   .promotion-preview-copy {

@@ -36,17 +36,19 @@ function styleFor(theme: PublicPromotionTheme, layout: PromotionLayoutSettings):
   }[layout.padding];
   const gap = { compact: '8px', comfortable: '12px', airy: '17px' }[layout.spacing];
   const isAuto = layout.mode === 'auto';
+  const horizontalPosition = isAuto ? 'left' : layout.horizontalPosition;
+  const verticalPosition = isAuto ? 'bottom' : layout.verticalPosition;
+  const copyMarginStart = horizontalPosition === 'left' ? '0' : 'auto';
+  const copyMarginEnd = horizontalPosition === 'right' ? '0' : 'auto';
+  const justifyContent =
+    verticalPosition === 'top'
+      ? 'flex-start'
+      : verticalPosition === 'center'
+        ? 'center'
+        : 'flex-end';
   const flexAlign = isAuto
     ? 'flex-start'
     : { left: 'flex-start', center: 'center', right: 'flex-end' }[layout.alignment];
-  const x = isAuto ? '0%' : { left: '0%', center: '50%', right: '100%' }[layout.horizontalPosition];
-  const y = isAuto ? '100%' : { top: '0%', center: '50%', bottom: '100%' }[layout.verticalPosition];
-  const translateX = isAuto
-    ? '0'
-    : { left: '0', center: '-50%', right: '-100%' }[layout.horizontalPosition];
-  const translateY = isAuto
-    ? '-100%'
-    : { top: '0', center: '-50%', bottom: '-100%' }[layout.verticalPosition];
   return {
     '--promotion-background': theme.background,
     '--promotion-gradient': theme.gradient,
@@ -61,10 +63,9 @@ function styleFor(theme: PublicPromotionTheme, layout: PromotionLayoutSettings):
     '--promotion-heading-line-height': layout.headingLineHeight,
     '--promotion-description-line-height': layout.descriptionLineHeight,
     '--promotion-copy-width': isAuto ? 'min(62%, 620px)' : width,
-    '--promotion-copy-x': x,
-    '--promotion-copy-y': y,
-    '--promotion-copy-translate-x': translateX,
-    '--promotion-copy-translate-y': translateY,
+    '--promotion-copy-margin-start': copyMarginStart,
+    '--promotion-copy-margin-end': copyMarginEnd,
+    '--promotion-copy-justify': justifyContent,
     '--promotion-copy-padding': padding,
     '--promotion-copy-gap': gap,
     '--promotion-copy-flex-align': flexAlign,

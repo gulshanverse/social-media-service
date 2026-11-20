@@ -3,7 +3,9 @@
   overflow: hidden;
   isolation: isolate;
   width: 100%;
-  aspect-ratio: 16 / 5.4;
+  display: flex;
+  flex-direction: column;
+  justify-content: var(--promotion-copy-justify, flex-end);
   min-height: clamp(190px, 25vw, 290px);
   border: 1px solid rgba(206, 190, 255, 0.2);
   border-radius: var(--promotion-radius, 24px);
@@ -43,13 +45,13 @@
     linear-gradient(0deg, rgba(7, 8, 21, 0.42), transparent 52%);
 }
 .homepage-promotion-copy {
-  position: absolute;
+  position: relative;
   z-index: 2;
-  left: var(--promotion-copy-x, 0%);
-  top: var(--promotion-copy-y, 100%);
+  flex: 0 0 auto;
+  margin-inline-start: var(--promotion-copy-margin-start, 0);
+  margin-inline-end: var(--promotion-copy-margin-end, auto);
   width: var(--promotion-copy-width, min(62%, 620px));
   max-width: 100%;
-  max-height: 100%;
   box-sizing: border-box;
   padding: var(--promotion-copy-padding, clamp(20px, 4vw, 36px));
   display: flex;
@@ -57,16 +59,8 @@
   gap: var(--promotion-copy-gap, 12px);
   align-items: var(--promotion-copy-flex-align, flex-start);
   justify-content: center;
-  transform: translate(
-    var(--promotion-copy-translate-x, 0),
-    var(--promotion-copy-translate-y, -100%)
-  );
   color: var(--promotion-text, #fff);
   text-align: var(--promotion-copy-text-align, left);
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-width: thin;
   animation: promotion-copy-in 300ms ease both;
 }
 .homepage-promotion-badge {
@@ -87,7 +81,7 @@
 }
 .homepage-promotion-copy h2,
 .homepage-promotion-copy h3 {
-  max-width: 18ch;
+  max-width: 24ch;
   margin: 0;
   color: var(--promotion-text, #fff);
   font-family: var(--promotion-heading-font, var(--font-space-grotesk)), sans-serif;
@@ -99,7 +93,7 @@
   overflow-wrap: anywhere;
 }
 .homepage-promotion-description {
-  max-width: 54ch;
+  max-width: 65ch;
   margin: 0;
   color: color-mix(in srgb, var(--promotion-text, #fff) 88%, transparent);
   font-family: var(--promotion-font, inherit);
@@ -137,23 +131,16 @@
 @keyframes promotion-copy-in {
   from {
     opacity: 0.72;
-    transform: translate(
-      var(--promotion-copy-translate-x, 0),
-      calc(var(--promotion-copy-translate-y, -100%) + 5px)
-    );
+    transform: translateY(5px);
   }
   to {
     opacity: 1;
-    transform: translate(
-      var(--promotion-copy-translate-x, 0),
-      var(--promotion-copy-translate-y, -100%)
-    );
+    transform: translateY(0);
   }
 }
 @media (max-width: 820px) {
   .homepage-promotion-card {
     min-height: 0;
-    aspect-ratio: 5 / 3.8;
     border-radius: 20px;
   }
   .homepage-promotion-copy {
@@ -163,7 +150,6 @@
 }
 @media (max-width: 520px) {
   .homepage-promotion-card {
-    aspect-ratio: 5 / 3.9;
     border-radius: 18px;
   }
   .homepage-promotion-shade {
