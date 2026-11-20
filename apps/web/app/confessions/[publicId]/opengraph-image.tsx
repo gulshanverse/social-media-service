@@ -30,12 +30,9 @@ function BrandMark() {
           justifyContent: 'center',
           border: '2px solid #f6edff',
           borderRadius: 16,
-          color: '#f6edff',
-          fontSize: 29,
-          fontWeight: 800,
         }}
       >
-        ♥
+        <div style={{ width: 19, height: 19, borderRadius: 10, background: '#ef3340' }} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column' }}>
         <div style={{ color: '#ffffff', fontSize: 28, fontWeight: 800 }}>College Confession</div>
@@ -48,81 +45,46 @@ function BrandMark() {
 }
 
 function CampusIllustration() {
+  const windowStyle = {
+    display: 'flex',
+    width: 20,
+    height: 22,
+    border: '2px solid #f2d9ff',
+    background: '#55217d',
+  };
   return (
     <div
       style={{
         position: 'absolute',
-        right: 74,
-        bottom: 28,
+        right: 350,
+        bottom: 18,
         display: 'flex',
         alignItems: 'flex-end',
-        gap: 22,
+        gap: 18,
         color: '#f2d9ff',
+        opacity: 0.9,
       }}
     >
+      <div style={{ display: 'flex', width: 38, height: 42, border: '3px solid #f2d9ff' }} />
       <div
         style={{
           display: 'flex',
-          width: 78,
-          height: 34,
-          border: '3px solid currentColor',
-          borderBottom: '0px solid transparent',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: 22,
-        }}
-      >
-        ♜
-      </div>
-      <div
-        style={{
-          display: 'flex',
-          width: 226,
-          height: 78,
+          width: 190,
+          height: 52,
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'flex-end',
-          border: '3px solid currentColor',
-          borderBottom: '0px solid transparent',
-          fontSize: 36,
+          border: '3px solid #f2d9ff',
+          background: 'transparent',
         }}
       >
-        <div
-          style={{
-            display: 'flex',
-            width: 0,
-            height: 0,
-            borderLeft: '120px solid transparent',
-            borderRight: '120px solid transparent',
-            borderBottom: '48px solid currentColor',
-          }}
-        />
-        <div
-          style={{
-            display: 'flex',
-            height: 34,
-            alignItems: 'center',
-            color: '#55217d',
-            fontSize: 24,
-          }}
-        >
-          ▥ ▥ ▥
+        <div style={{ display: 'flex', gap: 12, height: 30, alignItems: 'center' }}>
+          <div style={windowStyle} />
+          <div style={windowStyle} />
+          <div style={windowStyle} />
         </div>
       </div>
-      <div
-        style={{
-          display: 'flex',
-          width: 78,
-          height: 34,
-          border: '3px solid currentColor',
-          borderBottom: '0px solid transparent',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: 22,
-        }}
-      >
-        ♜
-      </div>
+      <div style={{ display: 'flex', width: 38, height: 42, border: '3px solid #f2d9ff' }} />
     </div>
   );
 }
@@ -219,7 +181,7 @@ export default async function OpenGraphImage({
           fontWeight: 700,
         }}
       >
-        <span style={{ fontSize: 20 }}>⌁</span> Anonymous
+        <span style={{ width: 9, height: 9, borderRadius: 5, background: '#f3b6ff' }} /> Anonymous
       </div>
       <div
         style={{
@@ -229,8 +191,8 @@ export default async function OpenGraphImage({
           minHeight: 320,
           flexDirection: 'column',
           justifyContent: 'center',
-          marginTop: 42,
-          padding: '34px 52px 30px',
+          marginTop: 34,
+          padding: '42px 52px 34px',
           border: '2px solid #ffffff66',
           borderRadius: 34,
           background: '#f8efffeF',
@@ -249,16 +211,16 @@ export default async function OpenGraphImage({
             lineHeight: 1,
           }}
         >
-          “
+          &quot;
         </div>
         <div
           style={{
             display: 'flex',
             maxWidth: 870,
-            paddingTop: 25,
-            fontSize: content.length > 230 ? 31 : 38,
+            paddingTop: 28,
+            fontSize: content.length > 230 ? 30 : 37,
             fontWeight: 800,
-            lineHeight: 1.2,
+            lineHeight: 1.28,
           }}
         >
           {content}
@@ -268,23 +230,25 @@ export default async function OpenGraphImage({
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            marginTop: 24,
+            marginTop: 28,
           }}
         >
           <div
             style={{
               display: 'flex',
-              padding: '8px 18px',
+              padding: '9px 18px',
               borderRadius: 20,
               background: '#efd6ff',
               color: '#5e1c82',
-              fontSize: 20,
+              fontSize: 18,
               fontWeight: 800,
             }}
           >
             {category}
           </div>
-          <div style={{ color: '#be3ee7', fontSize: 64, lineHeight: 0.6 }}>” ♡</div>
+          <div style={{ color: '#be3ee7', fontSize: 58, fontWeight: 800, lineHeight: 0.7 }}>
+            &quot;
+          </div>
         </div>
       </div>
       <CampusIllustration />
@@ -293,7 +257,8 @@ export default async function OpenGraphImage({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          marginTop: 22,
+          marginTop: 16,
+          paddingRight: 8,
           color: '#f4ddff',
           fontSize: 18,
           fontWeight: 700,

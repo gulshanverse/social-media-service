@@ -60,7 +60,7 @@ export default function OpenGraphImage() {
             fontWeight: 800,
           }}
         >
-          ♥
+          <div style={{ width: 20, height: 20, borderRadius: 10, background: '#ef3340' }} />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <div style={{ fontSize: 30, fontWeight: 800 }}>College Confession</div>
@@ -86,39 +86,31 @@ export default function OpenGraphImage() {
       <div
         style={{
           position: 'absolute',
-          right: 105,
-          bottom: 42,
+          right: 450,
+          bottom: 46,
           display: 'flex',
-          width: 310,
-          height: 142,
-          flexDirection: 'column',
+          width: 250,
+          height: 76,
           alignItems: 'center',
-          justifyContent: 'flex-end',
+          justifyContent: 'center',
           border: '4px solid #0a5965',
-          borderBottom: '0px solid transparent',
           color: '#0a5965',
+          opacity: 0.9,
         }}
       >
         <div
           style={{
             display: 'flex',
-            width: 0,
-            height: 0,
-            borderLeft: '170px solid transparent',
-            borderRight: '170px solid transparent',
-            borderBottom: '66px solid #0a5965',
-          }}
-        />
-        <div
-          style={{
-            display: 'flex',
-            height: 65,
+            width: 236,
+            height: 58,
             alignItems: 'center',
-            color: '#d8ff9b',
-            fontSize: 34,
+            justifyContent: 'center',
+            gap: 16,
           }}
         >
-          ▥ ▥ ▥
+          <div style={{ width: 22, height: 28, border: '3px solid #0a5965' }} />
+          <div style={{ width: 22, height: 28, border: '3px solid #0a5965' }} />
+          <div style={{ width: 22, height: 28, border: '3px solid #0a5965' }} />
         </div>
       </div>
       <div
@@ -126,12 +118,12 @@ export default function OpenGraphImage() {
           display: 'flex',
           justifyContent: 'space-between',
           color: '#164957',
-          fontSize: 22,
+          fontSize: 20,
           fontWeight: 700,
         }}
       >
         <span>Read it. Share it. Keep it thoughtful.</span>
-        <span>www.confessions.live/confessions</span>
+        <span style={{ marginLeft: 32 }}>www.confessions.live/confessions</span>
       </div>
     </div>,
     { ...size, headers: { 'Cache-Control': PREVIEW_CACHE_CONTROL } },
