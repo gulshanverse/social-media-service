@@ -25,3 +25,10 @@
 - [x] **Canonical metadata and previews:** Added published-only confession metadata and dynamic social preview routes. Campus illustrations use explicit Satori-compatible SVG geometry to avoid empty-square artifacts.
 - [x] **Regression protection and validation:** Added focused ShareMenu and social-preview tests. Regenerated and inspected the individual and general preview images, then ran focused tests, full tests, lint, typecheck, formatting, and production build.
 - [x] **Review-only Git workflow:** Continued on `feat/premium-confession-sharing` and updated PR #66. No new PR, merge, or deployment was made.
+
+## Final Confession Card Sharing Flow (2026-11-20)
+
+- [x] **Actual attachment:** Added a published-only `/confessions/[publicId]/share-image` route that renders a 720×900 PNG card from the confession's public data, with theme tokens, branding, anonymous label, content, category, date, divider, rounded corners, and feed-style spacing.
+- [x] **Text safety:** Added Unicode-aware wrapping, long-word handling, Devanagari font support, and an 11-rendered-line maximum with visible `...` truncation without shrinking the card typography.
+- [x] **Delivery flow:** Native Web Share uses the real PNG `File` plus the short message and exact confession URL when file sharing is supported. WhatsApp keeps the exact link composer fallback; Instagram and Snapchat remain copy-first with save-card fallback; Facebook and unsupported native sharing provide honest image-download/manual-share fallback.
+- [x] **Validation:** Focused sharing and share-card tests pass; the generated attachment route returned valid 720×900 PNGs for two public IDs and was visually inspected. Full repository validation and the final PR update are recorded in the handoff.

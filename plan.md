@@ -52,3 +52,9 @@ Make a focused frontend-only change to the existing detail experience. Use the c
 - `apps/web/app/confessions/[publicId]/opengraph-image.tsx`: individual confession preview with SVG campus geometry.
 - `apps/web/app/confessions/opengraph-image.tsx`: general confession preview with SVG campus geometry.
 - `TODO.md` and `plan.md`: original project history followed by this appended feature record.
+
+## Final attachment-sharing implementation (2026-11-20)
+
+The final flow now fetches the published confession through the existing public preview data path and renders a separate 720×900 PNG attachment route, leaving the protected feed-card source and 1200×630 Open Graph routes unchanged. The renderer uses theme-aware colors and layout, the Devanagari-capable font asset, Unicode-aware wrapping, and an 11-line visible-content limit with `...` truncation.
+
+The ShareMenu first attempts native file sharing with the actual PNG `File`, short accompanying message, and exact canonical confession URL. WhatsApp preserves its link composer fallback when file sharing is unavailable; Instagram and Snapchat copy the URL first and expose a save-card action; Facebook and unsupported native sharing expose an honest download/manual-attachment fallback. Focused tests cover the file payload and line truncation, and local rendering produced valid 720×900 PNGs that were visually inspected.

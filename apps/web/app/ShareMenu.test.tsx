@@ -29,11 +29,14 @@ describe('ShareMenu', () => {
       configurable: true,
       value: { writeText: vi.fn().mockResolvedValue(undefined) },
     });
+    Object.defineProperty(navigator, 'share', { configurable: true, value: undefined });
+    Object.defineProperty(navigator, 'canShare', { configurable: true, value: undefined });
   });
 
   afterEach(() => {
     window.open = originalOpen;
     window.matchMedia = originalMatchMedia;
+    vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
@@ -79,15 +82,45 @@ describe('ShareMenu', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Confession link copied!');
   });
 
-  it('uses the supported WhatsApp message and canonical URL', () => {
+  it('uses the supported WhatsApp message and canonical URL', async () => {
     renderMenu();
     fireEvent.click(screen.getByRole('button', { name: 'Share' }));
     fireEvent.click(screen.getByRole('button', { name: /^WhatsApp/ }));
-    expect(window.open).toHaveBeenCalledWith(
-      `https://wa.me/?text=${encodeURIComponent(`Someone shared a confession with you! ❤️ Check it out 👀 ${url}`)}`,
-      '_blank',
-      'noopener,noreferrer',
+    await waitFor(() =>
+      expect(window.open).toHaveBeenCalledWith(
+        `https://wa.me/?text=${encodeURIComponent(`Someone shared this confession with you! ❤️ What do you think? ${url}`)}`,
+        '_blank',
+        'noopener,noreferrer',
+      ),
     );
+  });
+
+  it('shares the actual confession-card file with the final message when file sharing is supported', async () => {
+    const share = vi.fn().mockResolvedValue(undefined);
+    const canShare = vi.fn().mockReturnValue(true);
+    Object.defineProperty(navigator, 'share', { configurable: true, value: share });
+    Object.defineProperty(navigator, 'canShare', { configurable: true, value: canShare });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response('card', {
+          status: 200,
+          headers: { 'Content-Type': 'image/png' },
+        }),
+      ),
+    );
+    renderMenu();
+    fireEvent.click(screen.getByRole('button', { name: 'Share' }));
+    fireEvent.click(screen.getByRole('button', { name: /^WhatsApp/ }));
+    await waitFor(() => expect(share).toHaveBeenCalled());
+    expect(share.mock.calls[0][0]).toMatchObject({
+      title: 'College Confession',
+      text: `Someone shared this confession with you! ❤️ What do you think? ${url}`,
+      url,
+    });
+    expect(share.mock.calls[0][0].files).toHaveLength(1);
+    expect(share.mock.calls[0][0].files[0].name).toBe('college-confession.png');
+    expect(canShare).toHaveBeenCalledWith({ files: expect.any(Array) });
   });
 
   it('copies before offering Instagram and Snapchat handoff actions', async () => {
@@ -132,7 +165,7 @@ describe('ShareMenu', () => {
     await waitFor(() =>
       expect(share).toHaveBeenCalledWith({
         title: 'College Confession',
-        text: 'Read this anonymous college confession',
+        text: `Someone shared this confession with you! ❤️ What do you think? ${url}`,
         url,
       }),
     );

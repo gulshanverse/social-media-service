@@ -5,7 +5,8 @@ import { useEffect, useRef, useState } from 'react';
 
 const INSTAGRAM_URL = 'https://www.instagram.com/';
 const SNAPCHAT_URL = 'https://www.snapchat.com/';
-const WHATSAPP_MESSAGE = 'Someone shared a confession with you! ❤️ Check it out 👀';
+const SHARE_MESSAGE = 'Someone shared this confession with you! ❤️ What do you think?';
+const WHATSAPP_MESSAGE = SHARE_MESSAGE;
 
 type ShareAction = 'instagram' | 'whatsapp' | 'snapchat' | 'facebook' | 'copy' | 'native';
 
@@ -99,10 +100,19 @@ function openExternal(url: string) {
   return Boolean(opened);
 }
 
+function getShareImageUrl(url: string) {
+  const confessionUrl = new URL(url);
+  return `${confessionUrl.origin}${confessionUrl.pathname.replace(/\/$/u, '')}/share-image`;
+}
+
+type NativeShareResult = 'shared' | 'cancelled' | 'unsupported' | 'failed';
+
 export function ShareMenu({ url, title, buttonContent, buttonClassName }: ShareMenuProps) {
   const [open, setOpen] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [manualCopy, setManualCopy] = useState(false);
+  const [showImageDownload, setShowImageDownload] = useState(false);
+  const [imageDownloadBusy, setImageDownloadBusy] = useState(false);
   const [busy, setBusy] = useState<ShareAction | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -229,6 +239,59 @@ export function ShareMenu({ url, title, buttonContent, buttonClassName }: ShareM
     }
   }
 
+  async function getShareImageFile() {
+    const response = await fetch(getShareImageUrl(url), { credentials: 'same-origin' });
+    if (!response.ok) throw new Error('Share image unavailable');
+    const blob = await response.blob();
+    return new File([blob], 'college-confession.png', { type: blob.type || 'image/png' });
+  }
+
+  async function shareNativeText(): Promise<NativeShareResult> {
+    if (!navigator.share) return 'unsupported';
+    try {
+      await navigator.share({ title, text: `${SHARE_MESSAGE} ${url}`, url });
+      return 'shared';
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return 'cancelled';
+      return 'failed';
+    }
+  }
+
+  async function shareNativeWithImage(): Promise<NativeShareResult> {
+    if (!navigator.share || !navigator.canShare) return 'unsupported';
+    try {
+      const file = await getShareImageFile();
+      if (!navigator.canShare({ files: [file] })) return 'unsupported';
+      await navigator.share({ title, text: `${SHARE_MESSAGE} ${url}`, url, files: [file] });
+      return 'shared';
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return 'cancelled';
+      return 'failed';
+    }
+  }
+
+  async function downloadShareImage() {
+    if (imageDownloadBusy) return;
+    setImageDownloadBusy(true);
+    try {
+      const response = await fetch(getShareImageUrl(url), { credentials: 'same-origin' });
+      if (!response.ok) throw new Error('Share image unavailable');
+      const objectUrl = URL.createObjectURL(await response.blob());
+      const anchor = document.createElement('a');
+      anchor.href = objectUrl;
+      anchor.download = 'college-confession.png';
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(objectUrl);
+      announce('Confession card saved. Attach it to your message.');
+    } catch {
+      announce('The confession card could not be saved. Try the link instead.');
+    } finally {
+      setImageDownloadBusy(false);
+    }
+  }
+
   async function runAction(action: ShareAction) {
     if (busy) return;
     setBusy(action);
@@ -239,22 +302,33 @@ export function ShareMenu({ url, title, buttonContent, buttonClassName }: ShareM
       }
       if (action === 'instagram') {
         if (await copyLink('Link copied! Open Instagram and share it with your friends.')) {
+          setShowImageDownload(true);
           announce('Link copied! Tap Open Instagram to continue.');
         }
         return;
       }
       if (action === 'snapchat') {
         if (await copyLink('Link copied! Open Snapchat and paste it into a conversation.')) {
+          setShowImageDownload(true);
           announce('Link copied! Tap Open Snapchat to continue.');
         }
         return;
       }
       if (action === 'whatsapp') {
+        const nativeResult = await shareNativeWithImage();
+        if (nativeResult === 'shared') {
+          close();
+          return;
+        }
+        if (nativeResult === 'cancelled') return;
         const opened = openExternal(
           `https://wa.me/?text=${encodeURIComponent(`${WHATSAPP_MESSAGE} ${url}`)}`,
         );
         if (opened) close();
-        else announce('WhatsApp could not be opened. Copy the link and try again.');
+        else {
+          setShowImageDownload(true);
+          announce('WhatsApp could not attach the card. Save it and share the link manually.');
+        }
         return;
       }
       if (action === 'facebook') {
@@ -262,20 +336,25 @@ export function ShareMenu({ url, title, buttonContent, buttonClassName }: ShareM
           `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
         );
         if (opened) close();
-        else announce('Facebook could not be opened. Copy the link and try again.');
+        else {
+          setShowImageDownload(true);
+          announce('Facebook could not be opened. Save the card and share the link manually.');
+        }
         return;
       }
       if (action === 'native') {
-        if (!navigator.share) {
-          announce('Native sharing is unavailable. Use Copy Link instead.');
+        const imageResult = await shareNativeWithImage();
+        if (imageResult === 'shared') {
+          close();
           return;
         }
-        try {
-          await navigator.share({ title, text: 'Read this anonymous college confession', url });
-          close();
-        } catch (error) {
-          if (error instanceof DOMException && error.name === 'AbortError') return;
-          announce('Native sharing is unavailable. Use Copy Link instead.');
+        if (imageResult === 'cancelled') return;
+        const textResult = await shareNativeText();
+        if (textResult === 'shared') close();
+        else if (textResult === 'cancelled') return;
+        else {
+          setShowImageDownload(true);
+          await copyLink('Native sharing is unavailable. The confession link was copied.');
         }
       }
     } finally {
@@ -466,6 +545,15 @@ export function ShareMenu({ url, title, buttonContent, buttonClassName }: ShareM
                   }}
                 >
                   Open Snapchat
+                </button>
+              )}
+              {showImageDownload && (
+                <button
+                  type="button"
+                  onClick={() => void downloadShareImage()}
+                  disabled={imageDownloadBusy}
+                >
+                  {imageDownloadBusy ? 'Saving card…' : 'Save confession card'}
                 </button>
               )}
             </div>
