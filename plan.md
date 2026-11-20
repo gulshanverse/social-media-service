@@ -28,3 +28,33 @@ Make a focused frontend-only change to the existing detail experience. Use the c
 - `apps/web/app/confessions/[publicId]/DiscussionSection.test.tsx` protects toolbar semantics and existing interaction behavior.
 - `apps/web/app/globals.css` contains scoped detail-page styling; confession-card selectors and source remain unchanged.
 - `apps/web/components/ConfessionCard.tsx` and `packages/ui/src/ConfessionCard.tsx` are protected from modification.
+
+# Premium Confession Sharing Experience (2026-11-20)
+
+## Investigation findings
+
+- Existing sharing is isolated in `apps/web/components/ShareMenu.tsx`, rendered from the detail-page engagement toolbar. The existing dynamic preview routes and canonical metadata are preserved.
+- The social preview campus illustrations used empty CSS-bordered elements. These were replaced with explicit SVG `rect` geometry so Satori renders the illustration reliably without empty-square artifacts.
+- The sharing dialog already handled lifecycle and focus restoration but did not constrain keyboard navigation. A document-level Tab and Shift+Tab trap now cycles through the dialog's currently focusable controls.
+- The original `TODO.md` and `plan.md` history from `origin/main` is retained verbatim; this section is appended as the feature record.
+
+## Implementation record
+
+1. Preserved the existing responsive ShareMenu, platform destinations, canonical URL handling, manual-copy fallback, native-share behavior, gesture guards, and reduced-motion styles.
+2. Added a Satori-compatible SVG campus illustration to both the individual and general Open Graph image routes without changing the confession card design.
+3. Added focused tests covering forward Tab wrapping, reverse Shift+Tab wrapping, and the existing sharing flows.
+4. Regenerated and inspected both preview screenshots and ran the requested focused/full test, lint, typecheck, formatting, and production-build checks.
+
+## Project structure
+
+- `apps/web/components/ShareMenu.tsx`: existing sharing state machine plus keyboard focus trap.
+- `apps/web/app/ShareMenu.test.tsx`: sharing behavior and focus-trap regression tests.
+- `apps/web/app/confessions/[publicId]/opengraph-image.tsx`: individual confession preview with SVG campus geometry.
+- `apps/web/app/confessions/opengraph-image.tsx`: general confession preview with SVG campus geometry.
+- `TODO.md` and `plan.md`: original project history followed by this appended feature record.
+
+## Final attachment-sharing implementation (2026-11-20)
+
+The final flow now fetches the published confession through the existing public preview data path and renders a separate 720×900 PNG attachment route, leaving the protected feed-card source and 1200×630 Open Graph routes unchanged. The renderer uses theme-aware colors and layout, the Devanagari-capable font asset, Unicode-aware wrapping, and an 11-line visible-content limit with `...` truncation.
+
+The ShareMenu first attempts native file sharing with the actual PNG `File`, short accompanying message, and exact canonical confession URL. WhatsApp preserves its link composer fallback when file sharing is unavailable; Instagram and Snapchat copy the URL first and expose a save-card action; Facebook and unsupported native sharing expose an honest download/manual-attachment fallback. Focused tests cover the file payload and line truncation, and local rendering produced valid 720×900 PNGs that were visually inspected.
