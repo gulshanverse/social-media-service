@@ -5,8 +5,9 @@ import { useEffect, useRef, useState } from 'react';
 
 const INSTAGRAM_URL = 'https://www.instagram.com/';
 const SNAPCHAT_URL = 'https://www.snapchat.com/';
-const SHARE_MESSAGE = 'Someone shared this confession with you! ❤️ What do you think?';
+const SHARE_MESSAGE = 'Hey, check out this confession! 😂❤️\nWhat do you think?';
 const WHATSAPP_MESSAGE = SHARE_MESSAGE;
+const EXPLORE_URL = 'https://www.confessions.live/confessions';
 
 type ShareAction = 'instagram' | 'whatsapp' | 'snapchat' | 'facebook' | 'copy' | 'native';
 
@@ -249,7 +250,10 @@ export function ShareMenu({ url, title, buttonContent, buttonClassName }: ShareM
   async function shareNativeText(): Promise<NativeShareResult> {
     if (!navigator.share) return 'unsupported';
     try {
-      await navigator.share({ title, text: `${SHARE_MESSAGE} ${url}`, url });
+      await navigator.share({
+  title,
+  text: `${SHARE_MESSAGE}\n\n${url}\n\n✨ Explore Live Confessions:\n${EXPLORE_URL}`,
+});
       return 'shared';
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return 'cancelled';
@@ -262,7 +266,11 @@ export function ShareMenu({ url, title, buttonContent, buttonClassName }: ShareM
     try {
       const file = await getShareImageFile();
       if (!navigator.canShare({ files: [file] })) return 'unsupported';
-      await navigator.share({ title, text: `${SHARE_MESSAGE} ${url}`, url, files: [file] });
+      await navigator.share({
+  title,
+  text: `${SHARE_MESSAGE}\n\n${url}\n\n🌷Explore Live Confessions:👇🏻\n${EXPLORE_URL}`,
+  files: [file],
+});
       return 'shared';
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return 'cancelled';
@@ -321,9 +329,11 @@ export function ShareMenu({ url, title, buttonContent, buttonClassName }: ShareM
           return;
         }
         if (nativeResult === 'cancelled') return;
-        const opened = openExternal(
-          `https://wa.me/?text=${encodeURIComponent(`${WHATSAPP_MESSAGE} ${url}`)}`,
-        );
+        const message = `${WHATSAPP_MESSAGE}\n\n${url}\n\n🌷 Explore Live Confessions:👇🏻\n${EXPLORE_URL}`;
+
+const opened = openExternal(
+  `https://wa.me/?text=${encodeURIComponent(message)}`,
+);
         if (opened) close();
         else {
           setShowImageDownload(true);
