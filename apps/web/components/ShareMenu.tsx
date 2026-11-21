@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 
 const INSTAGRAM_URL = 'https://www.instagram.com/';
 const SNAPCHAT_URL = 'https://www.snapchat.com/';
-const SHARE_MESSAGE = 'Hey, check out this confession! 😂❤️\nWhat do you think?';
+const SHARE_MESSAGE = 'Hey, check out this confession!❤️\nWhat do you think?😊';
 const WHATSAPP_MESSAGE = SHARE_MESSAGE;
 const EXPLORE_URL = 'https://www.confessions.live/confessions';
 
@@ -252,7 +252,7 @@ export function ShareMenu({ url, title, buttonContent, buttonClassName }: ShareM
     try {
       await navigator.share({
   title,
-  text: `${SHARE_MESSAGE}\n\n${url}\n\n✨ Explore Live Confessions:\n${EXPLORE_URL}`,
+  text: `${SHARE_MESSAGE}\n\n${url}\n\n🌷Explore Live Confessions:👇🏻\n${EXPLORE_URL}`,
 });
       return 'shared';
     } catch (error) {
