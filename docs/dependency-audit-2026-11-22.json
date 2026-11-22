@@ -218,9 +218,7 @@
       "reported_by": null,
       "title": "Undici has an unbounded decompression chain in HTTP responses on Node.js Fetch API via Content-Encoding leads to resource exhaustion",
       "metadata": null,
-      "cves": [
-        "CVE-2026-22036"
-      ],
+      "cves": ["CVE-2026-22036"],
       "access": "public",
       "severity": "moderate",
       "module_name": "undici",
@@ -233,9 +231,7 @@
         "score": 5.9,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H"
       },
-      "cwe": [
-        "CWE-770"
-      ],
+      "cwe": ["CWE-770"],
       "url": "https://github.com/advisories/GHSA-g9mf-h72j-4rw9"
     },
     "1114301": {
@@ -255,9 +251,7 @@
       "reported_by": null,
       "title": "file-type affected by infinite loop in ASF parser on malformed input with zero-size sub-header",
       "metadata": null,
-      "cves": [
-        "CVE-2026-31808"
-      ],
+      "cves": ["CVE-2026-31808"],
       "access": "public",
       "severity": "moderate",
       "module_name": "file-type",
@@ -270,9 +264,7 @@
         "score": 5.3,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
       },
-      "cwe": [
-        "CWE-835"
-      ],
+      "cwe": ["CWE-835"],
       "url": "https://github.com/advisories/GHSA-5v7r-6r5c-r473"
     },
     "1114594": {
@@ -292,9 +284,7 @@
       "reported_by": null,
       "title": "Undici has an HTTP Request/Response Smuggling issue",
       "metadata": null,
-      "cves": [
-        "CVE-2026-1525"
-      ],
+      "cves": ["CVE-2026-1525"],
       "access": "public",
       "severity": "moderate",
       "module_name": "undici",
@@ -307,9 +297,7 @@
         "score": 6.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:L"
       },
-      "cwe": [
-        "CWE-444"
-      ],
+      "cwe": ["CWE-444"],
       "url": "https://github.com/advisories/GHSA-2mjp-6q6p-2qxm"
     },
     "1114638": {
@@ -329,9 +317,7 @@
       "reported_by": null,
       "title": "Undici has Unbounded Memory Consumption in WebSocket permessage-deflate Decompression",
       "metadata": null,
-      "cves": [
-        "CVE-2026-1526"
-      ],
+      "cves": ["CVE-2026-1526"],
       "access": "public",
       "severity": "high",
       "module_name": "undici",
@@ -344,9 +330,7 @@
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
       },
-      "cwe": [
-        "CWE-409"
-      ],
+      "cwe": ["CWE-409"],
       "url": "https://github.com/advisories/GHSA-vrm6-8vpv-qv8q"
     },
     "1114640": {
@@ -366,9 +350,7 @@
       "reported_by": null,
       "title": "Undici has Unhandled Exception in WebSocket Client Due to Invalid server_max_window_bits Validation",
       "metadata": null,
-      "cves": [
-        "CVE-2026-2229"
-      ],
+      "cves": ["CVE-2026-2229"],
       "access": "public",
       "severity": "high",
       "module_name": "undici",
@@ -381,9 +363,7 @@
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
       },
-      "cwe": [
-        "CWE-248"
-      ],
+      "cwe": ["CWE-248"],
       "url": "https://github.com/advisories/GHSA-v9p9-hfj2-hcw8"
     },
     "1114642": {
@@ -403,9 +383,7 @@
       "reported_by": null,
       "title": "Undici has CRLF Injection in undici via `upgrade` option",
       "metadata": null,
-      "cves": [
-        "CVE-2026-1527"
-      ],
+      "cves": ["CVE-2026-1527"],
       "access": "public",
       "severity": "moderate",
       "module_name": "undici",
@@ -418,9 +396,7 @@
         "score": 4.6,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:L/UI:R/S:U/C:L/I:L/A:N"
       },
-      "cwe": [
-        "CWE-93"
-      ],
+      "cwe": ["CWE-93"],
       "url": "https://github.com/advisories/GHSA-4992-7rv2-5pvq"
     },
     "1114726": {
@@ -440,9 +416,7 @@
       "reported_by": null,
       "title": "file-type: ZIP Decompression Bomb DoS via [Content_Types].xml entry",
       "metadata": null,
-      "cves": [
-        "CVE-2026-32630"
-      ],
+      "cves": ["CVE-2026-32630"],
       "access": "public",
       "severity": "moderate",
       "module_name": "file-type",
@@ -455,10 +429,7 @@
         "score": 5.3,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
       },
-      "cwe": [
-        "CWE-400",
-        "CWE-409"
-      ],
+      "cwe": ["CWE-400", "CWE-409"],
       "url": "https://github.com/advisories/GHSA-j47w-4g3g-c36v"
     },
     "1117063": {
@@ -478,9 +449,7 @@
       "reported_by": null,
       "title": "@nestjs/core Improperly Neutralizes Special Elements in Output Used by a Downstream Component ('Injection')",
       "metadata": null,
-      "cves": [
-        "CVE-2026-35515"
-      ],
+      "cves": ["CVE-2026-35515"],
       "access": "public",
       "severity": "moderate",
       "module_name": "@nestjs/core",
@@ -493,9 +462,7 @@
         "score": 6.1,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:N/A:L"
       },
-      "cwe": [
-        "CWE-74"
-      ],
+      "cwe": ["CWE-74"],
       "url": "https://github.com/advisories/GHSA-36xv-jgw5-4q75"
     },
     "1121242": {
@@ -515,9 +482,7 @@
       "reported_by": null,
       "title": "undici vulnerable to HTTP header injection via Set-Cookie percent-decoding",
       "metadata": null,
-      "cves": [
-        "CVE-2026-9679"
-      ],
+      "cves": ["CVE-2026-9679"],
       "access": "public",
       "severity": "moderate",
       "module_name": "undici",
@@ -530,9 +495,7 @@
         "score": 5.9,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:H/A:N"
       },
-      "cwe": [
-        "CWE-93"
-      ],
+      "cwe": ["CWE-93"],
       "url": "https://github.com/advisories/GHSA-p88m-4jfj-68fv"
     },
     "1121255": {
@@ -552,9 +515,7 @@
       "reported_by": null,
       "title": "undici vulnerable to Set-Cookie SameSite attribute downgrade via permissive substring matching",
       "metadata": null,
-      "cves": [
-        "CVE-2026-11525"
-      ],
+      "cves": ["CVE-2026-11525"],
       "access": "public",
       "severity": "low",
       "module_name": "undici",
@@ -567,9 +528,7 @@
         "score": 3.7,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:L/A:N"
       },
-      "cwe": [
-        "CWE-183"
-      ],
+      "cwe": ["CWE-183"],
       "url": "https://github.com/advisories/GHSA-g8m3-5g58-fq7m"
     },
     "1130716": {
@@ -589,9 +548,7 @@
       "reported_by": null,
       "title": "undici vulnerable to downstream response desynchronization via retry interceptor",
       "metadata": null,
-      "cves": [
-        "CVE-2026-16728"
-      ],
+      "cves": ["CVE-2026-16728"],
       "access": "public",
       "severity": "moderate",
       "module_name": "undici",
@@ -604,9 +561,7 @@
         "score": 4.8,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:N"
       },
-      "cwe": [
-        "CWE-444"
-      ],
+      "cwe": ["CWE-444"],
       "url": "https://github.com/advisories/GHSA-8xcm-r25x-g524"
     },
     "1130727": {
@@ -626,9 +581,7 @@
       "reported_by": null,
       "title": "undici vulnerable to CRLF Injection via blob-like body 'type' property",
       "metadata": null,
-      "cves": [
-        "CVE-2026-15157"
-      ],
+      "cves": ["CVE-2026-15157"],
       "access": "public",
       "severity": "moderate",
       "module_name": "undici",
@@ -641,9 +594,7 @@
         "score": 4.2,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:L/I:L/A:N"
       },
-      "cwe": [
-        "CWE-93"
-      ],
+      "cwe": ["CWE-93"],
       "url": "https://github.com/advisories/GHSA-m8rv-5g2x-5cg5"
     },
     "1130732": {
@@ -663,9 +614,7 @@
       "reported_by": null,
       "title": "undici vulnerable to cookie attribute injection via unsanitized domain and unparsed setCookie fields",
       "metadata": null,
-      "cves": [
-        "CVE-2026-16729"
-      ],
+      "cves": ["CVE-2026-16729"],
       "access": "public",
       "severity": "moderate",
       "module_name": "undici",
@@ -678,9 +627,7 @@
         "score": 4.8,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:N"
       },
-      "cwe": [
-        "CWE-74"
-      ],
+      "cwe": ["CWE-74"],
       "url": "https://github.com/advisories/GHSA-v3r7-h72x-cjcm"
     },
     "1137243": {
@@ -700,9 +647,7 @@
       "reported_by": null,
       "title": "undici vulnerable to HTTP response queue poisoning via keep-alive socket reuse",
       "metadata": null,
-      "cves": [
-        "CVE-2026-6733"
-      ],
+      "cves": ["CVE-2026-6733"],
       "access": "public",
       "severity": "low",
       "module_name": "undici",
@@ -715,9 +660,7 @@
         "score": 3.7,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:L/A:N"
       },
-      "cwe": [
-        "CWE-367"
-      ],
+      "cwe": ["CWE-367"],
       "url": "https://github.com/advisories/GHSA-35p6-xmwp-9g52"
     },
     "1145093": {
@@ -737,9 +680,7 @@
       "reported_by": null,
       "title": "DeepmergeTS has stack exhaustion when merging recursive object graphs",
       "metadata": null,
-      "cves": [
-        "CVE-2026-40345"
-      ],
+      "cves": ["CVE-2026-40345"],
       "access": "public",
       "severity": "high",
       "module_name": "deepmerge-ts",
@@ -752,9 +693,7 @@
         "score": 0,
         "vectorString": null
       },
-      "cwe": [
-        "CWE-674"
-      ],
+      "cwe": ["CWE-674"],
       "url": "https://github.com/advisories/GHSA-ggr8-5vv4-36mx"
     },
     "1240039": {
@@ -774,9 +713,7 @@
       "reported_by": null,
       "title": "undici vulnerable to downstream response splitting via retry interceptor",
       "metadata": null,
-      "cves": [
-        "CVE-2026-18540"
-      ],
+      "cves": ["CVE-2026-18540"],
       "access": "public",
       "severity": "low",
       "module_name": "undici",
@@ -789,9 +726,7 @@
         "score": 3.7,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:L/A:N"
       },
-      "cwe": [
-        "CWE-444"
-      ],
+      "cwe": ["CWE-444"],
       "url": "https://github.com/advisories/GHSA-r53p-7pc4-xj5r"
     },
     "1240982": {
@@ -811,9 +746,7 @@
       "reported_by": null,
       "title": "@fastify/busboy vulnerable to Denial of Service via prototype-named multipart part header",
       "metadata": null,
-      "cves": [
-        "CVE-2026-19481"
-      ],
+      "cves": ["CVE-2026-19481"],
       "access": "public",
       "severity": "high",
       "module_name": "@fastify/busboy",
@@ -826,9 +759,7 @@
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
       },
-      "cwe": [
-        "CWE-754"
-      ],
+      "cwe": ["CWE-754"],
       "url": "https://github.com/advisories/GHSA-x8mw-p69m-v3mx"
     },
     "1241276": {
@@ -848,9 +779,7 @@
       "reported_by": null,
       "title": "@fastify/busboy vulnerable to CRLF injection via multipart Content-Disposition filename and name",
       "metadata": null,
-      "cves": [
-        "CVE-2026-74866"
-      ],
+      "cves": ["CVE-2026-74866"],
       "access": "public",
       "severity": "moderate",
       "module_name": "@fastify/busboy",
@@ -863,9 +792,7 @@
         "score": 5.8,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:N/I:L/A:N"
       },
-      "cwe": [
-        "CWE-93"
-      ],
+      "cwe": ["CWE-93"],
       "url": "https://github.com/advisories/GHSA-gxm5-99cw-xjw9"
     },
     "1243476": {
@@ -885,9 +812,7 @@
       "reported_by": null,
       "title": "undici vulnerable to TLS certificate validation bypass via dropped tls options in Agent",
       "metadata": null,
-      "cves": [
-        "CVE-2026-109383"
-      ],
+      "cves": ["CVE-2026-109383"],
       "access": "public",
       "severity": "high",
       "module_name": "undici",
@@ -900,9 +825,7 @@
         "score": 7.4,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:N"
       },
-      "cwe": [
-        "CWE-295"
-      ],
+      "cwe": ["CWE-295"],
       "url": "https://github.com/advisories/GHSA-2m5v-pch6-74hx"
     },
     "1243479": {
@@ -922,9 +845,7 @@
       "reported_by": null,
       "title": "undici vulnerable to Denial of Service via TLS 1.2 certificate-changing renegotiation",
       "metadata": null,
-      "cves": [
-        "CVE-2026-87018"
-      ],
+      "cves": ["CVE-2026-87018"],
       "access": "public",
       "severity": "high",
       "module_name": "undici",
@@ -937,10 +858,7 @@
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
       },
-      "cwe": [
-        "CWE-248",
-        "CWE-617"
-      ],
+      "cwe": ["CWE-248", "CWE-617"],
       "url": "https://github.com/advisories/GHSA-qrxm-fqhp-jwvm"
     },
     "1243482": {
@@ -960,9 +878,7 @@
       "reported_by": null,
       "title": "undici WebSocket client vulnerable to Denial of Service via unbounded automatic PONG buffering",
       "metadata": null,
-      "cves": [
-        "CVE-2026-109932"
-      ],
+      "cves": ["CVE-2026-109932"],
       "access": "public",
       "severity": "moderate",
       "module_name": "undici",
@@ -975,11 +891,7 @@
         "score": 5.9,
         "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H"
       },
-      "cwe": [
-        "CWE-400",
-        "CWE-405",
-        "CWE-770"
-      ],
+      "cwe": ["CWE-400", "CWE-405", "CWE-770"],
       "url": "https://github.com/advisories/GHSA-9fm3-97px-rjf6"
     },
     "1244534": {
@@ -999,9 +911,7 @@
       "reported_by": null,
       "title": "undici WebSocket client vulnerable to denial of service via fragment count bypass",
       "metadata": null,
-      "cves": [
-        "CVE-2026-12151"
-      ],
+      "cves": ["CVE-2026-12151"],
       "access": "public",
       "severity": "high",
       "module_name": "undici",
@@ -1014,10 +924,7 @@
         "score": 7.5,
         "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
       },
-      "cwe": [
-        "CWE-400",
-        "CWE-770"
-      ],
+      "cwe": ["CWE-400", "CWE-770"],
       "url": "https://github.com/advisories/GHSA-vxpw-j846-p89q"
     },
     "1244623": {
@@ -1037,9 +944,7 @@
       "reported_by": null,
       "title": "minimatch has potential denial of service via globparts amplification",
       "metadata": null,
-      "cves": [
-        "CVE-2026-118764"
-      ],
+      "cves": ["CVE-2026-118764"],
       "access": "public",
       "severity": "moderate",
       "module_name": "minimatch",
@@ -1052,9 +957,7 @@
         "score": 0,
         "vectorString": null
       },
-      "cwe": [
-        "CWE-405"
-      ],
+      "cwe": ["CWE-405"],
       "url": "https://github.com/advisories/GHSA-g3hv-75wg-m249"
     }
   },

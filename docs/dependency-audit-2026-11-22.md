@@ -14,23 +14,29 @@ Reproduced on branch `security/dependabot-remediation` with pnpm `9.15.4` using 
 ## Remaining vulnerable chains
 
 ### `@fastify/busboy`
+
 - **high** advisory 1240982: @fastify/busboy vulnerable to Denial of Service via prototype-named multipart part header. Resolved versions: `>=3.2.1`. Affected versions: `2.1.1`.
 - **moderate** advisory 1241276: @fastify/busboy vulnerable to CRLF injection via multipart Content-Disposition filename and name. Resolved versions: `>=3.2.2`. Affected versions: `2.1.1`.
 
 ### `@nestjs/core`
+
 - **moderate** advisory 1117063: @nestjs/core Improperly Neutralizes Special Elements in Output Used by a Downstream Component ('Injection'). Resolved versions: `>=11.1.18`. Affected versions: `10.4.22`.
 
 ### `deepmerge-ts`
+
 - **high** advisory 1145093: DeepmergeTS has stack exhaustion when merging recursive object graphs. Resolved versions: `>=8.0.0`. Affected versions: `7.1.5`.
 
 ### `file-type`
+
 - **moderate** advisory 1114301: file-type affected by infinite loop in ASF parser on malformed input with zero-size sub-header. Resolved versions: `>=21.3.1`. Affected versions: `20.4.1`.
 - **moderate** advisory 1114726: file-type: ZIP Decompression Bomb DoS via [Content_Types].xml entry. Resolved versions: `>=21.3.2`. Affected versions: `20.4.1`.
 
 ### `minimatch`
+
 - **moderate** advisory 1244623: minimatch has potential denial of service via globparts amplification. Resolved versions: `>=11.0.1`. Affected versions: `10.2.6`.
 
 ### `undici`
+
 - **moderate** advisory 1112496: Undici has an unbounded decompression chain in HTTP responses on Node.js Fetch API via Content-Encoding leads to resource exhaustion. Resolved versions: `>=6.23.0`. Affected versions: `5.29.0`.
 - **moderate** advisory 1114594: Undici has an HTTP Request/Response Smuggling issue. Resolved versions: `>=6.24.0`. Affected versions: `5.29.0`.
 - **high** advisory 1114638: Undici has Unbounded Memory Consumption in WebSocket permessage-deflate Decompression. Resolved versions: `>=6.24.0`. Affected versions: `5.29.0`.
