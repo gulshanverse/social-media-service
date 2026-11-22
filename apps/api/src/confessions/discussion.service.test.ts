@@ -24,6 +24,7 @@ const comment = {
   confessionId: confession.id,
   parentId: null,
   content: 'Visible immediately',
+  deletedAt: null,
   createdAt: now,
   profile,
   _count: { replies: 0 },
@@ -33,6 +34,7 @@ const nestedReply = {
   confessionId: confession.id,
   parentId: comment.id,
   content: 'A nested reply',
+  deletedAt: null,
   createdAt: new Date(now.getTime() + 1000),
   profile,
 };
@@ -67,6 +69,7 @@ async function testCreatePublishesImmediately() {
   assert.equal(result.status, 'PUBLISHED');
   assert.match(result.message, /now visible/i);
   assert.equal(result.comment.content, 'Visible immediately');
+  assert.equal(result.comment.deletedAt, null);
 }
 
 async function testListSurvivesReactionFailure() {
@@ -93,10 +96,12 @@ async function testListSurvivesReactionFailure() {
   assert.equal(result.total, 1);
   assert.equal(result.items.length, 1);
   assert.equal(result.items[0].content, 'Visible immediately');
+  assert.equal(result.items[0].deletedAt, null);
   assert.deepEqual(result.items[0].reactionCounts, {});
   assert.deepEqual(result.items[0].selectedReactions, []);
   assert.equal(result.items[0].replies.length, 1);
   assert.equal(result.items[0].replies[0].id, nestedReply.id);
+  assert.equal(result.items[0].replies[0].deletedAt, null);
 }
 
 async function testRepliesCanTargetPublishedReplies() {
