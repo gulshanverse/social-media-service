@@ -271,7 +271,8 @@ async function testCommentAuthorizationAndDeletedGuards() {
   } as any);
   const service = new DiscussionService();
   await assert.rejects(
-    () => service.edit('public-test', comment.id, { content: 'nope' } as any, 'valid-session-token'),
+    () =>
+      service.edit('public-test', comment.id, { content: 'nope' } as any, 'valid-session-token'),
     /only edit your own/i,
   );
   await assert.rejects(
@@ -303,7 +304,8 @@ async function testCommentAuthorizationAndDeletedGuards() {
     confessionComment: { findFirst: async () => deleted },
   } as any);
   await assert.rejects(
-    () => service.edit('public-test', comment.id, { content: 'nope' } as any, 'valid-session-token'),
+    () =>
+      service.edit('public-test', comment.id, { content: 'nope' } as any, 'valid-session-token'),
     /deleted comments cannot be edited/i,
   );
   await assert.rejects(
@@ -322,7 +324,13 @@ async function testCommentAuthorizationAndDeletedGuards() {
     },
   } as any);
   await assert.rejects(
-    () => service.create('public-test', { content: 'reply', parentId: comment.id } as any, 'valid-session-token', 'deleted-parent-ip'),
+    () =>
+      service.create(
+        'public-test',
+        { content: 'reply', parentId: comment.id } as any,
+        'valid-session-token',
+        'deleted-parent-ip',
+      ),
     /reply target is unavailable/i,
   );
 
@@ -332,11 +340,19 @@ async function testCommentAuthorizationAndDeletedGuards() {
     confessionComment: { findFirst: async () => null },
   } as any);
   await assert.rejects(
-    () => service.reactToComment('public-test', comment.id, { emoji: '❤️' } as any, undefined, 'deleted-reaction-ip'),
+    () =>
+      service.reactToComment(
+        'public-test',
+        comment.id,
+        { emoji: '❤️' } as any,
+        undefined,
+        'deleted-reaction-ip',
+      ),
     /comment is unavailable/i,
   );
   await assert.rejects(
-    () => service.report('public-test', comment.id, { reason: 'OTHER' } as any, 'deleted-report-ip'),
+    () =>
+      service.report('public-test', comment.id, { reason: 'OTHER' } as any, 'deleted-report-ip'),
     /comment is unavailable/i,
   );
 }
@@ -396,14 +412,25 @@ async function testEditInputIsTrimmedAndValidated() {
     return { ...editable, content: updatedContent };
   };
   const service = new DiscussionService();
-  await service.edit('public-test', comment.id, { content: '  trimmed  ' } as any, 'valid-session-token');
+  await service.edit(
+    'public-test',
+    comment.id,
+    { content: '  trimmed  ' } as any,
+    'valid-session-token',
+  );
   assert.equal(updatedContent, 'trimmed');
   await assert.rejects(
     () => service.edit('public-test', comment.id, { content: '   ' } as any, 'valid-session-token'),
     /content is required/i,
   );
   await assert.rejects(
-    () => service.edit('public-test', comment.id, { content: 'x'.repeat(1001) } as any, 'valid-session-token'),
+    () =>
+      service.edit(
+        'public-test',
+        comment.id,
+        { content: 'x'.repeat(1001) } as any,
+        'valid-session-token',
+      ),
     /1000 characters/i,
   );
 }
