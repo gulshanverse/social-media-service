@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ShareMenu } from '../components/ShareMenu';
 
 const url = 'https://www.confessions.live/confessions/conf-1';
+const shareMessage = `Hey, check out this confession!❤️\nWhat do you think?😊\n\n${url}\n\n🌷 Explore Live Confessions:👇🏻\nhttps://www.confessions.live/confessions`;
+const nativeShareMessage = `Hey, check out this confession!❤️\nWhat do you think?😊\n\n${url}\n\n🌷Explore Live Confessions:👇🏻\nhttps://www.confessions.live/confessions`;
 
 function renderMenu() {
   return render(
@@ -88,7 +90,7 @@ describe('ShareMenu', () => {
     fireEvent.click(screen.getByRole('button', { name: /^WhatsApp/ }));
     await waitFor(() =>
       expect(window.open).toHaveBeenCalledWith(
-        `https://wa.me/?text=${encodeURIComponent(`Someone shared this confession with you! ❤️ What do you think? ${url}`)}`,
+        `https://wa.me/?text=${encodeURIComponent(shareMessage)}`,
         '_blank',
         'noopener,noreferrer',
       ),
@@ -115,8 +117,7 @@ describe('ShareMenu', () => {
     await waitFor(() => expect(share).toHaveBeenCalled());
     expect(share.mock.calls[0][0]).toMatchObject({
       title: 'College Confession',
-      text: `Someone shared this confession with you! ❤️ What do you think? ${url}`,
-      url,
+      text: nativeShareMessage,
     });
     expect(share.mock.calls[0][0].files).toHaveLength(1);
     expect(share.mock.calls[0][0].files[0].name).toBe('college-confession.png');
@@ -165,8 +166,7 @@ describe('ShareMenu', () => {
     await waitFor(() =>
       expect(share).toHaveBeenCalledWith({
         title: 'College Confession',
-        text: `Someone shared this confession with you! ❤️ What do you think? ${url}`,
-        url,
+        text: nativeShareMessage,
       }),
     );
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
