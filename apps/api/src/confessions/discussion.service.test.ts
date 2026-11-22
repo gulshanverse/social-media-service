@@ -200,6 +200,43 @@ async function testCoreFailuresStillPropagate() {
   );
 }
 
+async function testOwnerCanEditAndSoftDelete() {
+  let updateArgs: any;
+  let deletedAt: Date | null = null;
+  const editable = { ...comment, profileId: profile.id, deletedAt: null };
+  setPrismaForTests({
+    commenterSession: { findUnique: async () => session, update: async () => ({}) },
+    confession: { findFirst: async () => confession },
+    confessionComment: {
+      findFirst: async () => editable,
+      update: async (args: any) => {
+        updateArgs = args;
+        deletedAt = args.data.deletedAt ?? null;
+        return {
+          ...editable,
+          content: args.data.content ?? editable.content,
+          deletedAt,
+          _count: { replies: 1 },
+        };
+      },
+    },
+  } as any);
+  const service = new DiscussionService();
+  const edited = await service.edit(
+    'public-test',
+    comment.id,
+    { content: ' Updated text ' } as any,
+    'valid-session-token',
+  );
+  assert.equal(updateArgs.data.content, 'Updated text');
+  assert.equal(edited.comment.content, 'Updated text');
+  const removed = await service.delete('public-test', comment.id, 'valid-session-token');
+  assert.equal(updateArgs.data.deletedAt instanceof Date, true);
+  assert.equal(removed.comment.content, 'This comment was deleted.');
+  assert.equal(removed.comment.profile.instagramUsername, null);
+  assert.equal(removed.comment.replyCount, 1);
+}
+
 async function main() {
   try {
     await testCreatePublishesImmediately();
@@ -207,6 +244,7 @@ async function main() {
     await testRepliesCanTargetPublishedReplies();
     await testCommentReactionCreatesAndRemoves();
     await testCoreFailuresStillPropagate();
+    await testOwnerCanEditAndSoftDelete();
     console.log('discussion service publication and reaction fallback tests passed');
   } finally {
     setPrismaForTests(realPrisma);

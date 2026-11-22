@@ -9,6 +9,8 @@ const discussionApi = vi.hoisted(() => ({
   getConfessionReactions: vi.fn(),
   getDiscussion: vi.fn(),
   postDiscussionComment: vi.fn(),
+  editDiscussionComment: vi.fn(),
+  deleteDiscussionComment: vi.fn(),
   reactToComment: vi.fn(),
   reactToConfession: vi.fn(),
   registerCommenter: vi.fn(),
@@ -394,5 +396,69 @@ describe('College Confession engagement redesign', () => {
       ),
     );
     expect(await screen.findByText('Nested reply')).toBeInTheDocument();
+  });
+
+  it('shows owner actions, edits inline, and keeps actions hidden for other users', async () => {
+    discussionApi.getCommenterIdentity.mockResolvedValue({ ...comment.profile, id: 'profile-1' });
+    discussionApi.editDiscussionComment.mockResolvedValue({
+      status: 'UPDATED',
+      message: 'Updated.',
+      comment: { ...comment, content: 'Edited comment' },
+    });
+    const firstRender = render(<DiscussionSection publicId="conf-1" confession={confession} />);
+    expect(await screen.findByRole('button', { name: 'Comment actions' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Comment actions' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Edit comment' }));
+    const editor = screen.getByRole('textbox', { name: 'Edit comment' });
+    fireEvent.change(editor, { target: { value: 'Edited comment' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() =>
+      expect(discussionApi.editDiscussionComment).toHaveBeenCalledWith(
+        'conf-1',
+        'comment-1',
+        'Edited comment',
+      ),
+    );
+    expect(await screen.findByText('Edited comment')).toBeInTheDocument();
+    firstRender.unmount();
+
+    discussionApi.getCommenterIdentity.mockResolvedValue({
+      ...comment.profile,
+      id: 'different-profile',
+    });
+    const { unmount } = render(<DiscussionSection publicId="conf-1" confession={confession} />);
+    await screen.findByText('Relatable and kind.');
+    expect(screen.queryByRole('button', { name: 'Comment actions' })).not.toBeInTheDocument();
+    unmount();
+  });
+
+  it('requires confirmation before deleting and renders the deleted placeholder', async () => {
+    discussionApi.getCommenterIdentity.mockResolvedValue({ ...comment.profile, id: 'profile-1' });
+    discussionApi.deleteDiscussionComment.mockResolvedValue({
+      status: 'DELETED',
+      message: 'Deleted.',
+      comment: {
+        ...comment,
+        content: 'This comment was deleted.',
+        deletedAt: '2026-11-22T10:00:00.000Z',
+        profile: {
+          id: 'deleted-comment',
+          displayName: 'Deleted commenter',
+          instagramUsername: null,
+          instagramUrl: null,
+        },
+      },
+    });
+    const confirm = window.confirm;
+    window.confirm = vi.fn(() => true);
+    render(<DiscussionSection publicId="conf-1" confession={confession} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Comment actions' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete comment' }));
+    await waitFor(() =>
+      expect(discussionApi.deleteDiscussionComment).toHaveBeenCalledWith('conf-1', 'comment-1'),
+    );
+    expect(await screen.findByText('This comment was deleted.')).toBeInTheDocument();
+    expect(window.confirm).toHaveBeenCalledWith('Delete this comment? This cannot be undone.');
+    window.confirm = confirm;
   });
 });

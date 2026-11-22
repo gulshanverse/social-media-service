@@ -272,6 +272,7 @@ model ConfessionComment {
   parent       ConfessionComment?      @relation("ConfessionCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
   replies      ConfessionComment[]     @relation("ConfessionCommentReplies")
   content      String
+  deletedAt    DateTime?
   status       ConfessionCommentStatus @default(PENDING)
   createdAt    DateTime                @default(now())
   updatedAt    DateTime                @updatedAt

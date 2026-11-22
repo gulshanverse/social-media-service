@@ -11,6 +11,9 @@ export class CommentDto {
   @IsString() @MinLength(1) @MaxLength(1000) content!: string;
   @IsOptional() @IsString() @MaxLength(40) parentId?: string;
 }
+export class EditCommentDto {
+  @IsString() @MinLength(1) @MaxLength(1000) content!: string;
+}
 export class ReactionDto {
   @IsString() @MinLength(1) @MaxLength(16) emoji!: string;
 }

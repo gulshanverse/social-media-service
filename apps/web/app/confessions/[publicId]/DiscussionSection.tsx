@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { FormEvent, PointerEvent, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import type { PublicConfession } from '@ggv/types';
 import { ShareMenu } from '../../../components/ShareMenu';
@@ -14,6 +14,8 @@ import {
   getConfessionReactions,
   getDiscussion,
   postDiscussionComment,
+  editDiscussionComment,
+  deleteDiscussionComment,
   reactToComment,
   reactToConfession,
   registerCommenter,
@@ -99,6 +101,18 @@ function updateCommentReaction(
       : {}),
     replies: updateCommentReaction(comment.replies, commentId, summary),
   }));
+}
+
+function updateComment(
+  items: DiscussionComment[],
+  commentId: string,
+  updater: (comment: DiscussionComment) => DiscussionComment,
+): DiscussionComment[] {
+  return items.map((comment) =>
+    comment.id === commentId
+      ? updater(comment)
+      : { ...comment, replies: updateComment(comment.replies, commentId, updater) },
+  );
 }
 
 function updateCommentReactionOptimistically(
@@ -372,6 +386,29 @@ export default function DiscussionSection({
     setComposerOpen(true);
   }
 
+  function updateLocalComment(commentId: string, next: DiscussionComment) {
+    setDiscussion((current) =>
+      current
+        ? { ...current, items: updateComment(current.items, commentId, () => next) }
+        : current,
+    );
+  }
+
+  function markLocalCommentDeleted(commentId: string, next: DiscussionComment) {
+    setDiscussion((current) =>
+      current
+        ? {
+            ...current,
+            items: updateComment(current.items, commentId, (comment) => ({
+              ...comment,
+              ...next,
+              replies: comment.replies,
+            })),
+          }
+        : current,
+    );
+  }
+
   function toggleSaved() {
     setSaved((current) => {
       const next = !current;
@@ -588,6 +625,9 @@ export default function DiscussionSection({
               onReply={openReply}
               onReact={chooseCommentReaction}
               publicId={publicId}
+              currentProfile={profile}
+              onUpdated={updateLocalComment}
+              onDeleted={markLocalCommentDeleted}
             />
           ))
         )}
@@ -742,23 +782,106 @@ function CommentCard({
   publicId,
   onReply,
   onReact,
+  currentProfile,
+  onUpdated,
+  onDeleted,
 }: {
   comment: DiscussionComment;
   publicId: string;
   onReply: (comment: DiscussionComment) => void;
   onReact: (comment: DiscussionComment, emoji: string) => void;
+  currentProfile: CommenterProfile | null;
+  onUpdated: (commentId: string, comment: DiscussionComment) => void;
+  onDeleted: (commentId: string, comment: DiscussionComment) => void;
 }) {
   const [reported, setReported] = useState(false);
   const [repliesExpanded, setRepliesExpanded] = useState(comment.replies.length <= 2);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editContent, setEditContent] = useState(comment.content);
+  const [actionError, setActionError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [pressing, setPressing] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const pressTimer = useRef<number | null>(null);
+  const isOwner = !comment.deletedAt && currentProfile?.id === comment.profile.id;
+  const deleted = Boolean(comment.deletedAt);
   const visibleReplies = repliesExpanded ? comment.replies : comment.replies.slice(0, 2);
   const profileUrl = instagramProfileUrl(comment.profile.instagramUsername);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const closeMenu = (event: MouseEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', closeMenu);
+    return () => document.removeEventListener('mousedown', closeMenu);
+  }, [menuOpen]);
+
+  function clearPress() {
+    if (pressTimer.current !== null) window.clearTimeout(pressTimer.current);
+    pressTimer.current = null;
+    setPressing(false);
+  }
+
+  function startPress(event: PointerEvent<HTMLElement>) {
+    if (!isOwner || event.pointerType === 'mouse') return;
+    if ((event.target as HTMLElement).closest('button,a,input,textarea')) return;
+    clearPress();
+    setPressing(true);
+    pressTimer.current = window.setTimeout(() => {
+      setMenuOpen(true);
+      setPressing(false);
+      pressTimer.current = null;
+    }, 550);
+  }
+
+  async function saveEdit() {
+    const nextContent = editContent.trim();
+    if (!nextContent || nextContent === comment.content || saving) return;
+    setSaving(true);
+    setActionError('');
+    try {
+      const result = await editDiscussionComment(publicId, comment.id, nextContent);
+      onUpdated(comment.id, result.comment);
+      setEditing(false);
+    } catch (caught) {
+      setActionError(caught instanceof Error ? caught.message : 'Could not update this comment.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteComment() {
+    if (saving || !window.confirm('Delete this comment? This cannot be undone.')) return;
+    setSaving(true);
+    setActionError('');
+    try {
+      const result = await deleteDiscussionComment(publicId, comment.id);
+      onDeleted(comment.id, result.comment);
+      setMenuOpen(false);
+    } catch (caught) {
+      setActionError(caught instanceof Error ? caught.message : 'Could not delete this comment.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
-    <article className="comment-card">
-      <div className="avatar">{initials(comment.profile.displayName)}</div>
+    <article
+      className={`comment-card${pressing ? ' is-pressing' : ''}`}
+      onPointerDown={startPress}
+      onPointerUp={clearPress}
+      onPointerCancel={clearPress}
+      onPointerMove={clearPress}
+    >
+      <div className="avatar">{deleted ? '—' : initials(comment.profile.displayName)}</div>
       <div className="comment-main">
         <div className="comment-meta">
           <strong>
-            {profileUrl ? (
+            {deleted ? (
+              'Deleted commenter'
+            ) : profileUrl ? (
               <a href={profileUrl} target="_blank" rel="noopener noreferrer">
                 {comment.profile.displayName}
               </a>
@@ -766,37 +889,108 @@ function CommentCard({
               comment.profile.displayName
             )}
           </strong>
-          {profileUrl && <span>@{comment.profile.instagramUsername}</span>}
+          {!deleted && profileUrl && <span>@{comment.profile.instagramUsername}</span>}
           <time dateTime={comment.createdAt} title={new Date(comment.createdAt).toLocaleString()}>
             {relative(comment.createdAt)}
           </time>
-        </div>
-        <p>{comment.content}</p>
-        <div className="comment-actions">
-          {commentEmoji.map((emoji) => {
-            const selected = (comment.selectedReactions ?? []).includes(emoji);
-            return (
+          {isOwner && (
+            <div className="comment-menu-wrap" ref={menuRef}>
               <button
-                key={emoji}
-                className={`comment-reaction ${selected ? 'is-selected' : ''}`}
-                aria-label={`${emoji} reaction, ${comment.reactionCounts?.[emoji] ?? 0}`}
-                aria-pressed={selected}
-                onClick={() => onReact(comment, emoji)}
+                className="comment-menu-button"
+                aria-label="Comment actions"
+                aria-expanded={menuOpen}
+                onClick={() => setMenuOpen((open) => !open)}
               >
-                <span aria-hidden="true">{emoji}</span> {comment.reactionCounts?.[emoji] ?? 0}
+                ⋮
               </button>
-            );
-          })}
-          <button onClick={() => onReply(comment)}>↩ Reply</button>
-          <button
-            onClick={() => {
-              setReported(true);
-              void reportDiscussionComment(publicId, comment.id);
-            }}
-          >
-            {reported ? 'Reported' : 'Report'}
-          </button>
+              {menuOpen && (
+                <div className="comment-menu" role="menu">
+                  <button
+                    role="menuitem"
+                    onClick={() => {
+                      setEditContent(comment.content);
+                      setEditing(true);
+                      setMenuOpen(false);
+                    }}
+                  >
+                    Edit comment
+                  </button>
+                  <button role="menuitem" onClick={() => void deleteComment()}>
+                    Delete comment
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
+        {editing ? (
+          <div className="comment-edit-box">
+            <textarea
+              aria-label="Edit comment"
+              maxLength={1000}
+              value={editContent}
+              onChange={(event) => setEditContent(event.target.value.slice(0, 1000))}
+              autoFocus
+            />
+            <div className="comment-edit-footer">
+              <span>{editContent.length}/1000</span>
+              <div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditing(false);
+                    setEditContent(comment.content);
+                    setActionError('');
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="comment-edit-save"
+                  disabled={saving || !editContent.trim() || editContent.trim() === comment.content}
+                  onClick={() => void saveEdit()}
+                >
+                  {saving ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <p className={deleted ? 'comment-deleted' : undefined}>{comment.content}</p>
+        )}
+        {actionError && (
+          <p className="comment-action-error" role="alert">
+            {actionError}
+          </p>
+        )}
+        {!deleted && !editing && (
+          <div className="comment-actions">
+            {commentEmoji.map((emoji) => {
+              const selected = (comment.selectedReactions ?? []).includes(emoji);
+              return (
+                <button
+                  key={emoji}
+                  className={`comment-reaction ${selected ? 'is-selected' : ''}`}
+                  aria-label={`${emoji} reaction, ${comment.reactionCounts?.[emoji] ?? 0}`}
+                  aria-pressed={selected}
+                  onClick={() => onReact(comment, emoji)}
+                >
+                  <span aria-hidden="true">{emoji}</span> {comment.reactionCounts?.[emoji] ?? 0}
+                </button>
+              );
+            })}
+            <button onClick={() => onReply(comment)}>↩ Reply</button>
+            <button
+              onClick={() => {
+                setReported(true);
+                void reportDiscussionComment(publicId, comment.id);
+              }}
+            >
+              {reported ? 'Reported' : 'Report'}
+            </button>
+          </div>
+        )}
         {comment.replies.length > 0 && (
           <div className="reply-thread">
             {visibleReplies.map((reply) => (
@@ -806,6 +1000,9 @@ function CommentCard({
                 publicId={publicId}
                 onReply={onReply}
                 onReact={onReact}
+                currentProfile={currentProfile}
+                onUpdated={onUpdated}
+                onDeleted={onDeleted}
               />
             ))}
             {comment.replies.length > 2 && (
