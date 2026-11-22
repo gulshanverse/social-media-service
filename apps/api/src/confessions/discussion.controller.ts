@@ -4,6 +4,7 @@ import {
   Delete,
   ForbiddenException,
   Get,
+  Patch,
   Param,
   ParseIntPipe,
   Post,
@@ -12,7 +13,13 @@ import {
   Res,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import { CommentDto, CommentReportDto, ProfileDto, ReactionDto } from './discussion.dto';
+import {
+  CommentDto,
+  CommentReportDto,
+  EditCommentDto,
+  ProfileDto,
+  ReactionDto,
+} from './discussion.dto';
 import { COMMENTER_COOKIE, DiscussionService } from './discussion.service';
 
 function token(request: Request) {
@@ -101,6 +108,23 @@ export class DiscussionController {
   ) {
     assertCommenterOrigin(request);
     return this.discussion.create(publicId, dto, token(request), request.ip || 'anonymous');
+  }
+  @Patch(':publicId/comments/:commentId') edit(
+    @Param('publicId') publicId: string,
+    @Param('commentId') commentId: string,
+    @Body() dto: EditCommentDto,
+    @Req() request: Request,
+  ) {
+    assertCommenterOrigin(request);
+    return this.discussion.edit(publicId, commentId, dto, token(request));
+  }
+  @Delete(':publicId/comments/:commentId') delete(
+    @Param('publicId') publicId: string,
+    @Param('commentId') commentId: string,
+    @Req() request: Request,
+  ) {
+    assertCommenterOrigin(request);
+    return this.discussion.delete(publicId, commentId, token(request));
   }
   @Post(':publicId/comments/:commentId/reactions') reactToComment(
     @Param('publicId') publicId: string,

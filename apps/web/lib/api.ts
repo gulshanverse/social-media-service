@@ -194,6 +194,7 @@ export type DiscussionComment = {
   content: string;
   parentId: string | null;
   createdAt: string;
+  deletedAt: string | null;
   profile: CommenterProfile;
   replyCount: number;
   replies: DiscussionComment[];
@@ -225,6 +226,7 @@ function normalizeDiscussionComment(comment: Partial<DiscussionComment>): Discus
   return {
     ...(comment as DiscussionComment),
     parentId: comment.parentId ?? null,
+    deletedAt: comment.deletedAt ?? null,
     profile: {
       id: comment.profile?.id ?? 'unknown-profile',
       displayName: comment.profile?.displayName ?? 'Anonymous',
@@ -279,4 +281,14 @@ export const reportDiscussionComment = (publicId: string, commentId: string, rea
   request<{ status: string; message: string }>(
     `/confessions/${encodeURIComponent(publicId)}/comments/${encodeURIComponent(commentId)}/report`,
     { method: 'POST', body: JSON.stringify({ reason }) },
+  );
+export const editDiscussionComment = (publicId: string, commentId: string, content: string) =>
+  request<{ status: string; message: string; comment: DiscussionComment }>(
+    `/confessions/${encodeURIComponent(publicId)}/comments/${encodeURIComponent(commentId)}`,
+    { method: 'PATCH', body: JSON.stringify({ content }) },
+  );
+export const deleteDiscussionComment = (publicId: string, commentId: string) =>
+  request<{ status: string; message: string; comment: DiscussionComment }>(
+    `/confessions/${encodeURIComponent(publicId)}/comments/${encodeURIComponent(commentId)}`,
+    { method: 'DELETE' },
   );

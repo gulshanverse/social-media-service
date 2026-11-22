@@ -13,6 +13,7 @@ import { SubmissionRateLimiter } from './rate-limit';
 import {
   CommentDto,
   CommentReportDto,
+  EditCommentDto,
   FIXED_REACTIONS,
   normalizeEmoji,
   normalizeInstagramUsername,
@@ -108,15 +109,24 @@ export class DiscussionService {
     return record;
   }
   private safeComment(comment: any, reactions: ReactionSummary = { counts: {}, selected: [] }) {
+    const deleted = Boolean(comment.deletedAt);
     return {
       id: comment.id,
-      content: comment.content,
+      content: deleted ? 'This comment was deleted.' : comment.content,
       parentId: comment.parentId,
       createdAt: comment.createdAt,
-      profile: publicProfile(comment.profile),
+      deletedAt: comment.deletedAt ?? null,
+      profile: deleted
+        ? {
+            id: 'deleted-comment',
+            displayName: 'Deleted commenter',
+            instagramUsername: null,
+            instagramUrl: null,
+          }
+        : publicProfile(comment.profile),
       replyCount: comment._count?.replies ?? 0,
-      reactionCounts: reactions.counts,
-      selectedReactions: reactions.selected,
+      reactionCounts: deleted ? {} : reactions.counts,
+      selectedReactions: deleted ? [] : reactions.selected,
     };
   }
   private async reactionStates(commentIds: string[], actorHash: string) {
@@ -217,6 +227,7 @@ export class DiscussionService {
           id: dto.parentId,
           confessionId: confession.id,
           status: ConfessionCommentStatus.PUBLISHED,
+          deletedAt: null,
         },
         select: { id: true },
       });
@@ -237,6 +248,110 @@ export class DiscussionService {
       status: 'PUBLISHED',
       message: 'Your comment is now visible.',
       comment: this.safeComment(comment),
+    };
+  }
+  async edit(publicId: string, commentId: string, dto: EditCommentDto, rawToken?: string) {
+    const session = await this.session(rawToken);
+    if (!session) throw new UnauthorizedException('Join the conversation before editing.');
+    const confession = await this.confession(publicId);
+    const comment = await (prisma as any).confessionComment.findFirst({
+      where: {
+        id: commentId,
+        confessionId: confession.id,
+        status: ConfessionCommentStatus.PUBLISHED,
+      },
+      include: { profile: true, _count: { select: { replies: true } } },
+    });
+    if (!comment) throw new NotFoundException('This comment is unavailable.');
+    if (comment.profileId !== session.profileId)
+      throw new HttpException('You can only edit your own comments.', HttpStatus.FORBIDDEN);
+    if (comment.deletedAt) throw new BadRequestException('Deleted comments cannot be edited.');
+    const content = dto.content.trim();
+    if (!content) throw new BadRequestException('Comment content is required.');
+    if (content.length > 1000)
+      throw new BadRequestException('Comments must be 1000 characters or fewer.');
+    const result = await (prisma as any).confessionComment.updateMany({
+      where: {
+        id: comment.id,
+        confessionId: confession.id,
+        profileId: session.profileId,
+        status: ConfessionCommentStatus.PUBLISHED,
+        deletedAt: null,
+      },
+      data: { content },
+    });
+    if (result.count !== 1) {
+      if (comment.profileId !== session.profileId)
+        throw new HttpException('You can only edit your own comments.', HttpStatus.FORBIDDEN);
+      if (comment.deletedAt) throw new BadRequestException('Deleted comments cannot be edited.');
+      throw new NotFoundException('This comment is unavailable.');
+    }
+    const updated = await (prisma as any).confessionComment.findFirst({
+      where: {
+        id: comment.id,
+        confessionId: confession.id,
+        profileId: session.profileId,
+        status: ConfessionCommentStatus.PUBLISHED,
+        deletedAt: null,
+      },
+      include: { profile: true, _count: { select: { replies: true } } },
+    });
+    if (!updated) throw new NotFoundException('This comment is unavailable.');
+    return {
+      status: 'UPDATED',
+      message: 'Your comment was updated.',
+      comment: this.safeComment(updated),
+    };
+  }
+  async delete(publicId: string, commentId: string, rawToken?: string) {
+    const session = await this.session(rawToken);
+    if (!session) throw new UnauthorizedException('Join the conversation before deleting.');
+    const confession = await this.confession(publicId);
+    const comment = await (prisma as any).confessionComment.findFirst({
+      where: {
+        id: commentId,
+        confessionId: confession.id,
+        status: ConfessionCommentStatus.PUBLISHED,
+      },
+      include: { profile: true, _count: { select: { replies: true } } },
+    });
+    if (!comment) throw new NotFoundException('This comment is unavailable.');
+    if (comment.profileId !== session.profileId)
+      throw new HttpException('You can only delete your own comments.', HttpStatus.FORBIDDEN);
+    if (comment.deletedAt) throw new BadRequestException('This comment has already been deleted.');
+    const deletedAt = new Date();
+    const result = await (prisma as any).confessionComment.updateMany({
+      where: {
+        id: comment.id,
+        confessionId: confession.id,
+        profileId: session.profileId,
+        status: ConfessionCommentStatus.PUBLISHED,
+        deletedAt: null,
+      },
+      data: { deletedAt },
+    });
+    if (result.count !== 1) {
+      if (comment.profileId !== session.profileId)
+        throw new HttpException('You can only delete your own comments.', HttpStatus.FORBIDDEN);
+      if (comment.deletedAt)
+        throw new BadRequestException('This comment has already been deleted.');
+      throw new NotFoundException('This comment is unavailable.');
+    }
+    const deleted = await (prisma as any).confessionComment.findFirst({
+      where: {
+        id: comment.id,
+        confessionId: confession.id,
+        profileId: session.profileId,
+        status: ConfessionCommentStatus.PUBLISHED,
+        deletedAt,
+      },
+      include: { profile: true, _count: { select: { replies: true } } },
+    });
+    if (!deleted) throw new NotFoundException('This comment is unavailable.');
+    return {
+      status: 'DELETED',
+      message: 'Your comment was deleted.',
+      comment: this.safeComment(deleted),
     };
   }
   private async commentReactionState(commentId: string, actorHash: string, client: any = prisma) {
@@ -273,6 +388,7 @@ export class DiscussionService {
         id: commentId,
         confessionId: confession.id,
         status: ConfessionCommentStatus.PUBLISHED,
+        deletedAt: null,
       },
       select: { id: true },
     });
@@ -373,6 +489,7 @@ export class DiscussionService {
         id: commentId,
         confessionId: confession.id,
         status: ConfessionCommentStatus.PUBLISHED,
+        deletedAt: null,
       },
       select: { id: true },
     });

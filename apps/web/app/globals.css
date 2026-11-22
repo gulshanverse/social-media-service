@@ -3676,6 +3676,99 @@ body:has(.college-profile-page) .public-header {
   margin-left: auto;
   color: #738098;
 }
+.comment-menu-wrap {
+  position: relative;
+  margin-left: auto;
+}
+.comment-menu-button {
+  min-width: 32px;
+  min-height: 32px;
+  border: 1px solid transparent !important;
+  border-radius: 50%;
+  font-size: 1.2rem !important;
+  line-height: 1;
+}
+.comment-menu-button:hover,
+.comment-menu-button:focus-visible {
+  border-color: #3b4962 !important;
+  background: #182235 !important;
+}
+.comment-menu {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 5px);
+  right: 0;
+  min-width: 150px;
+  padding: 5px;
+  border: 1px solid #33415b;
+  border-radius: 12px;
+  background: #151e2d;
+  box-shadow: 0 16px 32px #0008;
+}
+.comment-menu button {
+  width: 100%;
+  min-height: 36px;
+  padding: 0 10px;
+  border-radius: 8px;
+  text-align: left;
+}
+.comment-menu button:hover,
+.comment-menu button:focus-visible {
+  background: #26334a;
+}
+.comment-card.is-pressing {
+  background: rgba(200, 255, 0, 0.05);
+}
+.comment-edit-box textarea {
+  width: 100%;
+  min-height: 92px;
+  margin: 8px 0 4px;
+  padding: 10px 12px;
+  border: 1px solid #c8ff00;
+  border-radius: 12px;
+  background: #0f1624;
+  color: #fff;
+  resize: vertical;
+}
+.comment-edit-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #8995aa;
+  font-size: 0.72rem;
+}
+.comment-edit-footer div {
+  display: flex;
+  gap: 10px;
+}
+.comment-edit-footer button {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #c7d0df;
+  cursor: pointer;
+}
+.comment-edit-footer .comment-edit-save {
+  background: #c8ff00;
+  color: #0b111b;
+  font-weight: 800;
+}
+.comment-edit-footer button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+.comment-deleted {
+  color: #8995aa !important;
+  font-style: italic;
+}
+.comment-action-error {
+  margin: 6px 0;
+  color: #ff8d9a;
+  font-size: 0.78rem;
+}
 .comment-main > p {
   margin: 10px 0;
   white-space: pre-wrap;
