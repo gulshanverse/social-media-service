@@ -117,12 +117,10 @@ function createHttpApp(nodeEnv: string) {
   });
   app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
     const status = error instanceof HttpException ? error.getStatus() : 500;
-    res
-      .status(status)
-      .json({
-        statusCode: status,
-        message: error instanceof Error ? error.message : 'Internal server error',
-      });
+    res.status(status).json({
+      statusCode: status,
+      message: error instanceof Error ? error.message : 'Internal server error',
+    });
   });
   return app;
 }
