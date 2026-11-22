@@ -203,12 +203,20 @@ async function testCoreFailuresStillPropagate() {
 async function testOwnerCanEditAndSoftDelete() {
   let updateArgs: any;
   let deletedAt: Date | null = null;
-  const editable = { ...comment, profileId: profile.id, deletedAt: null };
+  const editable = {
+    ...comment,
+    profileId: profile.id,
+    deletedAt: null,
+    status: ConfessionCommentStatus.PUBLISHED,
+  };
   setPrismaForTests({
     commenterSession: { findUnique: async () => session, update: async () => ({}) },
     confession: { findFirst: async () => confession },
     confessionComment: {
-      findFirst: async () => editable,
+      findFirst: async (args: any) => {
+        assert.equal(args.where.status, ConfessionCommentStatus.PUBLISHED);
+        return editable;
+      },
       update: async (args: any) => {
         updateArgs = args;
         deletedAt = args.data.deletedAt ?? null;
@@ -237,6 +245,169 @@ async function testOwnerCanEditAndSoftDelete() {
   assert.equal(removed.comment.replyCount, 1);
 }
 
+async function testCommentAuthorizationAndDeletedGuards() {
+  const otherProfile = {
+    id: 'profile-other',
+    displayName: 'Other User',
+    instagramUsername: 'other.user',
+  };
+  const otherComment = {
+    ...comment,
+    profileId: otherProfile.id,
+    profile: otherProfile,
+    status: ConfessionCommentStatus.PUBLISHED,
+    deletedAt: null,
+  };
+  let lastWhere: any;
+  setPrismaForTests({
+    commenterSession: { findUnique: async () => session, update: async () => ({}) },
+    confession: { findFirst: async () => confession },
+    confessionComment: {
+      findFirst: async (args: any) => {
+        lastWhere = args.where;
+        return otherComment;
+      },
+    },
+  } as any);
+  const service = new DiscussionService();
+  await assert.rejects(
+    () => service.edit('public-test', comment.id, { content: 'nope' } as any, 'valid-session-token'),
+    /only edit your own/i,
+  );
+  await assert.rejects(
+    () => service.delete('public-test', comment.id, 'valid-session-token'),
+    /only delete your own/i,
+  );
+  assert.equal(lastWhere.status, ConfessionCommentStatus.PUBLISHED);
+
+  setPrismaForTests({
+    commenterSession: { findUnique: async () => null },
+    confession: { findFirst: async () => confession },
+    confessionComment: { findFirst: async () => otherComment },
+  } as any);
+  await assert.rejects(
+    () => service.edit('public-test', comment.id, { content: 'nope' } as any),
+    /join the conversation/i,
+  );
+  await assert.rejects(() => service.delete('public-test', comment.id), /join the conversation/i);
+
+  const deleted = {
+    ...comment,
+    profileId: profile.id,
+    status: ConfessionCommentStatus.PUBLISHED,
+    deletedAt: now,
+  };
+  setPrismaForTests({
+    commenterSession: { findUnique: async () => session, update: async () => ({}) },
+    confession: { findFirst: async () => confession },
+    confessionComment: { findFirst: async () => deleted },
+  } as any);
+  await assert.rejects(
+    () => service.edit('public-test', comment.id, { content: 'nope' } as any, 'valid-session-token'),
+    /deleted comments cannot be edited/i,
+  );
+  await assert.rejects(
+    () => service.delete('public-test', comment.id, 'valid-session-token'),
+    /already been deleted/i,
+  );
+
+  setPrismaForTests({
+    commenterSession: { findUnique: async () => session, update: async () => ({}) },
+    confession: { findFirst: async () => confession },
+    confessionComment: {
+      findFirst: async (args: any) => {
+        assert.equal(args.where.deletedAt, null);
+        return null;
+      },
+    },
+  } as any);
+  await assert.rejects(
+    () => service.create('public-test', { content: 'reply', parentId: comment.id } as any, 'valid-session-token', 'deleted-parent-ip'),
+    /reply target is unavailable/i,
+  );
+
+  setPrismaForTests({
+    commenterSession: { findUnique: async () => null },
+    confession: { findFirst: async () => confession },
+    confessionComment: { findFirst: async () => null },
+  } as any);
+  await assert.rejects(
+    () => service.reactToComment('public-test', comment.id, { emoji: '❤️' } as any, undefined, 'deleted-reaction-ip'),
+    /comment is unavailable/i,
+  );
+  await assert.rejects(
+    () => service.report('public-test', comment.id, { reason: 'OTHER' } as any, 'deleted-report-ip'),
+    /comment is unavailable/i,
+  );
+}
+
+async function testDeletedTreeIsRedactedAndRepliesPreserved() {
+  const deletedParent = {
+    ...comment,
+    status: ConfessionCommentStatus.PUBLISHED,
+    deletedAt: now,
+  };
+  const activeReply = {
+    ...nestedReply,
+    status: ConfessionCommentStatus.PUBLISHED,
+    deletedAt: null,
+  };
+  setPrismaForTests({
+    commenterSession: { findUnique: async () => null },
+    confession: { findFirst: async () => confession },
+    confessionComment: {
+      findMany: async (args: any) =>
+        args.where.parentId === null
+          ? [deletedParent]
+          : args.where.parentId?.in?.includes(deletedParent.id)
+            ? [activeReply]
+            : [],
+      count: async () => 1,
+    },
+    confessionCommentReaction: {
+      groupBy: async () => [],
+      findMany: async () => [],
+    },
+  } as any);
+  const result = await new DiscussionService().list('public-test');
+  assert.equal(result.items[0].content, 'This comment was deleted.');
+  assert.equal(result.items[0].profile.displayName, 'Deleted commenter');
+  assert.equal(result.items[0].profile.id, 'deleted-comment');
+  assert.deepEqual(result.items[0].reactionCounts, {});
+  assert.equal(result.items[0].replies.length, 1);
+  assert.equal(result.items[0].replies[0].content, activeReply.content);
+}
+
+async function testEditInputIsTrimmedAndValidated() {
+  let updatedContent = '';
+  const editable = {
+    ...comment,
+    profileId: profile.id,
+    status: ConfessionCommentStatus.PUBLISHED,
+    deletedAt: null,
+  };
+  setPrismaForTests({
+    commenterSession: { findUnique: async () => session, update: async () => ({}) },
+    confession: { findFirst: async () => confession },
+    confessionComment: { findFirst: async () => editable },
+  } as any);
+  (prisma as any).confessionComment.update = async (args: any) => {
+    updatedContent = args.data.content;
+    return { ...editable, content: updatedContent };
+  };
+  const service = new DiscussionService();
+  await service.edit('public-test', comment.id, { content: '  trimmed  ' } as any, 'valid-session-token');
+  assert.equal(updatedContent, 'trimmed');
+  await assert.rejects(
+    () => service.edit('public-test', comment.id, { content: '   ' } as any, 'valid-session-token'),
+    /content is required/i,
+  );
+  await assert.rejects(
+    () => service.edit('public-test', comment.id, { content: 'x'.repeat(1001) } as any, 'valid-session-token'),
+    /1000 characters/i,
+  );
+}
+
 async function main() {
   try {
     await testCreatePublishesImmediately();
@@ -245,6 +416,9 @@ async function main() {
     await testCommentReactionCreatesAndRemoves();
     await testCoreFailuresStillPropagate();
     await testOwnerCanEditAndSoftDelete();
+    await testCommentAuthorizationAndDeletedGuards();
+    await testDeletedTreeIsRedactedAndRepliesPreserved();
+    await testEditInputIsTrimmedAndValidated();
     console.log('discussion service publication and reaction fallback tests passed');
   } finally {
     setPrismaForTests(realPrisma);

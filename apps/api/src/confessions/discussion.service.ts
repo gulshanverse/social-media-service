@@ -255,7 +255,11 @@ export class DiscussionService {
     if (!session) throw new UnauthorizedException('Join the conversation before editing.');
     const confession = await this.confession(publicId);
     const comment = await (prisma as any).confessionComment.findFirst({
-      where: { id: commentId, confessionId: confession.id },
+      where: {
+        id: commentId,
+        confessionId: confession.id,
+        status: ConfessionCommentStatus.PUBLISHED,
+      },
       include: { profile: true, _count: { select: { replies: true } } },
     });
     if (!comment) throw new NotFoundException('This comment is unavailable.');
@@ -282,7 +286,11 @@ export class DiscussionService {
     if (!session) throw new UnauthorizedException('Join the conversation before deleting.');
     const confession = await this.confession(publicId);
     const comment = await (prisma as any).confessionComment.findFirst({
-      where: { id: commentId, confessionId: confession.id },
+      where: {
+        id: commentId,
+        confessionId: confession.id,
+        status: ConfessionCommentStatus.PUBLISHED,
+      },
       include: { profile: true, _count: { select: { replies: true } } },
     });
     if (!comment) throw new NotFoundException('This comment is unavailable.');

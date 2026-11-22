@@ -282,6 +282,7 @@ model ConfessionComment {
   @@index([confessionId, status, parentId, createdAt])
   @@index([parentId, status, createdAt])
   @@index([profileId, createdAt])
+  @@index([deletedAt])
 }
 
 model ConfessionReaction {
