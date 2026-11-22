@@ -251,9 +251,9 @@ export function ShareMenu({ url, title, buttonContent, buttonClassName }: ShareM
     if (!navigator.share) return 'unsupported';
     try {
       await navigator.share({
-  title,
-  text: `${SHARE_MESSAGE}\n\n${url}\n\n🌷Explore Live Confessions:👇🏻\n${EXPLORE_URL}`,
-});
+        title,
+        text: `${SHARE_MESSAGE}\n\n${url}\n\n🌷Explore Live Confessions:👇🏻\n${EXPLORE_URL}`,
+      });
       return 'shared';
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return 'cancelled';
@@ -267,10 +267,10 @@ export function ShareMenu({ url, title, buttonContent, buttonClassName }: ShareM
       const file = await getShareImageFile();
       if (!navigator.canShare({ files: [file] })) return 'unsupported';
       await navigator.share({
-  title,
-  text: `${SHARE_MESSAGE}\n\n${url}\n\n🌷Explore Live Confessions:👇🏻\n${EXPLORE_URL}`,
-  files: [file],
-});
+        title,
+        text: `${SHARE_MESSAGE}\n\n${url}\n\n🌷Explore Live Confessions:👇🏻\n${EXPLORE_URL}`,
+        files: [file],
+      });
       return 'shared';
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return 'cancelled';
@@ -331,9 +331,7 @@ export function ShareMenu({ url, title, buttonContent, buttonClassName }: ShareM
         if (nativeResult === 'cancelled') return;
         const message = `${WHATSAPP_MESSAGE}\n\n${url}\n\n🌷 Explore Live Confessions:👇🏻\n${EXPLORE_URL}`;
 
-const opened = openExternal(
-  `https://wa.me/?text=${encodeURIComponent(message)}`,
-);
+        const opened = openExternal(`https://wa.me/?text=${encodeURIComponent(message)}`);
         if (opened) close();
         else {
           setShowImageDownload(true);
