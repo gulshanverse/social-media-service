@@ -5,6 +5,19 @@ import { DiscussionService } from './discussion.service';
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
 
+function assertSafeDatabaseUrl(value: string) {
+  const parsed = new URL(value);
+  const target = `${parsed.hostname}${parsed.pathname}`.toLowerCase();
+  if (process.env.NODE_ENV === 'production' || /prod|production|staging|stage|live/.test(target)) {
+    throw new Error('Refusing to run integration tests against a production or staging database');
+  }
+  if (!/test|integration|disposable/.test(target)) {
+    throw new Error(
+      'TEST_DATABASE_URL must identify a disposable test database (include test, integration, or disposable)',
+    );
+  }
+}
+
 async function main() {
   if (!databaseUrl) {
     console.log(
@@ -12,6 +25,7 @@ async function main() {
     );
     return;
   }
+  assertSafeDatabaseUrl(databaseUrl);
 
   const client = new PrismaClient({ datasources: { db: { url: databaseUrl } } });
   const publicId = `discussion-integration-${Date.now()}`;
