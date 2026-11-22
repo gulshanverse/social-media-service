@@ -65,7 +65,7 @@ function createHttpApp(nodeEnv: string) {
       res.setHeader('Vary', 'Origin');
     }
     if (req.method === 'OPTIONS') {
-      res.setHeader('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS');
+      res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS');
       res.setHeader('Access-Control-Allow-Headers', 'content-type');
       res.status(204).end();
       return;
@@ -152,6 +152,15 @@ async function verifyCommentMutationRoutes() {
     .set('Origin', 'https://evil.example')
     .send({ content: 'Bad origin' })
     .expect(403);
+  const preflight = await request(app)
+    .options(base)
+    .set('Origin', trustedOrigin)
+    .set('Access-Control-Request-Method', 'PATCH')
+    .set('Access-Control-Request-Headers', 'content-type')
+    .expect(204);
+  assert.equal(preflight.headers['access-control-allow-origin'], trustedOrigin);
+  assert.match(preflight.headers['access-control-allow-methods'], /PATCH/);
+  assert.equal(preflight.headers['access-control-allow-credentials'], 'true');
   await request(app).patch(base).set(owner).send({ content: '   ' }).expect(400);
   await request(app)
     .patch(base)

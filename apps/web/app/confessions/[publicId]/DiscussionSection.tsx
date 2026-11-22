@@ -111,7 +111,7 @@ function updateComment(
   return items.map((comment) =>
     comment.id === commentId
       ? updater(comment)
-      : { ...comment, replies: updateComment(comment.replies, commentId, updater) },
+      : { ...comment, replies: updateComment(comment.replies ?? [], commentId, updater) },
   );
 }
 
@@ -389,7 +389,19 @@ export default function DiscussionSection({
   function updateLocalComment(commentId: string, next: DiscussionComment) {
     setDiscussion((current) =>
       current
-        ? { ...current, items: updateComment(current.items, commentId, () => next) }
+        ? {
+            ...current,
+            items: updateComment(current.items, commentId, (comment) => ({
+              ...comment,
+              ...next,
+              // Editing changes only the body. Preserve the rendered tree and
+              // engagement state returned by the current discussion snapshot.
+              replies: comment.replies ?? [],
+              replyCount: comment.replyCount,
+              reactionCounts: comment.reactionCounts ?? next.reactionCounts ?? {},
+              selectedReactions: comment.selectedReactions ?? next.selectedReactions ?? [],
+            })),
+          }
         : current,
     );
   }

@@ -432,6 +432,95 @@ describe('College Confession engagement redesign', () => {
     unmount();
   });
 
+  it('preserves the full reply tree, reply counts, and reactions when editing top-level and nested comments', async () => {
+    const nestedChild = {
+      ...comment,
+      id: 'nested-child',
+      parentId: 'nested-reply',
+      content: 'Nested child reply',
+      reactionCounts: { '❤️': 2, '😂': 0, '👍': 0 },
+    };
+    const nestedReply = {
+      ...comment,
+      id: 'nested-reply',
+      parentId: 'root-comment',
+      content: 'Nested reply',
+      replyCount: 1,
+      replies: [nestedChild],
+      reactionCounts: { '❤️': 3, '😂': 0, '👍': 0 },
+    };
+    const root = {
+      ...comment,
+      id: 'root-comment',
+      content: 'Root comment',
+      replyCount: 2,
+      replies: [nestedReply],
+      reactionCounts: { '❤️': 4, '😂': 0, '👍': 0 },
+    };
+    discussionApi.getCommenterIdentity.mockResolvedValue({ ...comment.profile, id: 'profile-1' });
+    discussionApi.getDiscussion.mockResolvedValue({
+      items: [root],
+      page: 1,
+      limit: 20,
+      total: 1,
+      hasMore: false,
+    });
+    discussionApi.editDiscussionComment
+      .mockResolvedValueOnce({
+        status: 'UPDATED',
+        message: 'Updated.',
+        comment: { ...root, content: 'Edited root', replies: [], reactionCounts: {} },
+      })
+      .mockResolvedValueOnce({
+        status: 'UPDATED',
+        message: 'Updated.',
+        comment: { ...nestedReply, content: 'Edited nested', replies: [], reactionCounts: {} },
+      });
+
+    render(<DiscussionSection publicId="conf-1" confession={confession} />);
+    expect(await screen.findByText('Root comment')).toBeInTheDocument();
+    expect(screen.getByText('Nested reply')).toBeInTheDocument();
+    expect(screen.getByText('Nested child reply')).toBeInTheDocument();
+
+    const rootCard = screen.getByText('Root comment').closest('article') as HTMLElement;
+    fireEvent.click(within(rootCard).getAllByRole('button', { name: 'Comment actions' })[0]);
+    fireEvent.click(within(rootCard).getByRole('menuitem', { name: 'Edit comment' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Edit comment' }), {
+      target: { value: 'Edited root' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(screen.getByText('Edited root')).toBeInTheDocument());
+    expect(screen.getByText('Nested reply')).toBeInTheDocument();
+    expect(screen.getByText('Nested child reply')).toBeInTheDocument();
+    expect(within(rootCard).getByRole('button', { name: '❤️ reaction, 4' })).toBeInTheDocument();
+
+    const nestedCard = screen.getByText('Nested reply').closest('article') as HTMLElement;
+    fireEvent.click(within(nestedCard).getAllByRole('button', { name: 'Comment actions' })[0]);
+    fireEvent.click(within(nestedCard).getByRole('menuitem', { name: 'Edit comment' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Edit comment' }), {
+      target: { value: 'Edited nested' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(screen.getByText('Edited nested')).toBeInTheDocument());
+    expect(screen.getByText('Edited root')).toBeInTheDocument();
+    expect(screen.getByText('Nested child reply')).toBeInTheDocument();
+    expect(within(nestedCard).getByRole('button', { name: '❤️ reaction, 3' })).toBeInTheDocument();
+    expect(discussionApi.editDiscussionComment).toHaveBeenNthCalledWith(
+      1,
+      'conf-1',
+      'root-comment',
+      'Edited root',
+    );
+    expect(discussionApi.editDiscussionComment).toHaveBeenNthCalledWith(
+      2,
+      'conf-1',
+      'nested-reply',
+      'Edited nested',
+    );
+  });
+
   it('requires confirmation before deleting and renders the deleted placeholder', async () => {
     discussionApi.getCommenterIdentity.mockResolvedValue({ ...comment.profile, id: 'profile-1' });
     discussionApi.deleteDiscussionComment.mockResolvedValue({
