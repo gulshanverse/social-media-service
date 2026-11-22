@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { BadRequestException, HttpException, HttpStatus, NotFoundException } from '@nestjs/common';
 import { ConfessionCommentStatus, ConfessionStatus } from '@prisma/client';
 import { prisma, setPrismaForTests } from '../admin-auth';
 import { DiscussionService } from './discussion.service';
@@ -203,6 +204,7 @@ async function testCoreFailuresStillPropagate() {
 async function testOwnerCanEditAndSoftDelete() {
   let updateArgs: any;
   let deletedAt: Date | null = null;
+  let findCount = 0;
   const editable = {
     ...comment,
     profileId: profile.id,
@@ -215,17 +217,15 @@ async function testOwnerCanEditAndSoftDelete() {
     confessionComment: {
       findFirst: async (args: any) => {
         assert.equal(args.where.status, ConfessionCommentStatus.PUBLISHED);
-        return editable;
+        findCount += 1;
+        return findCount === 1 || findCount === 3
+          ? editable
+          : { ...editable, content: 'Updated text', deletedAt, _count: { replies: 1 } };
       },
-      update: async (args: any) => {
+      updateMany: async (args: any) => {
         updateArgs = args;
         deletedAt = args.data.deletedAt ?? null;
-        return {
-          ...editable,
-          content: args.data.content ?? editable.content,
-          deletedAt,
-          _count: { replies: 1 },
-        };
+        return { count: 1 };
       },
     },
   } as any);
@@ -237,6 +237,8 @@ async function testOwnerCanEditAndSoftDelete() {
     'valid-session-token',
   );
   assert.equal(updateArgs.data.content, 'Updated text');
+  assert.equal(updateArgs.where.profileId, profile.id);
+  assert.equal(updateArgs.where.deletedAt, null);
   assert.equal(edited.comment.content, 'Updated text');
   const removed = await service.delete('public-test', comment.id, 'valid-session-token');
   assert.equal(updateArgs.data.deletedAt instanceof Date, true);
@@ -405,12 +407,14 @@ async function testEditInputIsTrimmedAndValidated() {
   setPrismaForTests({
     commenterSession: { findUnique: async () => session, update: async () => ({}) },
     confession: { findFirst: async () => confession },
-    confessionComment: { findFirst: async () => editable },
+    confessionComment: {
+      findFirst: async () => ({ ...editable, content: updatedContent || editable.content }),
+      updateMany: async (args: any) => {
+        updatedContent = args.data.content;
+        return { count: 1 };
+      },
+    },
   } as any);
-  (prisma as any).confessionComment.update = async (args: any) => {
-    updatedContent = args.data.content;
-    return { ...editable, content: updatedContent };
-  };
   const service = new DiscussionService();
   await service.edit(
     'public-test',
@@ -435,6 +439,53 @@ async function testEditInputIsTrimmedAndValidated() {
   );
 }
 
+async function testConditionalWriteRejectsRacesAndWrongOwner() {
+  const current = { ...comment, profileId: profile.id, deletedAt: null };
+  let updateCalls = 0;
+  setPrismaForTests({
+    commenterSession: { findUnique: async () => session, update: async () => ({}) },
+    confession: { findFirst: async () => confession },
+    confessionComment: {
+      findFirst: async () => current,
+      updateMany: async (args: any) => {
+        assert.equal(args.where.id, comment.id);
+        assert.equal(args.where.confessionId, confession.id);
+        assert.equal(args.where.profileId, profile.id);
+        assert.equal(args.where.status, ConfessionCommentStatus.PUBLISHED);
+        assert.equal(args.where.deletedAt, null);
+        updateCalls += 1;
+        return { count: 0 };
+      },
+    },
+  } as any);
+  const service = new DiscussionService();
+  await assert.rejects(
+    () =>
+      service.edit('public-test', comment.id, { content: 'raced' } as any, 'valid-session-token'),
+    (error) => error instanceof NotFoundException,
+  );
+  await assert.rejects(
+    () => service.delete('public-test', comment.id, 'valid-session-token'),
+    (error) => error instanceof NotFoundException,
+  );
+  assert.equal(updateCalls, 2, 'both operations must use a conditional write');
+
+  const other = { ...comment, profileId: 'other-profile' };
+  setPrismaForTests({
+    commenterSession: { findUnique: async () => session, update: async () => ({}) },
+    confession: { findFirst: async () => confession },
+    confessionComment: {
+      findFirst: async () => other,
+      updateMany: async () => ({ count: 0 }),
+    },
+  } as any);
+  await assert.rejects(
+    () =>
+      service.edit('public-test', comment.id, { content: 'nope' } as any, 'valid-session-token'),
+    (error) => error instanceof HttpException && error.getStatus() === HttpStatus.FORBIDDEN,
+  );
+}
+
 async function main() {
   try {
     await testCreatePublishesImmediately();
@@ -446,6 +497,7 @@ async function main() {
     await testCommentAuthorizationAndDeletedGuards();
     await testDeletedTreeIsRedactedAndRepliesPreserved();
     await testEditInputIsTrimmedAndValidated();
+    await testConditionalWriteRejectsRacesAndWrongOwner();
     console.log('discussion service publication and reaction fallback tests passed');
   } finally {
     setPrismaForTests(realPrisma);

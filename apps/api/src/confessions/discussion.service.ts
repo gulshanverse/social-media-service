@@ -270,11 +270,33 @@ export class DiscussionService {
     if (!content) throw new BadRequestException('Comment content is required.');
     if (content.length > 1000)
       throw new BadRequestException('Comments must be 1000 characters or fewer.');
-    const updated = await (prisma as any).confessionComment.update({
-      where: { id: comment.id },
+    const result = await (prisma as any).confessionComment.updateMany({
+      where: {
+        id: comment.id,
+        confessionId: confession.id,
+        profileId: session.profileId,
+        status: ConfessionCommentStatus.PUBLISHED,
+        deletedAt: null,
+      },
       data: { content },
+    });
+    if (result.count !== 1) {
+      if (comment.profileId !== session.profileId)
+        throw new HttpException('You can only edit your own comments.', HttpStatus.FORBIDDEN);
+      if (comment.deletedAt) throw new BadRequestException('Deleted comments cannot be edited.');
+      throw new NotFoundException('This comment is unavailable.');
+    }
+    const updated = await (prisma as any).confessionComment.findFirst({
+      where: {
+        id: comment.id,
+        confessionId: confession.id,
+        profileId: session.profileId,
+        status: ConfessionCommentStatus.PUBLISHED,
+        deletedAt: null,
+      },
       include: { profile: true, _count: { select: { replies: true } } },
     });
+    if (!updated) throw new NotFoundException('This comment is unavailable.');
     return {
       status: 'UPDATED',
       message: 'Your comment was updated.',
@@ -297,11 +319,35 @@ export class DiscussionService {
     if (comment.profileId !== session.profileId)
       throw new HttpException('You can only delete your own comments.', HttpStatus.FORBIDDEN);
     if (comment.deletedAt) throw new BadRequestException('This comment has already been deleted.');
-    const deleted = await (prisma as any).confessionComment.update({
-      where: { id: comment.id },
-      data: { deletedAt: new Date() },
+    const deletedAt = new Date();
+    const result = await (prisma as any).confessionComment.updateMany({
+      where: {
+        id: comment.id,
+        confessionId: confession.id,
+        profileId: session.profileId,
+        status: ConfessionCommentStatus.PUBLISHED,
+        deletedAt: null,
+      },
+      data: { deletedAt },
+    });
+    if (result.count !== 1) {
+      if (comment.profileId !== session.profileId)
+        throw new HttpException('You can only delete your own comments.', HttpStatus.FORBIDDEN);
+      if (comment.deletedAt)
+        throw new BadRequestException('This comment has already been deleted.');
+      throw new NotFoundException('This comment is unavailable.');
+    }
+    const deleted = await (prisma as any).confessionComment.findFirst({
+      where: {
+        id: comment.id,
+        confessionId: confession.id,
+        profileId: session.profileId,
+        status: ConfessionCommentStatus.PUBLISHED,
+        deletedAt,
+      },
       include: { profile: true, _count: { select: { replies: true } } },
     });
+    if (!deleted) throw new NotFoundException('This comment is unavailable.');
     return {
       status: 'DELETED',
       message: 'Your comment was deleted.',
