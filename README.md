@@ -747,3 +747,11 @@ The Google account-verification metadata remains in the public app, and the real
 The confession feed and individual user-submitted confession pages are public but `noindex` and excluded from the sitemap while the team reviews privacy and safety. The report and submission routes are also `noindex`; important informational and policy pages remain in the sitemap. The admin app is `noindex` and disallows crawlers. All new confessions remain pending for human approval. Moderator screens display a checklist for identifying details, requests to locate/contact people, harassment, and other safety issues.
 
 Public confession reports are limited per client IP in process memory and include a `Retry-After` response when throttled. This is a basic single-process abuse control, not a distributed limiter; if API traffic is scaled across multiple instances, use shared storage before relying on a global quota.
+## Copyright
+Copyright (c) 2026 Gulshan Kumar. All rights reserved.
+
+This software and its source code are proprietary and confidential.
+
+No permission is granted to use, copy, modify, distribute, sublicense, or create derivative works from this software without prior written permission from the copyright holder.
+
+Unauthorized use, reproduction, or distribution is prohibited.
